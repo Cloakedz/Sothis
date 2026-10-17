@@ -1,0 +1,123 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<title>Sothis · Retro</title>
+<style>
+html, body { margin: 0; height: 100%; background: #0b0b0f; overflow: hidden; color: #f1f2f6; font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+#game { width: 100%; height: 100%; }
+#err { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 24px; box-sizing: border-box; }
+#err.on { display: flex; }
+#err b { display: block; font-size: 18px; margin-bottom: 6px; }
+#err span { color: #a7abb9; font-size: 13px; }
+#note { position: fixed; left: 50%; top: 14px; transform: translateX(-50%); z-index: 99; padding: 7px 14px; border-radius: 999px; background: rgba(10, 10, 14, .85); border: 1px solid rgba(255, 77, 115, .45); font-size: 12.5px; opacity: 0; transition: opacity .3s; pointer-events: none; }
+#note.on { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="note"></div>
+<div id="err"><div><b>This game couldn't start</b><span id="errT"></span></div></div>
+<script>
+  const q = new URLSearchParams(location.search);
+  document.title = (q.get("name") || "Game") + " · " + (q.get("sys") || "Retro");
+  window.EJS_player = "#game";
+  window.EJS_core = q.get("core");
+  window.EJS_gameUrl = q.get("rom");
+  window.EJS_gameName = q.get("name") || "game";
+  window.EJS_gameID = 0;
+  window.EJS_pathtodata = "data/";
+  window.EJS_DEBUG_XX = true;              // use the bundled (non-minified) emulator files
+  window.EJS_startOnLoaded = true;
+  window.EJS_threads = false;
+  window.EJS_language = "en-US";
+  window.EJS_disableAutoLang = false;
+  window.EJS_color = "#ff2d46";
+  window.EJS_backgroundColor = "#0b0b0f";
+  window.EJS_Buttons = { netplay: false, contextMenu: true };
+  window.EJS_defaultOptions = { "save-state-location": "browser" };
+  // write the game's save file before the window closes
+  const flush = () => { try { const e = window.EJS_emulator; if (e && e.started && e.gameManager) e.gameManager.saveSaveFiles(); } catch {} };
+  // Resume: a save state is kept when you leave the game and loaded again next time you open it
+  const RESUME_KEY = (q.get("core") || "") + "|" + (q.get("name") || "");
+  const idb = () => new Promise((res, rej) => { const r = indexedDB.open("sothis-resume", 1); r.onupgradeneeded = () => r.result.createObjectStore("s"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  const idbPut = async (k, v) => { const db = await idb(); return new Promise(res => { const t = db.transaction("s", "readwrite"); t.objectStore("s").put(v, k); t.oncomplete = () => res(true); t.onerror = () => res(false); }); };
+  const idbGet = async k => { const db = await idb(); return new Promise(res => { const r = db.transaction("s").objectStore("s").get(k); r.onsuccess = () => res(r.result || null); r.onerror = () => res(null); }); };
+  const canState = () => { try { const e = window.EJS_emulator; return !!(e && e.started && e.gameManager && e.gameManager.supportsStates()); } catch { return false; } };
+  async function saveResume() { if (!canState()) return; try { await idbPut(RESUME_KEY, { at: Date.now(), state: window.EJS_emulator.gameManager.getState() }); } catch {} }
+  let noteT = null;
+  const note = t => { const n = document.getElementById("note"); n.textContent = t; n.classList.add("on"); clearTimeout(noteT); noteT = setTimeout(() => n.classList.remove("on"), 3500); };
+  window.EJS_onGameStart = () => {
+    setTimeout(async () => {
+      try { const r = await idbGet(RESUME_KEY); if (r && r.state && canState()) { window.EJS_emulator.gameManager.loadState(r.state); note("Picked up where you left off"); } } catch {}
+    }, 800);
+  };
+  setInterval(saveResume, 120000);   // also every 2 minutes, in case Sothis is closed mid-game
+  const leave = async () => { flush(); await saveResume(); };
+  window.sothisLeave = () => leave().then(() => true);
+  window.sothisSave = () => saveResume().then(() => true);
+  // Save backup: Sothis copies each game's save file and resume spot to your backup folder, and brings them back if this PC loses them
+  const b64 = u8 => { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+  const unb64 = t => { const s = atob(t), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; };
+  const started = () => { try { const e = window.EJS_emulator; return !!(e && e.started && e.gameManager); } catch { return false; } };
+  window.sothisExport = async () => {
+    if (!started()) return null;
+    const out = { core: q.get("core") || "", name: q.get("name") || "", sys: q.get("sys") || "", save: null, state: null };
+    try { const f = window.EJS_emulator.gameManager.getSaveFile(true); if (f && f.length) out.save = b64(f); } catch {}
+    try { const r = await idbGet(RESUME_KEY); if (r && r.state && r.state.length) out.state = { at: r.at || 0, data: b64(r.state) }; } catch {}
+    return out;
+  };
+  window.sothisLocal = async () => {
+    if (!started()) return null;
+    let hasSave = false, hasState = false;
+    try { const gm = window.EJS_emulator.gameManager, p = gm.getSaveFilePath(), a = gm.FS.analyzePath(p); hasSave = !!(a.exists && gm.FS.stat(p).size > 0); } catch {}
+    try { const r = await idbGet(RESUME_KEY); hasState = !!(r && r.state); } catch {}
+    return { core: q.get("core") || "", name: q.get("name") || "", hasSave, hasState };
+  };
+  window.sothisImport = async pay => {
+    if (!started() || !pay) return false;
+    const gm = window.EJS_emulator.gameManager; let did = false;
+    if (pay.save) { try { const p = gm.getSaveFilePath(), dir = p.slice(0, p.lastIndexOf("/")); try { gm.FS.mkdirTree ? gm.FS.mkdirTree(dir) : gm.FS.mkdir(dir); } catch {} gm.FS.writeFile(p, unb64(pay.save)); gm.loadSaveFiles(); did = true; } catch {} }
+    if (pay.state) { try { const st = unb64(pay.state); await idbPut(RESUME_KEY, { at: Date.now(), state: st }); if (canState()) gm.loadState(st); did = true; } catch {} }
+    if (did) note("Save brought back from your backup");
+    return did;
+  };
+  // Cheats, managed from Sothis's cheat panel (kept per game, like the emulator's own cheat menu)
+  const emu = () => window.EJS_emulator;
+  const cheatsSave = () => { try { emu().updateCheatUI(); emu().saveSettings(); } catch {} };
+  window.sothisCheats = () => { try { return (emu().cheats || []).map((c, i) => ({ i, desc: c.desc, code: c.code, on: !!c.checked })); } catch { return []; } };
+  window.sothisCheatAdd = (desc, code, on) => { try { const e = emu(); if (e.cheats.some(c => c.code === code)) return false; e.cheats.push({ desc, code, checked: !!on }); cheatsSave(); return true; } catch { return false; } };
+  window.sothisCheatSet = (i, on) => { try { const e = emu(), c = e.cheats[i]; if (!c) return false; c.checked = !!on; cheatsSave(); return true; } catch { return false; } };
+  window.sothisCheatDel = i => { try { const e = emu(); e.cheatChanged(false, e.cheats[i].code, i); e.cheats.splice(i, 1); cheatsSave(); return true; } catch { return false; } };
+  // Inside Sothis: the emulator's fullscreen button uses Sothis's own fullscreen (real fullscreen freezes the see-through window)
+  if (q.get("inline") === "1") {
+    let fake = false;
+    const tell = on => { fake = on; console.log("SOTHIS:full:" + (on ? 1 : 0)); document.dispatchEvent(new Event("fullscreenchange")); };
+    const req = function () { tell(true); return Promise.resolve(); };
+    Element.prototype.requestFullscreen = req; Element.prototype.webkitRequestFullscreen = req;
+    document.exitFullscreen = function () { tell(false); return Promise.resolve(); }; document.webkitExitFullscreen = document.exitFullscreen;
+    Object.defineProperty(document, "fullscreenElement", { configurable: true, get: () => fake ? document.getElementById("game") : null });
+    Object.defineProperty(document, "webkitFullscreenElement", { configurable: true, get: () => fake ? document.getElementById("game") : null });
+    window.__sothisSetFull = on => { if (on !== fake) { fake = on; document.dispatchEvent(new Event("fullscreenchange")); } };
+    window.addEventListener("keydown", e => { if (e.key === "Escape" && fake) { e.preventDefault(); tell(false); } }, true);
+  }
+  window.emuHost && window.emuHost.onClosing(() => { leave().finally(() => setTimeout(() => window.emuHost.saved(), 400)); });
+  setInterval(flush, 60000);
+  window.addEventListener("error", e => {
+    if (window.EJS_emulator && window.EJS_emulator.started) return;
+    document.getElementById("errT").textContent = String(e.message || "Unknown error");
+  });
+  window.EJS_ready = () => {};
+  // When Sothis shows the game inside its own window: mute when you switch tabs, save before closing
+  let hostMute = false;
+  const gain = v => { try { const c = window.EJS_emulator.Module.AL.currentCtx; if (c) c.sources.forEach(x => { x.gain.gain.value = v; }); } catch {} };
+  setInterval(() => { if (hostMute) gain(0); }, 400);
+  window.addEventListener("message", e => {
+    if (e.source !== window.parent || !e.data || e.data.sothis !== 1) return;
+    const em = window.EJS_emulator;
+    if (e.data.cmd === "mute") { hostMute = true; gain(0); saveResume(); }
+    else if (e.data.cmd === "unmute") { hostMute = false; gain(em && !em.muted ? em.volume : 0); }
+    else if (e.data.cmd === "save") { leave().finally(() => setTimeout(() => window.parent.postMessage({ sothis: 1, saved: true }, "*"), 400)); }
+    else if (e.data.cmd === "focus") { try { window.focus(); const cv = document.querySelector("#game canvas"); if (cv) { cv.tabIndex = 0; cv.focus(); } } catch {} }
+  });
+</script>
+<script src="data/loader.js"></script>
+</body></html>

@@ -1,0 +1,226 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>OBS</title>
+<style>
+:root { --ink: #f1f2f6; --muted: #a7abb9; --line: rgba(255, 255, 255, .12); --accent: #ff4d73; --red: #ff3b47; --good: #3ccf8e; --track: #33353f; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: transparent; color: var(--ink); font: 13px/1.3 "Segoe UI", system-ui, sans-serif; user-select: none; overflow: hidden; }
+.win { height: 100%; display: flex; flex-direction: column; border-radius: 18px; overflow: hidden; background: rgba(10, 10, 14, .9); border: 1px solid var(--line); }
+.head { display: flex; align-items: center; gap: 8px; padding: 10px 10px 8px 14px; -webkit-app-region: drag; }
+.head b { flex: 1; font-size: .78rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--track); }
+.dot.on { background: var(--good); box-shadow: 0 0 6px var(--good); }
+.x { -webkit-app-region: no-drag; width: 26px; height: 26px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
+.x:hover { background: rgba(255, 255, 255, .08); color: var(--ink); }
+.x svg { width: 14px; height: 14px; }
+.body { flex: 1; min-height: 0; overflow-y: auto; padding: 0 12px 12px; display: flex; flex-direction: column; gap: 10px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.big { border: 1px solid var(--line); background: rgba(255, 255, 255, .04); color: var(--ink); border-radius: 14px; padding: 10px 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; font: inherit; font-weight: 700; }
+.big:hover { background: rgba(255, 255, 255, .08); }
+.big svg { width: 20px; height: 20px; }
+.big small { font: 600 .68rem/1 Consolas, monospace; color: var(--muted); font-variant-numeric: tabular-nums; }
+.big.live { background: rgba(255, 59, 71, .16); border-color: rgba(255, 59, 71, .6); color: #fff; box-shadow: 0 0 14px rgba(255, 59, 71, .25); }
+.big.live small { color: #ffb3b8; }
+.big.live svg { color: var(--red); }
+.big:disabled { opacity: .35; cursor: default; }
+.k { font: 600 .62rem/1.2 Consolas, monospace; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 2px 2px -2px; }
+.scenes { display: flex; flex-direction: column; gap: 4px; }
+.sc { border: 1px solid transparent; background: rgba(255, 255, 255, .04); color: var(--ink); border-radius: 10px; padding: 8px 10px; text-align: left; cursor: pointer; font: inherit; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc:hover { background: rgba(255, 255, 255, .08); }
+.sc.cur { border-color: rgba(255, 77, 115, .6); background: rgba(255, 77, 115, .14); }
+.mutes { display: flex; flex-direction: column; gap: 6px; }
+.au { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 12px; background: rgba(255, 255, 255, .04); border: 1px solid transparent; }
+.au.off { border-color: rgba(255, 59, 71, .4); }
+.mu { -webkit-app-region: no-drag; width: 30px; height: 30px; flex: none; border: 0; border-radius: 9px; background: rgba(255, 255, 255, .06); color: var(--ink); cursor: pointer; display: grid; place-items: center; position: relative; }
+.mu:hover { background: rgba(255, 255, 255, .12); }
+.mu svg { width: 16px; height: 16px; }
+.au.off .mu { color: var(--red); background: rgba(255, 59, 71, .14); }
+.au.off .mu::after { content: ""; position: absolute; width: 20px; height: 2px; background: var(--red); border-radius: 2px; transform: rotate(-45deg); }
+.au-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.au-top { display: flex; justify-content: space-between; gap: 6px; font-weight: 600; font-size: .78rem; }
+.au-top span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.au-top span:last-child { color: var(--muted); font: 600 .7rem/1.4 Consolas, monospace; font-variant-numeric: tabular-nums; }
+.au.off .au-top span:last-child { color: var(--red); }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 14px; margin: 0; background: transparent; cursor: pointer; --p: 50%; }
+input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--accent) var(--p), var(--track) var(--p)); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; margin-top: -4px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
+.au.off input[type=range]::-webkit-slider-runnable-track { background: linear-gradient(90deg, #6b6e78 var(--p), var(--track) var(--p)); }
+.setup { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.setup p { margin: 0; color: var(--muted); font-size: .8rem; line-height: 1.4; }
+.setup b { color: var(--ink); }
+.setup input { font: inherit; padding: 9px 11px; border-radius: 11px; border: 1px solid var(--line); background: rgba(255, 255, 255, .05); color: var(--ink); outline: none; user-select: text; }
+.setup input:focus { border-color: rgba(255, 77, 115, .6); }
+.btn { border: 0; border-radius: 11px; padding: 9px 12px; font: inherit; font-weight: 700; cursor: pointer; background: var(--ink); color: #111; }
+.btn.ghost { background: rgba(255, 255, 255, .06); color: var(--ink); border: 1px solid var(--line); }
+.msg { color: var(--muted); font-size: .76rem; min-height: 1em; }
+.msg.bad { color: #ff7d7d; }
+[hidden] { display: none !important; }
+.flash { animation: fl .6s ease; }
+@keyframes fl { 50% { box-shadow: 0 0 0 3px rgba(60, 207, 142, .6); } }
+</style></head>
+<body>
+<div class="win">
+  <div class="head"><span class="dot" id="dot"></span><b>OBS</b>
+    <button class="x" id="close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="body">
+    <div id="main" hidden>
+      <div class="row">
+        <button class="big" id="rec"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>Record<small id="recT">—</small></button>
+        <button class="big" id="str"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></svg>Stream<small id="strT">—</small></button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="big" id="rb" style="grid-column: span 2; flex-direction: row; justify-content: center; gap: 8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg><span id="rbL">Save replay</span></button>
+      </div>
+      <div class="k" style="margin-top:12px">Audio</div>
+      <div class="mutes" id="mutes" style="margin-top:8px"></div>
+      <div class="k" style="margin-top:12px">Scenes</div>
+      <div class="scenes" id="scenes" style="margin-top:8px"></div>
+    </div>
+    <div class="setup" id="setup" hidden>
+      <p>Turn on OBS's remote control once: in OBS go to <b>Tools → WebSocket Server Settings</b>, tick <b>Enable WebSocket server</b>, then click <b>Show Connect Info</b> and copy the <b>Server Password</b>.</p>
+      <input type="password" id="pass" placeholder="Paste the OBS server password" autocomplete="off" spellcheck="false">
+      <div style="display:flex;gap:8px"><button class="btn" id="go">Connect</button><button class="btn ghost" id="openObs">Open OBS</button></div>
+    </div>
+    <div class="msg" id="msg"></div>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const api = window.obsAPI;
+let ws = null, nextId = 1, pending = {}, retryT = null, special = {}, state = { rec: false, str: false, recMs: 0, strMs: 0, at: 0, rb: false };
+
+const msg = (t, bad) => { $("msg").textContent = t || ""; $("msg").classList.toggle("bad", !!bad); };
+async function sha256b64(s) { const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return btoa(String.fromCharCode(...new Uint8Array(h))); }
+function req(type, data) {
+  return new Promise((res, rej) => {
+    if (!ws || ws.readyState !== 1) return rej(new Error("not connected"));
+    const id = String(nextId++);
+    pending[id] = { res, rej };
+    ws.send(JSON.stringify({ op: 6, d: { requestType: type, requestId: id, requestData: data || {} } }));
+    setTimeout(() => { if (pending[id]) { delete pending[id]; rej(new Error("timeout")); } }, 6000);
+  });
+}
+function showSetup(text, bad) { $("main").hidden = true; $("setup").hidden = false; $("dot").classList.remove("on"); msg(text, bad); }
+function connect() {
+  clearTimeout(retryT);
+  try { ws && ws.close(); } catch {}
+  msg("Connecting to OBS…");
+  ws = new WebSocket("ws://127.0.0.1:4455");
+  let identified = false;
+  ws.onmessage = async ev => {
+    const m = JSON.parse(ev.data);
+    if (m.op === 0) {   // Hello
+      const d = { rpcVersion: 1, eventSubscriptions: (1 << 0) | (1 << 2) | (1 << 3) | (1 << 6) };   // general, scenes, inputs, outputs
+      if (m.d.authentication) {
+        const pass = await api.getPass();
+        if (!pass) { showSetup("Paste your OBS server password to connect."); try { ws.close(); } catch {} return; }
+        const secret = await sha256b64(pass + m.d.authentication.salt);
+        d.authentication = await sha256b64(secret + m.d.authentication.challenge);
+      }
+      ws.send(JSON.stringify({ op: 1, d }));
+    } else if (m.op === 2) { identified = true; onReady(); }
+    else if (m.op === 7) { const p = pending[m.d.requestId]; if (p) { delete pending[m.d.requestId]; m.d.requestStatus.result ? p.res(m.d.responseData || {}) : p.rej(new Error(m.d.requestStatus.comment || "OBS said no")); } }
+    else if (m.op === 5) onEvent(m.d.eventType, m.d.eventData || {});
+  };
+  ws.onclose = ev => {
+    $("dot").classList.remove("on");
+    if (ev.code === 4009) { showSetup("That password didn't work. Copy it again from OBS.", true); return; }
+    if (!identified) { showSetup(ev.code === 1006 ? "OBS isn't running, or its WebSocket server is off." : "Couldn't connect to OBS."); }
+    else msg("Lost connection to OBS. Reconnecting…", true);
+    retryT = setTimeout(connect, 5000);
+  };
+}
+async function onReady() {
+  $("setup").hidden = true; $("main").hidden = false; $("dot").classList.add("on"); msg("");
+  await Promise.all([loadScenes(), loadOutputs(), loadAudio()]).catch(() => {});
+}
+async function loadScenes() {
+  const r = await req("GetSceneList");
+  const box = $("scenes"); box.replaceChildren();
+  (r.scenes || []).slice().reverse().forEach(s => {
+    const b = document.createElement("button"); b.className = "sc" + (s.sceneName === r.currentProgramSceneName ? " cur" : "");
+    b.textContent = s.sceneName; b.dataset.name = s.sceneName;
+    b.onclick = () => req("SetCurrentProgramScene", { sceneName: s.sceneName }).catch(e => msg(e.message, true));
+    box.append(b);
+  });
+}
+function markScene(name) { document.querySelectorAll(".sc").forEach(b => b.classList.toggle("cur", b.dataset.name === name)); }
+async function loadOutputs() {
+  const [rec, str] = await Promise.all([req("GetRecordStatus"), req("GetStreamStatus")]);
+  state.rec = rec.outputActive; state.recMs = rec.outputDuration || 0;
+  state.str = str.outputActive; state.strMs = str.outputDuration || 0;
+  state.at = Date.now();
+  try { const rb = await req("GetReplayBufferStatus"); state.rb = rb.outputActive; $("rb").disabled = false; }
+  catch { $("rb").disabled = true; $("rbL").textContent = "Replay buffer off in OBS"; }
+  renderOutputs();
+}
+const fmt = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s % 60).padStart(2, "0"); };
+function renderOutputs() {
+  const el = Date.now() - state.at;
+  $("rec").classList.toggle("live", state.rec); $("recT").textContent = state.rec ? fmt(state.recMs + el) : "Off";
+  $("str").classList.toggle("live", state.str); $("strT").textContent = state.str ? fmt(state.strMs + el) : "Off";
+  if (!$("rb").disabled) $("rbL").textContent = state.rb ? "Save replay" : "Start replay buffer";
+}
+setInterval(renderOutputs, 1000);
+const MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+const SPK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>';
+// OBS faders feel right on a cubic curve (same as OBS's own mixer): slider p -> volume p^3
+const toMul = p => Math.pow(p / 100, 3), toPos = m => Math.round(Math.cbrt(Math.max(0, m)) * 100);
+const dbTxt = m => m <= 0.0000011 ? "-inf" : (20 * Math.log10(m)).toFixed(1) + " dB";
+function paintAudio(row, muted, mul) {
+  if (muted != null) { row.classList.toggle("off", muted); row.querySelector(".mu").setAttribute("aria-label", (muted ? "Unmute " : "Mute ") + row.dataset.label); }
+  if (mul != null) {
+    const r = row.querySelector("input");
+    if (document.activeElement !== r) { r.value = toPos(mul); r.style.setProperty("--p", r.value + "%"); }
+    row.querySelector(".au-v").textContent = dbTxt(mul);
+  }
+}
+async function loadAudio() {
+  special = await req("GetSpecialInputs");
+  const box = $("mutes"); box.replaceChildren();
+  const list = [["desktop1", "Desktop", SPK], ["mic1", "Mic", MIC], ["desktop2", "Desktop 2", SPK], ["mic2", "Mic 2", MIC]].filter(([k]) => special[k]);
+  for (const [k, label, ic] of list) {
+    const name = special[k];
+    let muted = false, mul = 1;
+    try { muted = (await req("GetInputMute", { inputName: name })).inputMuted; } catch {}
+    try { mul = (await req("GetInputVolume", { inputName: name })).inputVolumeMul; } catch {}
+    const row = document.createElement("div"); row.className = "au"; row.dataset.input = name; row.dataset.label = label;
+    const b = document.createElement("button"); b.className = "mu"; b.type = "button"; b.innerHTML = ic;
+    b.onclick = () => req("ToggleInputMute", { inputName: name }).catch(e => msg(e.message, true));
+    const col = document.createElement("div"); col.className = "au-col";
+    const top = document.createElement("div"); top.className = "au-top";
+    const nm = document.createElement("span"); nm.textContent = label; nm.title = name;
+    const v = document.createElement("span"); v.className = "au-v";
+    top.append(nm, v);
+    const r = document.createElement("input"); r.type = "range"; r.min = 0; r.max = 100; r.setAttribute("aria-label", label + " volume");
+    let t = null;
+    r.oninput = () => {
+      r.style.setProperty("--p", r.value + "%"); v.textContent = dbTxt(toMul(r.value));
+      clearTimeout(t); t = setTimeout(() => req("SetInputVolume", { inputName: name, inputVolumeMul: toMul(r.value) }).catch(e => msg(e.message, true)), 40);
+    };
+    r.onchange = () => r.blur();
+    r.ondblclick = () => { r.value = 100; r.oninput(); };
+    col.append(top, r); row.append(b, col); box.append(row);
+    paintAudio(row, muted, mul);
+  }
+  if (!list.length) box.append(Object.assign(document.createElement("div"), { className: "msg", textContent: "No mic or desktop audio set up in OBS." }));
+}
+function onEvent(type, d) {
+  if (type === "CurrentProgramSceneChanged") markScene(d.sceneName);
+  else if (type === "SceneListChanged" || type === "SceneNameChanged" || type === "SceneCreated" || type === "SceneRemoved") loadScenes().catch(() => {});
+  else if (type === "RecordStateChanged" || type === "StreamStateChanged" || type === "ReplayBufferStateChanged") loadOutputs().catch(() => {});
+  else if (type === "InputMuteStateChanged" || type === "InputVolumeChanged") {
+    const row = document.querySelector(`.au[data-input="${CSS.escape(d.inputName)}"]`);
+    if (row) paintAudio(row, type === "InputMuteStateChanged" ? d.inputMuted : null, type === "InputVolumeChanged" ? d.inputVolumeMul : null);
+  } else if (type === "ReplayBufferSaved") { $("rb").classList.add("flash"); msg("Replay saved"); setTimeout(() => { $("rb").classList.remove("flash"); msg(""); }, 2000); }
+}
+$("rec").onclick = () => req("ToggleRecord").catch(e => msg(e.message, true));
+$("str").onclick = () => req("ToggleStream").catch(e => msg(e.message, true));
+$("rb").onclick = () => req(state.rb ? "SaveReplayBuffer" : "StartReplayBuffer").catch(e => msg(e.message, true));
+$("go").onclick = async () => { const p = $("pass").value.trim(); if (!p) return msg("Paste the password first.", true); await api.setPass(p); $("pass").value = ""; connect(); };
+$("pass").addEventListener("keydown", e => { if (e.key === "Enter") $("go").click(); });
+$("openObs").onclick = async () => { const ok = await api.openObs(); msg(ok ? "Opening OBS… it connects automatically once OBS is up." : "Couldn't find OBS.", !ok); clearTimeout(retryT); retryT = setTimeout(connect, 6000); };
+$("close").onclick = () => api.close();
+connect();
+</script>
+</body></html>

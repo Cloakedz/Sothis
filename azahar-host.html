@@ -1,0 +1,33 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Sothis · 3DS</title>
+<style>
+html, body { margin: 0; height: 100%; background: #0b0b0f; color: #f1f2f6; overflow: hidden; font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; user-select: none; }
+.bar { height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 12px; box-sizing: border-box; background: linear-gradient(90deg, #2a0d14, #120b14 60%); border-bottom: 1px solid rgba(255, 77, 115, .3); -webkit-app-region: drag; }
+.bar img { width: 20px; height: 20px; filter: drop-shadow(0 0 6px rgba(255, 30, 50, .8)); }
+.bar b { flex: 1; min-width: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar .sys { font: 800 10px/1 Consolas, monospace; padding: 3px 6px; border-radius: 5px; background: #c8102e; letter-spacing: .05em; }
+.bar button { -webkit-app-region: no-drag; height: 28px; min-width: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: #c9cbd6; font: 600 12px/1 inherit; font-family: inherit; cursor: pointer; }
+.bar button:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+.bar button.x:hover { background: #e5383b; }
+.stage { position: absolute; top: 40px; left: 0; right: 0; bottom: 0; display: grid; place-items: center; text-align: center; color: #8d90a0; font-size: 13px; }
+.stage b { display: block; color: #f1f2f6; font-size: 15px; margin-bottom: 4px; }
+</style></head>
+<body>
+<div class="bar">
+  <img src="crest-bg.png" alt=""><span class="sys">3DS</span><b id="t">Azahar</b>
+  <button id="full" type="button" title="Fullscreen (F11)">Fullscreen</button>
+  <button id="min" type="button" aria-label="Minimize">—</button>
+  <button class="x" id="close" type="button" aria-label="Close">✕</button>
+</div>
+<div class="stage" id="stage"><div><b>Starting Azahar…</b>It'll appear right here.</div></div>
+<script>
+  const q = new URLSearchParams(location.search);
+  document.getElementById("t").textContent = q.get("name") || "Azahar";
+  document.title = (q.get("name") || "3DS") + " · Sothis";
+  document.getElementById("full").onclick = () => window.aza.full();
+  document.getElementById("min").onclick = () => window.aza.min();
+  document.getElementById("close").onclick = () => window.aza.close();
+  window.aza.onState(s => { if (s === "failed") document.getElementById("stage").innerHTML = "<div><b>Azahar didn't open</b>Try opening it once on its own, then come back.</div>"; });
+  document.querySelector(".bar").addEventListener("dblclick", e => { if (!e.target.closest("button")) window.aza.full(); });
+</script>
+</body></html>

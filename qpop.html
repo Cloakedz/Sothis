@@ -1,0 +1,49 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; color: #f1f2f6; user-select: none; }
+body { display: flex; align-items: flex-start; justify-content: center; padding: 10px 14px; box-sizing: border-box; }
+.card { position: relative; display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 14px 14px 16px; border-radius: 20px; box-sizing: border-box;
+  background: rgba(12, 10, 16, .92); border: 1px solid rgba(255, 70, 90, .55);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .55), 0 0 0 0 rgba(255, 45, 70, .5);
+  opacity: 0; transform: translateY(-16px) scale(.97); transition: opacity .25s ease, transform .35s cubic-bezier(.2, .9, .3, 1.2); }
+.card.on { opacity: 1; transform: none; animation: ring 1.1s ease-out .2s 4; }
+@keyframes ring { 0% { box-shadow: 0 14px 34px rgba(0, 0, 0, .55), 0 0 0 0 rgba(255, 45, 70, .55); } 100% { box-shadow: 0 14px 34px rgba(0, 0, 0, .55), 0 0 0 16px rgba(255, 45, 70, 0); } }
+.crest { width: 46px; height: 46px; flex: none; object-fit: contain; filter: drop-shadow(0 0 10px rgba(255, 30, 50, .85)); }
+.tx { flex: 1; min-width: 0; }
+.k { font: 800 11px/1 Consolas, monospace; letter-spacing: .16em; color: #ff5a6e; }
+.t { font-size: 22px; font-weight: 800; letter-spacing: -.01em; margin-top: 4px; line-height: 1.1; }
+.g { font-size: 12.5px; color: #b4b7c4; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.go { flex: none; padding: 10px 16px; border-radius: 999px; border: 0; cursor: pointer; font: 800 13px/1 inherit; font-family: inherit;
+  color: #170408; background: linear-gradient(180deg, #ff6b7d, #ff2d46); box-shadow: 0 4px 14px rgba(255, 45, 70, .45); }
+.go:hover { filter: brightness(1.08); }
+.go[hidden] { display: none; }
+.x { position: absolute; top: 6px; right: 8px; width: 22px; height: 22px; border: 0; border-radius: 50%; background: transparent; color: #8d90a0; cursor: pointer; font-size: 15px; line-height: 22px; padding: 0; }
+.x:hover { color: #fff; background: rgba(255, 255, 255, .08); }
+@media (prefers-reduced-motion: reduce) { .card, .card.on { transition: opacity .2s; transform: none; animation: none; } }
+</style></head>
+<body>
+<div class="card" id="card">
+  <img class="crest" src="crest-bg.png" alt="">
+  <div class="tx">
+    <div class="k" id="k">QUEUE POP</div>
+    <div class="t">Match found</div>
+    <div class="g" id="g"></div>
+  </div>
+  <button class="go" id="go" type="button">Go to game</button>
+  <button class="x" id="x" type="button" aria-label="Dismiss">×</button>
+</div>
+<audio id="snd" src="queue-chime.wav" preload="auto"></audio>
+<script>
+const $ = id => document.getElementById(id);
+window.qp.onShow(d => {
+  $("g").textContent = (d.game || "Your game") + (d.test ? " · this is a test" : " is waiting for you");
+  $("go").hidden = !d.canGo;
+  const c = $("card");
+  c.classList.remove("on"); void c.offsetWidth; c.classList.add("on");
+  const a = $("snd"); a.volume = 1; a.currentTime = 0; a.play().catch(() => {});
+});
+$("go").onclick = () => window.qp.go();
+$("x").onclick = () => window.qp.close();
+</script>
+</body></html>

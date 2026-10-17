@@ -1,0 +1,52 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; color: #f1f2f6; user-select: none; }
+body { display: flex; align-items: center; justify-content: flex-end; padding: 0 14px; box-sizing: border-box; }
+.pill { display: flex; align-items: center; gap: 10px; max-width: 100%; padding: 8px 14px 8px 8px; border-radius: 999px; cursor: pointer;
+  background: rgba(10, 10, 14, .86); border: 1px solid rgba(255, 255, 255, .10);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .5), 0 0 22px rgba(255, 30, 50, .14);
+  opacity: 0; transform: translateX(40px); transition: opacity .28s ease, transform .32s cubic-bezier(.2, .9, .3, 1.1); }
+.pill.on { opacity: 1; transform: none; }
+.pill.out { opacity: 0; transform: translateX(20px); transition: opacity .35s ease, transform .35s ease; }
+.art { width: 40px; height: 40px; border-radius: 50%; flex: none; object-fit: cover; background: linear-gradient(135deg, #ff3b5c, #5b1030 55%, #14060a); }
+.art.none { background: linear-gradient(135deg, #ff3b5c, #5b1030 55%, #14060a); }
+.txt { min-width: 0; }
+.t { font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 230px; }
+.a { font-size: 11.5px; color: #a7abb9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 230px; margin-top: 1px; }
+.crest { width: 18px; height: 18px; margin-left: 6px; flex: none; object-fit: contain; filter: drop-shadow(0 0 5px rgba(255, 30, 50, .8)); }
+@media (prefers-reduced-motion: reduce) { .pill, .pill.out { transition: opacity .2s; transform: none; } }
+</style></head>
+<body>
+<div class="pill" id="pill">
+  <img class="art none" id="art" alt="">
+  <div class="txt"><div class="t" id="t"></div><div class="a" id="a"></div></div>
+  <img class="crest" src="crest-bg.png" alt="">
+</div>
+<script>
+const $ = id => document.getElementById(id);
+let hideT = null, outT = null;
+function setArt(src) {
+  const im = $("art");
+  if (src) { if (im.getAttribute("src") !== src) im.src = src; im.classList.remove("none"); }
+  else { im.removeAttribute("src"); im.classList.add("none"); }
+}
+$("art").onerror = () => setArt("");
+window.songToast = (d, ms) => {
+  $("t").textContent = d.title || "";
+  $("a").textContent = d.artist || "";
+  setArt(d.art || "");
+  if (d.update) return;
+  const p = $("pill");
+  clearTimeout(hideT); clearTimeout(outT);
+  p.classList.remove("out", "on");
+  void p.offsetWidth;
+  p.classList.add("on");
+  hideT = setTimeout(() => {
+    p.classList.add("out");
+    outT = setTimeout(() => window.toastAPI && window.toastAPI.done(), 400);
+  }, ms || 4000);
+};
+$("pill").onclick = () => window.toastAPI && window.toastAPI.click();
+</script>
+</body></html>

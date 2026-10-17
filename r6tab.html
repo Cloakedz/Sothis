@@ -1,0 +1,84 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; color: #eef0f5; user-select: none; }
+body { display: flex; justify-content: center; align-items: flex-start; padding: 10px; box-sizing: border-box; }
+.board { width: 100%; border-radius: 14px; overflow: hidden; background: rgba(9, 10, 14, .88); border: 1px solid rgba(255, 255, 255, .10);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .55); opacity: 0; transform: translateY(-8px); transition: opacity .2s ease, transform .25s ease; }
+.board.on { opacity: 1; transform: none; }
+.top { display: flex; align-items: center; justify-content: space-between; padding: 9px 14px; background: rgba(255, 255, 255, .04); border-bottom: 1px solid rgba(255, 255, 255, .07); }
+.top b { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; }
+.top span { font-size: 11px; color: #9aa0ae; }
+.team { padding: 4px 0 6px; }
+.team + .team { border-top: 1px solid rgba(255, 255, 255, .08); }
+.th, .row { display: grid; grid-template-columns: 6px 30px minmax(0, 1fr) 118px 62px 52px 52px 60px; align-items: center; column-gap: 10px; padding: 0 14px 0 0; }
+.th { font: 600 10px/1 Consolas, "Cascadia Mono", monospace; letter-spacing: .1em; text-transform: uppercase; color: #8a90a0; height: 26px; }
+.th .tn { color: var(--tc); }
+.row { height: 38px; }
+.row:nth-child(odd) { background: rgba(255, 255, 255, .025); }
+.bar { width: 4px; height: 26px; border-radius: 0 3px 3px 0; background: var(--tc); }
+.red { --tc: #ff3b4f; } .purple { --tc: #a970ff; }
+.rk { width: 30px; height: 30px; object-fit: contain; }
+.rk.none { border-radius: 50%; border: 2px dashed rgba(255, 255, 255, .18); width: 22px; height: 22px; margin: 4px; box-sizing: border-box; }
+.nm { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nm .me { color: #ffd34d; }
+.nm small { font-weight: 500; font-size: 11px; color: #8a90a0; margin-left: 6px; }
+.rn { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--rc, #cfd3dc); }
+.n { font: 600 13px/1 Consolas, "Cascadia Mono", monospace; text-align: right; font-variant-numeric: tabular-nums; }
+.n.good { color: #3ccf8e; } .n.bad { color: #ff5a5a; }
+.dim { color: #6d7382; }
+.msg { padding: 18px 14px; font-size: 13px; color: #c3c7d2; }
+.msg b { color: #fff; }
+.foot { padding: 6px 14px 8px; font-size: 10.5px; color: #6d7382; text-align: right; }
+</style></head>
+<body>
+<div class="board" id="board"></div>
+<script>
+const $ = id => document.getElementById(id);
+const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+const num = (v, d) => v == null || isNaN(v) ? "—" : (Math.round(v * 10 ** d) / 10 ** d).toFixed(d);
+let hideT = null;
+function team(players, cls, label, me) {
+  const box = mk("div", "team " + cls);
+  const th = mk("div", "th");
+  th.append(mk("span"), mk("span"), mk("span", "tn", label), mk("span", "", "Rank"), mk("span", "n", "RP"), mk("span", "n", "K/D"), mk("span", "n", "Win"), mk("span", "n", "Games"));
+  box.append(th);
+  players.forEach(p => {
+    const r = mk("div", "row");
+    r.append(mk("i", "bar"));
+    if (p.rankImg) { const im = mk("img", "rk"); im.src = p.rankImg; im.referrerPolicy = "no-referrer"; im.onerror = () => im.replaceWith(mk("span", "rk none")); r.append(im); }
+    else r.append(mk("span", "rk none"));
+    const nm = mk("div", "nm");
+    const nn = mk("span", p.name && me && p.name.toLowerCase() === me.toLowerCase() ? "me" : "", p.name || p.read);
+    nm.append(nn);
+    if (!p.found) nm.append(mk("small", "", "not found"));
+    else if (p.name && p.read && p.name.toLowerCase() !== p.read.toLowerCase()) nm.append(mk("small", "", "read as " + p.read));
+    r.append(nm);
+    const rn = mk("div", "rn", p.found ? (p.rankName || "No Rank") : "—"); if (p.rankColor) rn.style.setProperty("--rc", p.rankColor); r.append(rn);
+    r.append(mk("div", "n" + (p.rp == null ? " dim" : ""), p.rp == null ? "—" : Number(p.rp).toLocaleString("en-US")));
+    r.append(mk("div", "n " + (p.kd == null ? "dim" : p.kd >= 1 ? "good" : "bad"), num(p.kd, 2)));
+    r.append(mk("div", "n " + (p.wr == null ? "dim" : p.wr >= 50 ? "good" : "bad"), p.wr == null ? "—" : Math.round(p.wr) + "%"));
+    r.append(mk("div", "n" + (p.matches ? "" : " dim"), p.matches == null ? "—" : String(p.matches)));
+    box.append(r);
+  });
+  return box;
+}
+// d: { state: "reading" | "done" | "error", message, teams: [[players], [players]], me, season, key }
+window.showBoard = (d, ms) => {
+  const b = $("board"); b.replaceChildren();
+  const top = mk("div", "top"); top.append(mk("b", "", "Live lobby"), mk("span", "", d.season ? d.season + " · Ranked" : "Ranked")); b.append(top);
+  if (d.state === "reading") b.append(Object.assign(mk("div", "msg"), { innerHTML: "Reading the scoreboard…" }));
+  else if (d.state === "error") b.append(mk("div", "msg", d.message || "Couldn't read the scoreboard."));
+  else {
+    const t = d.teams || [];
+    const mine = t.findIndex(x => x.some(p => p.name && d.me && p.name.toLowerCase() === d.me.toLowerCase()));
+    t.forEach((players, i) => b.append(team(players, i === 0 ? "red" : "purple", t.length === 1 ? "Players" : i === mine ? "Your team" : mine >= 0 ? "Enemy team" : "Team " + (i + 1), d.me)));
+    b.append(mk("div", "foot", "Stats from stats.cc · press " + (d.key || "F8") + " to hide"));
+  }
+  requestAnimationFrame(() => b.classList.add("on"));
+  clearTimeout(hideT);
+  if (ms) hideT = setTimeout(() => window.hideBoard(), ms);
+};
+window.hideBoard = () => { $("board").classList.remove("on"); setTimeout(() => window.r6tab && window.r6tab.hidden(), 220); };
+</script>
+</body></html>

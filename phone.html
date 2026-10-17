@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sothis">
+<meta name="theme-color" content="#0b0b0f">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon.png">
+<title>Sothis</title>
+<style>
+@font-face { font-family: "Pirata"; src: url("/fonts/pirata-one.woff2") format("woff2"); font-display: swap; }
+@font-face { font-family: "Nunito"; src: url("/fonts/nunito-800.woff2") format("woff2"); font-weight: 800; font-display: swap; }
+:root {
+  --bg: #0b0b0f; --card: rgba(255, 255, 255, .055); --card2: rgba(255, 255, 255, .09); --line: rgba(255, 255, 255, .1);
+  --ink: #f1f2f6; --muted: #a2a6b4; --accent: #e8345b; --glow: rgba(232, 52, 91, .35); --good: #3ccf8e; --dc: #8b93ff;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 500 16px/1.35 -apple-system, "SF Pro Text", system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
+body { min-height: 100dvh; padding: calc(env(safe-area-inset-top) + 10px) 16px calc(env(safe-area-inset-bottom) + 20px);
+  background: radial-gradient(120% 60% at 50% -10%, rgba(232, 52, 91, .22), transparent 60%), var(--bg); }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.hide { display: none !important; }
+header { display: flex; align-items: center; gap: 10px; margin: 4px 2px 16px; }
+header h1 { margin: 0; font: 400 1.9rem/1 "Pirata", serif; letter-spacing: .02em; color: var(--accent); text-shadow: 0 0 18px var(--glow); }
+header .pc { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: .78rem; color: var(--muted); }
+header .dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
+header .dot.on { background: var(--good); box-shadow: 0 0 8px var(--good); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 16px; margin-bottom: 12px; }
+.k { font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: 10px; }
+
+/* music */
+.np { display: grid; grid-template-columns: 76px 1fr; gap: 14px; align-items: center; }
+.art { width: 76px; height: 76px; border-radius: 14px; background: var(--card2) center / cover no-repeat; box-shadow: 0 8px 22px rgba(0, 0, 0, .45); }
+.np .t { font: 800 1.08rem/1.2 "Nunito", sans-serif; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.np .a { color: var(--muted); font-size: .88rem; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctl { display: flex; justify-content: center; align-items: center; gap: 30px; margin: 16px 0 12px; }
+.ctl button { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; }
+.ctl button:active { background: var(--card2); }
+.ctl svg { width: 30px; height: 30px; }
+.ctl .pp { width: 70px; height: 70px; background: var(--accent); box-shadow: 0 8px 24px var(--glow); }
+.ctl .pp:active { background: var(--accent); transform: scale(.95); }
+.ctl .pp svg { width: 32px; height: 32px; }
+.vol { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.vol svg { width: 20px; height: 20px; flex: none; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 30px; background: transparent; }
+input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 6px; background: linear-gradient(90deg, var(--ink) var(--p, 50%), rgba(255, 255, 255, .15) var(--p, 50%)); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -8px; border-radius: 50%; background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, .5); }
+
+/* game + clip */
+.row2 { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+.game b { display: block; font: 800 1.05rem/1.2 "Nunito", sans-serif; }
+.game span { color: var(--muted); font-size: .85rem; }
+.clip { display: flex; align-items: center; gap: 9px; padding: 14px 18px; border-radius: 18px; background: rgba(232, 52, 91, .16); border: 1px solid rgba(232, 52, 91, .5); font-weight: 700; }
+.clip i { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--glow); }
+.clip:active { transform: scale(.96); }
+.clip.off { opacity: .5; }
+
+/* discord */
+.dch { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.dch b { font: 800 1rem/1.2 "Nunito", sans-serif; }
+.dch span { color: var(--muted); font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mem { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 14px; }
+.mem .m { width: 46px; text-align: center; font-size: .62rem; color: var(--muted); }
+.mem img { width: 42px; height: 42px; border-radius: 50%; display: block; margin: 0 auto 4px; border: 2px solid transparent; background: var(--card2); }
+.mem .m.sp img { border-color: var(--good); box-shadow: 0 0 10px rgba(60, 207, 142, .6); }
+.mem .m.mu img { opacity: .55; }
+.mem .m div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vbtn { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.vbtn button { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; border-radius: 16px; background: var(--card2); font-weight: 700; }
+.vbtn button svg { width: 20px; height: 20px; }
+.vbtn button.on { background: rgba(255, 77, 106, .22); color: #ff6b84; }
+.none { color: var(--muted); font-size: .9rem; }
+
+/* pairing */
+.pair { text-align: center; padding: 30px 6px; }
+.pair img { width: 92px; height: 92px; border-radius: 22px; box-shadow: 0 10px 30px var(--glow); }
+.pair h2 { font: 800 1.4rem/1.2 "Nunito", sans-serif; margin: 18px 0 6px; }
+.pair p { color: var(--muted); margin: 0 auto 20px; max-width: 300px; font-size: .92rem; }
+.pair input { width: 100%; max-width: 260px; font: 800 2rem/1 "Nunito", monospace; letter-spacing: .4em; text-align: center; padding: 14px 0 14px .4em; border-radius: 18px; border: 1px solid var(--line); background: var(--card); color: var(--ink); outline: none; -webkit-user-select: text; user-select: text; }
+.pair input:focus { border-color: var(--accent); }
+.pair .go { display: block; margin: 16px auto 0; width: 100%; max-width: 260px; padding: 15px; border-radius: 18px; background: var(--accent); font-weight: 800; box-shadow: 0 8px 24px var(--glow); }
+.pair .err { color: #ff6b84; min-height: 1.4em; margin-top: 12px; font-size: .88rem; }
+.tip { margin-top: 26px; padding: 14px; border-radius: 16px; background: var(--card); color: var(--muted); font-size: .82rem; text-align: left; }
+.tip b { color: var(--ink); }
+
+/* match found */
+.match { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; text-align: center; padding: 30px;
+  background: radial-gradient(circle at 50% 40%, rgba(232, 52, 91, .55), rgba(11, 11, 15, .97) 70%); animation: pulse 1.2s ease-in-out infinite alternate; }
+.match b { display: block; font: 400 3.2rem/1 "Pirata", serif; color: #fff; text-shadow: 0 0 30px var(--accent); }
+.match span { display: block; margin-top: 12px; color: #ffd0da; font-size: 1.1rem; }
+.match small { display: block; margin-top: 30px; color: var(--muted); }
+@keyframes pulse { from { background-color: rgba(0, 0, 0, 0); } to { background-color: rgba(232, 52, 91, .12); } }
+.toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 18px); transform: translateX(-50%) translateY(20px); opacity: 0; transition: .25s; padding: 10px 16px; border-radius: 999px; background: rgba(30, 30, 38, .96); border: 1px solid var(--line); font-size: .86rem; white-space: nowrap; z-index: 60; }
+.toast.on { opacity: 1; transform: translateX(-50%); }
+.off-note { text-align: center; color: var(--muted); font-size: .85rem; margin: 6px 0 14px; }
+.lock { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 15px; border-radius: 16px; background: var(--card2); font-weight: 700; }
+.lock svg { width: 21px; height: 21px; }
+.lock:active { transform: scale(.97); background: rgba(232, 52, 91, .2); }
+.foot { text-align: center; margin-top: 18px; }
+.foot button { color: var(--muted); font-size: .8rem; text-decoration: underline; }
+</style>
+</head>
+<body>
+<header><h1>Sothis</h1><div class="pc"><i class="dot" id="dot"></i><span id="pcName">Connecting…</span></div></header>
+
+<section id="pairView" class="pair hide">
+  <img src="/icon.png" alt="">
+  <h2>Pair this phone</h2>
+  <p>On your PC, open Sothis → Settings → Phone and type the 6-digit code shown there.</p>
+  <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="······">
+  <button class="go" id="pairGo" type="button">Pair</button>
+  <div class="err" id="pairErr"></div>
+  <div class="tip" id="a2hs"><b>Tip:</b> tap the Share button in Safari, then <b>Add to Home Screen</b>, and open Sothis from there. Pair inside the Home Screen app so it stays signed in.</div>
+</section>
+
+<main id="mainView" class="hide">
+  <div class="off-note hide" id="offNote">Can't reach your PC. Is Sothis open and are you on the same Wi-Fi?</div>
+
+  <section class="card">
+    <div class="k">Now playing</div>
+    <div class="np"><div class="art" id="art"></div><div><div class="t" id="title">Nothing playing</div><div class="a" id="artist">Music isn't open in Sothis</div></div></div>
+    <div class="ctl">
+      <button id="prev" aria-label="Previous"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+      <button class="pp" id="pp" aria-label="Play or pause"><svg id="ppIc" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+      <button id="next" aria-label="Next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+    </div>
+    <div class="vol"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg><input type="range" id="vol" min="0" max="100" value="50" aria-label="Volume"></div>
+  </section>
+
+  <section class="card">
+    <div class="row2">
+      <div class="game"><div class="k" style="margin-bottom:6px">Game</div><b id="game">Not in a game</b><span id="gameT"></span></div>
+      <button class="clip" id="clip" type="button"><i></i>Clip it</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="k">Discord call</div>
+    <div id="dcBody"></div>
+    <div class="vbtn">
+      <button id="mute" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Mute</span></button>
+      <button id="deaf" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-6H5a2 2 0 0 0-2 2z"/></svg><span>Deafen</span></button>
+    </div>
+  </section>
+
+  <section class="card">
+    <button class="lock" id="lock" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Lock PC</button>
+  </section>
+
+  <div class="foot"><button id="unpair" type="button">Unpair this phone</button></div>
+</main>
+
+<div class="match hide" id="match"><div><b>Match found</b><span id="matchG"></span><small>Tap to dismiss</small></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} } };
+  let tok = store.get("sothis.t") || "", es = null, st = null, volDrag = false, volT = null;
+  const standalone = navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+  if (standalone) $("a2hs").classList.add("hide");
+
+  function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 2200); }
+  function view(paired) { $("pairView").classList.toggle("hide", paired); $("mainView").classList.toggle("hide", !paired); }
+
+  // sound for "match found": iPhone only lets a page play sound after you've touched it once
+  let audio = null;
+  const unlock = () => { if (audio) return; audio = new Audio("/chime.wav"); audio.volume = 1; audio.play().then(() => { audio.pause(); audio.currentTime = 0; }).catch(() => {}); };
+  document.addEventListener("touchend", unlock, { once: true }); document.addEventListener("click", unlock, { once: true });
+
+  async function cmd(c, value) {
+    try {
+      const r = await fetch("/api/cmd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ t: tok, cmd: c, value }) });
+      if (r.status === 401) return unpaired();
+      const j = await r.json().catch(() => ({}));
+      if (j && j.ok === false && j.err) toast(j.err);
+      return j;
+    } catch { toast("Can't reach your PC"); }
+  }
+  function unpaired() { tok = ""; store.set("sothis.t", null); if (es) { es.close(); es = null; } view(false); $("pcName").textContent = "Not paired"; $("dot").classList.remove("on"); }
+
+  function connect() {
+    if (!tok) { view(false); $("pcName").textContent = "Not paired"; return; }
+    view(true);
+    if (es) es.close();
+    es = new EventSource("/api/events?t=" + encodeURIComponent(tok));
+    es.addEventListener("state", e => { try { st = JSON.parse(e.data); } catch { return; } render(); });
+    es.addEventListener("match", e => { let d = {}; try { d = JSON.parse(e.data); } catch {} matchFound(d); });
+    es.addEventListener("unpaired", () => {});
+    es.onopen = () => { $("dot").classList.add("on"); $("offNote").classList.add("hide"); };
+    es.onerror = () => {
+      $("dot").classList.remove("on"); $("offNote").classList.remove("hide");
+      // a removed phone gets a 401: check once and go back to pairing
+      fetch("/api/events?t=" + encodeURIComponent(tok), { method: "GET" }).then(r => { if (r.status === 401) unpaired(); else try { r.body && r.body.cancel(); } catch {} }).catch(() => {});
+    };
+  }
+
+  const fmtT = ms => { const m = Math.floor(ms / 60000), h = Math.floor(m / 60); return h ? h + "h " + (m % 60) + "m" : m + "m"; };
+  function render() {
+    if (!st) return;
+    $("pcName").textContent = st.pc || "Your PC";
+    const p = st.player || {};
+    $("title").textContent = p.connected && p.title ? p.title : "Nothing playing";
+    $("artist").textContent = p.connected ? (p.artist || "") : "Music isn't open in Sothis";
+    $("art").style.backgroundImage = p.art ? `url("${String(p.art).replace(/"/g, "%22")}")` : "";
+    $("ppIc").innerHTML = p.playing ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
+    if (!volDrag) { const v = Math.round((p.volume ?? .5) * 100); $("vol").value = v; $("vol").style.setProperty("--p", v + "%"); }
+    const g = st.game;
+    $("game").textContent = g ? g.name.replace(/^Retro: /, "") : "Not in a game";
+    $("gameT").textContent = g && g.start ? "Playing for " + fmtT(Date.now() - g.start) : g ? "Retro" : "";
+    $("clip").classList.toggle("off", !(st.clip && st.clip.recording) && !g);
+    const d = st.dc || {}, body = $("dcBody"); body.replaceChildren();
+    if (!d.ok) body.innerHTML = '<p class="none">Discord isn\'t connected in Sothis.</p>';
+    else if (!d.channel) body.innerHTML = '<p class="none">You\'re not in a call.</p>';
+    else {
+      const h = document.createElement("div"); h.className = "dch";
+      const b = document.createElement("b"); b.textContent = d.channel.name; const s = document.createElement("span"); s.textContent = d.channel.guild || "";
+      h.append(b, s); body.append(h);
+      const mem = document.createElement("div"); mem.className = "mem";
+      (d.channel.members || []).forEach(m => {
+        const el = document.createElement("div"); el.className = "m" + (m.speaking ? " sp" : "") + (m.mute || m.deaf ? " mu" : "");
+        const im = document.createElement("img"); im.alt = ""; im.referrerPolicy = "no-referrer"; im.onerror = () => { im.style.visibility = "hidden"; }; if (m.avatar) im.src = m.avatar; else im.style.visibility = "hidden";
+        const n = document.createElement("div"); n.textContent = m.name;
+        el.append(im, n); mem.append(el);
+      });
+      body.append(mem);
+    }
+    $("mute").classList.toggle("on", !!d.mute); $("mute").querySelector("span").textContent = d.mute ? "Muted" : "Mute";
+    $("deaf").classList.toggle("on", !!d.deaf); $("deaf").querySelector("span").textContent = d.deaf ? "Deafened" : "Deafen";
+  }
+  setInterval(() => { if (st && st.game && st.game.start) $("gameT").textContent = "Playing for " + fmtT(Date.now() - st.game.start); }, 30000);
+
+  function matchFound(d) {
+    $("matchG").textContent = d.game ? d.game + (d.test ? " (test)" : "") : "";
+    $("match").classList.remove("hide");
+    try { if (audio) { audio.currentTime = 0; audio.play().catch(() => {}); } } catch {}
+    try { navigator.vibrate && navigator.vibrate([300, 150, 300]); } catch {}
+    clearTimeout(matchFound.t); matchFound.t = setTimeout(() => $("match").classList.add("hide"), 25000);
+  }
+  $("match").onclick = () => $("match").classList.add("hide");
+
+  $("pp").onclick = () => cmd("playpause");
+  $("next").onclick = () => cmd("next");
+  $("prev").onclick = () => cmd("prev");
+  $("mute").onclick = () => cmd("mute");
+  $("deaf").onclick = () => cmd("deaf");
+  $("clip").onclick = async () => { const r = await cmd("clip"); if (r && r.ok) toast("Clip saved"); };
+  const vol = $("vol");
+  vol.addEventListener("touchstart", () => { volDrag = true; }, { passive: true });
+  vol.addEventListener("touchend", () => { setTimeout(() => { volDrag = false; }, 1500); });
+  vol.addEventListener("input", () => { vol.style.setProperty("--p", vol.value + "%"); clearTimeout(volT); volT = setTimeout(() => cmd("vol", vol.value / 100), 120); });
+  $("lock").onclick = async () => { if (!confirm("Lock your PC now?")) return; const r = await cmd("lock"); if (r && r.ok) toast("PC locked"); };
+  $("unpair").onclick = () => { if (confirm("Unpair this phone? You'll need the code from Sothis again.")) unpaired(); };
+
+  $("code").addEventListener("input", e => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 6); if (e.target.value.length === 6) pair(); });
+  $("pairGo").onclick = pair;
+  async function pair() {
+    const code = $("code").value; $("pairErr").textContent = "";
+    if (code.length !== 6) { $("pairErr").textContent = "Type all 6 digits."; return; }
+    try {
+      const r = await fetch("/api/pair", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
+      const j = await r.json().catch(() => ({}));
+      if (!j.ok) { $("pairErr").textContent = j.err || "Didn't work. Try again."; $("code").value = ""; return; }
+      tok = j.t; store.set("sothis.t", tok); $("code").blur(); toast("Paired"); connect();
+    } catch { $("pairErr").textContent = "Can't reach your PC. Is Sothis open?"; }
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && tok && (!es || es.readyState === 2)) connect(); });
+  connect();
+})();
+</script>
+</body>
+</html>
