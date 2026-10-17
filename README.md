@@ -4,7 +4,7 @@ A gaming companion for Windows: YouTube Music player, game stats (Overwatch, Cou
 
 ## Install
 
-Download **[Sothis-Setup.exe](https://github.com/Cloakedz/Sothis/raw/installer/Sothis-Setup.exe)** and run it. Sothis installs for your Windows user only (no admin needed) and updates itself from this page.
+Download **[Sothis-Setup.exe](https://github.com/Cloakedz/Sothis/releases/latest/download/Sothis-Setup.exe)** from the [latest release](https://github.com/Cloakedz/Sothis/releases/latest) and run it. Sothis installs for your Windows user only (no admin needed) and updates itself from this page.
 
 Windows may show "Windows protected your PC" the first time, because the installer isn't code-signed. Click **More info → Run anyway**.
 
