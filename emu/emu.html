@@ -33,7 +33,15 @@ html, body { margin: 0; height: 100%; background: #0b0b0f; overflow: hidden; col
   window.EJS_color = "#ff2d46";
   window.EJS_backgroundColor = "#0b0b0f";
   window.EJS_Buttons = { netplay: false, contextMenu: true };
-  window.EJS_defaultOptions = { "save-state-location": "browser" };
+  window.EJS_defaultOptions = { "save-state-location": "browser", "rewindEnabled": "enabled", "rewind-granularity": "3" };
+  // Rewind is always on (the emulator ships with it off, and once a game has saved settings it ignores the default above)
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i); if (!/^ejs-.*-settings$/.test(k || "")) continue;
+      const v = JSON.parse(localStorage.getItem(k) || "null");
+      if (v && v.settings && v.settings.rewindEnabled !== "enabled") { v.settings.rewindEnabled = "enabled"; if (!v.settings["rewind-granularity"]) v.settings["rewind-granularity"] = "3"; localStorage.setItem(k, JSON.stringify(v)); }
+    }
+  } catch {}
   // write the game's save file before the window closes
   const flush = () => { try { const e = window.EJS_emulator; if (e && e.started && e.gameManager) e.gameManager.saveSaveFiles(); } catch {} };
   // Resume: a save state is kept when you leave the game and loaded again next time you open it
@@ -46,6 +54,8 @@ html, body { margin: 0; height: 100%; background: #0b0b0f; overflow: hidden; col
   let noteT = null;
   const note = t => { const n = document.getElementById("note"); n.textContent = t; n.classList.add("on"); clearTimeout(noteT); noteT = setTimeout(() => n.classList.remove("on"), 3500); };
   window.EJS_onGameStart = () => {
+    // hold Backspace to rewind (the emulator has no key for it out of the box)
+    try { const c = window.EJS_emulator.controls; if (c && c[0] && (!c[0][28] || !c[0][28].value)) c[0][28] = Object.assign({}, c[0][28] || {}, { value: 8 }); } catch {}
     setTimeout(async () => {
       try { const r = await idbGet(RESUME_KEY); if (r && r.state && canState()) { window.EJS_emulator.gameManager.loadState(r.state); note("Picked up where you left off"); } } catch {}
     }, 800);

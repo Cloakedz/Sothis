@@ -4,7 +4,7 @@ A gaming companion for Windows: YouTube Music player, game stats (Overwatch, Cou
 
 ## Install
 
-Download **Sothis-Setup-x.y.z.exe** from the [latest release](../../releases/latest) and run it. Sothis installs for your Windows user only (no admin needed) and updates itself from this page.
+Download **[Sothis-Setup.exe](https://github.com/Cloakedz/Sothis/raw/main/installer/Sothis-Setup.exe)** and run it. Sothis installs for your Windows user only (no admin needed) and updates itself from this page.
 
 Windows may show "Windows protected your PC" the first time, because the installer isn't code-signed. Click **More info → Run anyway**.
 
@@ -26,8 +26,6 @@ Optional personal defaults can go in `%APPDATA%\Sothis\personal.json`:
 
 Sothis plays your own game files with [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS) (GPL-3.0, see `emu/LICENSE-EmulatorJS.txt`). No games are included. Game identification uses the [libretro database](https://github.com/libretro/libretro-database).
 
-## Releases
+## Updates
 
-Each release has two files:
-- `Sothis-Setup-x.y.z.exe`: the installer for new PCs
-- `sothis-app-x.y.z.zip` (+ `.sha256`): the app files Sothis downloads to update itself
+Sothis checks this repository a few times a day. When `package.json` has a newer version, it downloads the app files from here, swaps them in and shows **Update ready**. Settings and sign-ins are never touched.

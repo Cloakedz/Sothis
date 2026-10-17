@@ -4121,33 +4121,31 @@ async function updDownload(url, file) {
   const { Readable } = require("stream"), { pipeline } = require("stream/promises");
   await pipeline(Readable.fromWeb(r.body), fs.createWriteStream(file));
 }
+// the repo's main branch is the release: its package.json says the newest version, and its zip holds the app files
 async function updCheck(manual) {
   if (!UPD_REPO || updBusy) { if (!UPD_REPO) { upd.state = "norepo"; updSend(); } return upd; }
   updBusy = true; upd.state = "checking"; upd.err = ""; updSend();
   try {
-    const r = await fetch(`https://api.github.com/repos/${UPD_REPO}/releases/latest`, { headers: { "User-Agent": "Sothis/" + APP_VER, "Accept": "application/vnd.github+json" } });
-    if (!r.ok) throw new Error(r.status === 404 ? "No releases yet." : "GitHub answered " + r.status);
-    const rel = await r.json();
-    upd.latest = String(rel.tag_name || "").replace(/^v/, ""); upd.notes = String(rel.body || "").slice(0, 2000); upd.at = Date.now();
+    const r = await fetch(`https://raw.githubusercontent.com/${UPD_REPO}/main/package.json?t=${Date.now()}`, { headers: { "User-Agent": "Sothis/" + APP_VER, "Cache-Control": "no-cache" } });
+    if (!r.ok) throw new Error(r.status === 404 ? "Nothing published yet." : "GitHub answered " + r.status);
+    const pk = await r.json();
+    upd.latest = String(pk.version || "").replace(/^v/, ""); upd.at = Date.now();
     if (!upd.latest || verCmp(upd.latest, APP_VER) <= 0) { upd.state = "current"; return upd; }
     if (settings.updDone === upd.latest) { upd.state = "ready"; return upd; }   // already swapped in, waiting for a restart
-    const asset = (rel.assets || []).find(a => /^sothis-app.*\.zip$/i.test(a.name));
-    if (!asset) throw new Error("The release has no app files.");
-    const sumA = (rel.assets || []).find(a => /\.sha256$/i.test(a.name));
     upd.state = "downloading"; updSend();
     const dir = path.join(DATA_DIR, "update"); fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
     const zip = path.join(dir, "app.zip");
-    await updDownload(asset.browser_download_url, zip);
-    if (sumA) {
-      const want = (await (await fetch(sumA.browser_download_url, { headers: { "User-Agent": "Sothis" } })).text()).trim().split(/\s+/)[0].toLowerCase();
-      const got = require("crypto").createHash("sha256").update(fs.readFileSync(zip)).digest("hex");
-      if (want && want !== got) throw new Error("The download was damaged. Try again.");
-    }
+    await updDownload(`https://codeload.github.com/${UPD_REPO}/zip/refs/heads/main`, zip);
     upd.state = "installing"; updSend();
     const staged = path.join(dir, "staged");
     await new Promise((res, rej) => execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", `Expand-Archive -LiteralPath '${zip.replace(/'/g, "''")}' -DestinationPath '${staged.replace(/'/g, "''")}' -Force`], { windowsHide: true, timeout: 180000 }, e => e ? rej(new Error("Couldn't unpack the update.")) : res()));
-    if (!fs.existsSync(path.join(staged, "main.js")) || !fs.existsSync(path.join(staged, "package.json"))) throw new Error("The update looks incomplete.");
-    fs.cpSync(staged, __dirname, { recursive: true, force: true });
+    // GitHub puts everything in one top folder (Sothis-main)
+    let root = staged;
+    if (!fs.existsSync(path.join(root, "main.js"))) { const sub = fs.readdirSync(staged, { withFileTypes: true }).find(d => d.isDirectory() && fs.existsSync(path.join(staged, d.name, "main.js"))); if (sub) root = path.join(staged, sub.name); }
+    let pkNew = {}; try { pkNew = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")); } catch {}
+    if (!fs.existsSync(path.join(root, "main.js")) || verCmp(pkNew.version || "0", APP_VER) <= 0) throw new Error("The update looks incomplete.");
+    const skip = new Set(["installer", ".gitignore", "README.md", ".github"]);
+    for (const e of fs.readdirSync(root)) if (!skip.has(e)) fs.cpSync(path.join(root, e), path.join(__dirname, e), { recursive: true, force: true });
     fs.rmSync(dir, { recursive: true, force: true });
     settings.updDone = upd.latest; saveSettings();
     upd.state = "ready";
