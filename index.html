@@ -899,6 +899,12 @@ body.tb-narrow .titlebar .batt { cursor: grab; }
 .ph-row { display: flex; align-items: center; gap: 10px; font-size: .82rem; padding: 6px 2px; }
 .ph-row span { flex: 1; color: var(--muted); }
 .ph-row b { color: var(--ink); font-weight: 600; margin-right: 6px; }
+.ck-volc { display: flex; align-items: center; gap: 8px; flex: none; }
+.ck-volc input[type=range] { width: 140px; accent-color: var(--accent); }
+.ck-volc b { width: 40px; text-align: right; font: 600 .76rem/1 var(--f-mono); }
+.ck-volc .ck-mute { padding: 6px 10px; font-size: .78rem; }
+.ck-volc .ck-mute[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.ck-vol[hidden] { display: none; }
 .rt-sel { appearance: none; -webkit-appearance: none; padding: 5px 24px 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a7abb9' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 7px center / 12px; color: var(--ink); font: 500 .76rem/1.2 inherit; cursor: pointer; }
 .rt-sel option { background: #15151b; color: #f1f2f6; }
 .rt-card .rt-done { position: absolute; left: 6px; top: 6px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: .7rem; font-weight: 800; background: var(--good); color: #08140e; box-shadow: 0 2px 8px rgba(0, 0, 0, .4); }
@@ -2210,6 +2216,22 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
           <div class="setting">
             <div class="txt"><div class="name">Record my mic</div><div class="desc">Adds your microphone to clips, on top of game and chat sound.</div></div>
             <button class="switch" id="ckMic" role="switch" aria-checked="false" aria-label="Record my mic"></button>
+          </div>
+          <div class="setting ck-vol">
+            <div class="txt"><div class="name">Game sound</div><div class="desc">How loud your game, music and chat are in clips.</div></div>
+            <div class="ck-volc"><input type="range" id="ckSysVol" min="0" max="200" step="5" value="100" aria-label="Game sound volume in clips"><b id="ckSysV">100%</b><button class="btn ghost ck-mute" id="ckSysMute" type="button" aria-pressed="false">Mute</button></div>
+          </div>
+          <div class="setting ck-vol" id="ckMicRow">
+            <div class="txt"><div class="name">Mic</div><div class="desc">How loud your microphone is in clips.</div></div>
+            <div class="ck-volc"><input type="range" id="ckMicVol" min="0" max="200" step="5" value="100" aria-label="Mic volume in clips"><b id="ckMicV">100%</b><button class="btn ghost ck-mute" id="ckMicMute" type="button" aria-pressed="false">Mute</button></div>
+          </div>
+          <div class="setting">
+            <div class="txt"><div class="name">Sound timing</div><div class="desc">If the sound in your clips is early or late, nudge it here.</div></div>
+            <select id="ckSync" aria-label="Sound timing"><option value="-300">300 ms earlier</option><option value="-200">200 ms earlier</option><option value="-100">100 ms earlier</option><option value="0">In sync</option><option value="100">100 ms later</option><option value="200">200 ms later</option><option value="300">300 ms later</option></select>
+          </div>
+          <div class="setting">
+            <div class="txt"><div class="name">Only the game window</div><div class="desc">Clips show just your game, not the rest of your screen, when it's not full screen.</div></div>
+            <button class="switch" id="ckWin" role="switch" aria-checked="true" aria-label="Only the game window"></button>
           </div>
           <div class="setting">
             <div class="txt"><div class="name">Frame rate</div><div class="desc">60 is smoother, 30 makes smaller files.</div></div>
@@ -5644,7 +5666,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     phItems.forEach((p, i) => {
       const b = mk("button", "phc"); b.type = "button"; b.title = p.name; b.setAttribute("aria-label", p.name);
       const im = mk("img"); im.loading = "lazy"; im.decoding = "async"; im.alt = ""; im.src = p.url;
-      b.append(im); b.onclick = () => phOpen(i);
+      b.append(im); b.onclick = () => phOpen(i); fileDrag(b, p.path);
       grid.append(b);
     });
     if (phAt >= 0) { if (phItems.length) phOpen(Math.min(phAt, phItems.length - 1)); else phClose(); }
@@ -5716,6 +5738,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       };
       b.append(x, th, tx);
       b.onclick = () => playClip(c);
+      fileDrag(b, c.path);
       grid.append(b);
     });
   }
@@ -5835,6 +5858,15 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     if (document.activeElement !== $("ckLen")) $("ckLen").value = String(c.len || 30);
     if (document.activeElement !== $("ckFps")) $("ckFps").value = String(c.fps || 60);
     if (document.activeElement !== $("ckMon")) $("ckMon").value = String(c.monitor ?? "auto");
+    const sv = c.sysVol ?? 100, mv = c.micVol ?? 100;
+    if (!ckVolDrag.sys) { $("ckSysVol").value = sv; $("ckSysV").textContent = sv + "%"; }
+    if (!ckVolDrag.mic) { $("ckMicVol").value = mv; $("ckMicV").textContent = mv + "%"; }
+    $("ckSysMute").setAttribute("aria-pressed", !!c.sysMute); $("ckSysMute").textContent = c.sysMute ? "Muted" : "Mute";
+    $("ckMicMute").setAttribute("aria-pressed", !!c.micMute); $("ckMicMute").textContent = c.micMute ? "Muted" : "Mute";
+    $("ckSysVol").disabled = !!c.sysMute; $("ckMicVol").disabled = !!c.micMute;
+    $("ckMicRow").hidden = !c.mic;
+    if (document.activeElement !== $("ckSync")) $("ckSync").value = String(c.audioOffset || 0);
+    $("ckWin").setAttribute("aria-checked", c.window !== false);
     $("ckSetup").hidden = !!s.ready || s.phase === "setup";
     const keyTxt = c.key === "Mouse4" ? "your mouse back button" : c.key === "Mouse5" ? "your mouse forward button" : c.key || "F8";
     $("ckStatus").textContent = s.phase === "setup" ? `${s.msg || "Setting up the recorder…"}${s.progress ? " " + s.progress + "%" : ""}`
@@ -5844,6 +5876,15 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       : c.on === false ? "Recording is off." : `Ready. It starts recording when you open a game. Press ${keyTxt} to save a clip.`;
   }
   const ckSet = o => D.clipsSet(o).then(ckRender).catch(() => {});
+  const ckVolDrag = { sys: false, mic: false };
+  for (const [k, id, lab] of [["sys", "ckSysVol", "ckSysV"], ["mic", "ckMicVol", "ckMicV"]]) {
+    let t = null;
+    $(id).addEventListener("input", () => { ckVolDrag[k] = true; $(lab).textContent = $(id).value + "%"; clearTimeout(t); t = setTimeout(() => { ckSet({ [k + "Vol"]: +$(id).value }).then(() => { ckVolDrag[k] = false; }); }, 200); });
+  }
+  $("ckSysMute").onclick = () => ckSet({ sysMute: $("ckSysMute").getAttribute("aria-pressed") !== "true" });
+  $("ckMicMute").onclick = () => ckSet({ micMute: $("ckMicMute").getAttribute("aria-pressed") !== "true" });
+  $("ckSync").onchange = () => ckSet({ audioOffset: +$("ckSync").value });
+  $("ckWin").onclick = () => ckSet({ window: $("ckWin").getAttribute("aria-checked") !== "true" });
   D.clipsState().then(ckRender).catch(() => {});
   D.onClipState(() => D.clipsState().then(ckRender).catch(() => {}));
   setInterval(() => { if (tab === "settings") D.clipsState().then(ckRender).catch(() => {}); }, 3000);
@@ -5856,45 +5897,62 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   $("ckSetup").onclick = () => { $("ckSetup").hidden = true; D.clipsSetup().then(ckRender).catch(() => {}); };
   D.onClipSaved(v => { toast("Clip saved: " + v.name); try { if (tab === "clips") loadClips(); } catch {} });
   // clip sound: system sound (and your mic) kept for the last ~2 minutes in memory, handed over when a clip is saved
-  const CA = { ctx: null, node: null, streams: [], ring: null, w: 0, filled: 0, last: 0, on: false };
-  function caOff() { CA.on = false; try { CA.streams.forEach(s => s.getTracks().forEach(t => t.stop())); } catch {} CA.streams = []; try { CA.ctx && CA.ctx.close(); } catch {} CA.ctx = null; CA.node = null; CA.ring = null; CA.filled = 0; }
-  async function caOn(mic) {
-    caOff(); CA.on = true;
+  // Sound is kept by sample position on the audio clock (not by when a chunk happens to arrive), so it lines up with the video.
+  const CA = { ctx: null, node: null, streams: [], ring: null, frames: 0, hi: -1, on: false, mic: false, sysG: null, micG: null, wall0: null };
+  const CA_RATE = 48000, CA_SECS = 130;
+  function caOff() { CA.on = false; try { CA.streams.forEach(s => s.getTracks().forEach(t => t.stop())); } catch {} CA.streams = []; try { CA.ctx && CA.ctx.close(); } catch {} CA.ctx = null; CA.node = null; CA.ring = null; CA.hi = -1; CA.sysG = CA.micG = null; CA.wall0 = null; }
+  function caGains(o) { if (CA.sysG) CA.sysG.gain.value = Math.max(0, +o.sysVol >= 0 ? +o.sysVol : 1); if (CA.micG) CA.micG.gain.value = Math.max(0, +o.micVol >= 0 ? +o.micVol : 1); }
+  // wall-clock time (ms) of audio-clock time 0, refreshed from the browser's own pairing of the two clocks
+  function caSync() {
+    const ctx = CA.ctx; if (!ctx) return;
+    try { const t = ctx.getOutputTimestamp(); if (t && t.performanceTime > 0 && t.contextTime > 0) { const lat = ((ctx.baseLatency || 0) + (ctx.outputLatency || 0)) * 1000, w = performance.timeOrigin + t.performanceTime - t.contextTime * 1000 - lat; CA.wall0 = CA.wall0 == null ? w : CA.wall0 * 0.9 + w * 0.1; } } catch {}
+  }
+  async function caOn(o) {
+    caOff(); CA.on = true; CA.mic = !!o.mic;
     try {
       const ds = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
       ds.getVideoTracks().forEach(t => t.stop());
       if (!CA.on) { ds.getTracks().forEach(t => t.stop()); return; }
-      const ctx = new AudioContext({ sampleRate: 48000 }); CA.ctx = ctx; CA.streams = [ds];
-      const code = 'class R extends AudioWorkletProcessor{process(i){const c=i[0];if(c&&c.length&&c[0].length){this.port.postMessage([c[0].slice(0),(c[1]||c[0]).slice(0)]);}return true}}registerProcessor("sothis-rec",R)';
+      const ctx = new AudioContext({ sampleRate: CA_RATE, latencyHint: "interactive" }); CA.ctx = ctx; CA.streams = [ds];
+      const code = 'class R extends AudioWorkletProcessor{process(i){const c=i[0];if(c&&c.length&&c[0].length){this.port.postMessage([currentFrame,c[0].slice(0),(c[1]||c[0]).slice(0)]);}return true}}registerProcessor("sothis-rec",R)';
       await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([code], { type: "application/javascript" })));
       const node = new AudioWorkletNode(ctx, "sothis-rec", { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 2, channelCountMode: "explicit" });
       const mix = ctx.createGain(); mix.connect(node);
-      if (ds.getAudioTracks().length) ctx.createMediaStreamSource(ds).connect(mix);
-      if (mic) { try { const ms = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); CA.streams.push(ms); ctx.createMediaStreamSource(ms).connect(mix); } catch {} }
+      CA.sysG = ctx.createGain(); CA.sysG.connect(mix);
+      if (ds.getAudioTracks().length) ctx.createMediaStreamSource(ds).connect(CA.sysG);
+      if (o.mic) { try { const ms = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); CA.streams.push(ms); CA.micG = ctx.createGain(); CA.micG.connect(mix); ctx.createMediaStreamSource(ms).connect(CA.micG); } catch {} }
+      caGains(o);
       const sink = ctx.createGain(); sink.gain.value = 0; node.connect(sink); sink.connect(ctx.destination);
-      CA.ring = new Int16Array(48000 * 2 * 130); CA.w = 0; CA.filled = 0;
+      CA.frames = CA_RATE * CA_SECS; CA.ring = new Int16Array(CA.frames * 2); CA.hi = -1;
       node.port.onmessage = e => {
-        const [L, R] = e.data, ring = CA.ring; if (!ring) return;
+        const [f0, L, Rr] = e.data, ring = CA.ring; if (!ring) return;
+        // write each sample at its own place on the audio clock; anything missed stays silent instead of shifting the rest
+        if (CA.hi >= 0 && f0 > CA.hi + 1) { for (let f = CA.hi + 1; f < f0 && f < CA.hi + 1 + CA.frames; f++) { const k = (f % CA.frames) * 2; ring[k] = 0; ring[k + 1] = 0; } }
         for (let i = 0; i < L.length; i++) {
-          ring[CA.w] = Math.max(-32768, Math.min(32767, L[i] * 32767)); ring[CA.w + 1] = Math.max(-32768, Math.min(32767, R[i] * 32767));
-          CA.w = (CA.w + 2) % ring.length;
+          const k = ((f0 + i) % CA.frames) * 2;
+          ring[k] = Math.max(-32768, Math.min(32767, L[i] * 32767)); ring[k + 1] = Math.max(-32768, Math.min(32767, Rr[i] * 32767));
         }
-        CA.filled = Math.min(ring.length, CA.filled + L.length * 2); CA.last = Date.now();
+        CA.hi = Math.max(CA.hi, f0 + L.length - 1);
       };
       CA.node = node;
+      caSync(); clearInterval(caOn.t); caOn.t = setInterval(caSync, 1000);
     } catch (e) { CA.on = false; console.warn("clip sound unavailable", e); }
   }
-  D.onClipAudio(o => { if (o && o.on) caOn(!!o.mic); else caOff(); });
+  D.onClipAudio(o => {
+    if (!o || !o.on) { clearInterval(caOn.t); caOff(); return; }
+    if (CA.on && CA.ctx && CA.mic === !!o.mic) caGains(o); else caOn(o);
+  });
   D.onClipAudioReq(({ id, from, dur }) => {
     const ring = CA.ring;
-    if (!ring || !CA.filled) { D.clipAudioRes({ id, pcm: null }); return; }
-    const frames = Math.round(dur * 48000), out = new Int16Array(frames * 2), back0 = Math.round((CA.last - from) / 1000 * 48000), have = CA.filled / 2;
+    caSync();
+    if (!ring || CA.hi < 0 || CA.wall0 == null) { D.clipAudioRes({ id, pcm: null }); return; }
+    const frames = Math.round(dur * CA_RATE), out = new Int16Array(frames * 2);
+    const f0 = Math.round((from - CA.wall0) / 1000 * CA_RATE), lo = CA.hi - CA.frames + 1;
     for (let f = 0; f < frames; f++) {
-      const back = back0 - f; if (back <= 0 || back > have) continue;
-      const idx = ((CA.w - back * 2) % ring.length + ring.length) % ring.length;
-      out[f * 2] = ring[idx]; out[f * 2 + 1] = ring[idx + 1];
+      const a = f0 + f; if (a < lo || a > CA.hi || a < 0) continue;
+      const k = (a % CA.frames) * 2; out[f * 2] = ring[k]; out[f * 2 + 1] = ring[k + 1];
     }
-    D.clipAudioRes({ id, rate: 48000, ch: 2, pcm: out.buffer });
+    D.clipAudioRes({ id, rate: CA_RATE, ch: 2, pcm: out.buffer });
   });
 
   /* ---------- Keep content clear of the corner buttons ---------- */
@@ -6476,6 +6534,13 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   let fmItems = [];
   const fa = $("fmAudio");
   const ICON_NOTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>';
+  // drag a file out of Sothis into Discord, a folder or any app
+  function fileDrag(el, f) {
+    if (!f) return el;
+    el.draggable = true; el.title = (el.title ? el.title + "\n" : "") + "Drag into Discord or a folder";
+    el.addEventListener("dragstart", e => { e.preventDefault(); D.dragFile(f); });
+    return el;
+  }
   function fmRow(icon, title, sub, onPlay, acts, on) {
     const r = mk("div", "fm-row" + (on ? " on" : "")); r.tabIndex = 0;
     const ic = mk("div", "fm-ic"); if (icon.startsWith("<")) ic.innerHTML = icon; else ic.textContent = icon;
@@ -6512,8 +6577,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   function fmRender() {
     if (flKind !== "mp3") return;
     const list = $("fmList"); list.replaceChildren();
-    fmItems.forEach(it => list.append(fmRow(it.ext === "mp3" ? ICON_NOTE : it.ext.toUpperCase(), it.name, [ago(it.at), fmtSize(it.size), it.ext.toUpperCase()].join(" · "),
-      () => fmPlay(it), [["Show", () => D.clipsShow(it.path)], ["Delete", () => { if (fmNow && fmNow.path === it.path) fmStop(); delFile(it.path, loadMusic); }, "del"]], fmNow && fmNow.path === it.path)));
+    fmItems.forEach(it => list.append(fileDrag(fmRow(it.ext === "mp3" ? ICON_NOTE : it.ext.toUpperCase(), it.name, [ago(it.at), fmtSize(it.size), it.ext.toUpperCase()].join(" · "),
+      () => fmPlay(it), [["Show", () => D.clipsShow(it.path)], ["Delete", () => { if (fmNow && fmNow.path === it.path) fmStop(); delFile(it.path, loadMusic); }, "del"]], fmNow && fmNow.path === it.path), it.path)));
     $("fmPlay").hidden = !fmNow;
   }
   function fmPlay(it) {

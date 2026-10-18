@@ -1424,6 +1424,7 @@ function clipper() {
     app, screen, DATA_DIR, VID_RE, clipsDir,
     log: t => { try { presLog(t); } catch {} },
     getSettings: () => settings,
+    gameRect: () => gameWindowRect(),
     currentGame: () => (sess && sess.game) || (dcGame && dcGame.name !== "a Steam game" ? dcGame.name : "") || "",
     onState: st => { if (win && !win.isDestroyed()) win.webContents.send("clip:state", Object.assign({}, st, { ready: !!clipperObj && !!clipperObj.ffExe() })); },
     setAudio: o => { if (win && !win.isDestroyed()) win.webContents.send("clip:audio", o); },
@@ -1440,14 +1441,47 @@ function clipper() {
   });
   return clipperObj;
 }
+// where the game's window is (its inside, without the title bar), in real screen pixels, plus the screen it's on
+function gameWindowRect() {
+  const exe = sess && sess.exe ? String(sess.exe).replace(/\.exe$/i, "").replace(/[^\w .-]/g, "") : "";
+  const ps = `$ErrorActionPreference='SilentlyContinue'
+Add-Type -Namespace S -Name W -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetProcessDPIAware(); [DllImport("user32.dll")] public static extern System.IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern bool GetClientRect(System.IntPtr h, out RECT r); [DllImport("user32.dll")] public static extern bool ClientToScreen(System.IntPtr h, ref POINT p); [DllImport("user32.dll")] public static extern System.IntPtr MonitorFromWindow(System.IntPtr h, uint f); [DllImport("user32.dll")] public static extern bool GetMonitorInfo(System.IntPtr m, ref MI i); [DllImport("user32.dll")] public static extern bool IsIconic(System.IntPtr h); public struct RECT { public int L, T, R, B; } public struct POINT { public int X, Y; } public struct MI { public int cb; public RECT rcM; public RECT rcW; public uint f; }'
+[S.W]::SetProcessDPIAware() | Out-Null
+$h = [System.IntPtr]::Zero
+$n = '${exe}'
+if ($n) { $p = Get-Process -Name $n | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1; if ($p) { $h = $p.MainWindowHandle } }
+if ($h -eq [System.IntPtr]::Zero) { $h = [S.W]::GetForegroundWindow() }
+if ([S.W]::IsIconic($h)) { exit }
+$r = New-Object S.W+RECT; [S.W]::GetClientRect($h, [ref]$r) | Out-Null
+$pt = New-Object S.W+POINT; [S.W]::ClientToScreen($h, [ref]$pt) | Out-Null
+$m = [S.W]::MonitorFromWindow($h, 2); $mi = New-Object S.W+MI; $mi.cb = 40; [S.W]::GetMonitorInfo($m, [ref]$mi) | Out-Null
+'{"x":' + $pt.X + ',"y":' + $pt.Y + ',"w":' + ($r.R - $r.L) + ',"h":' + ($r.B - $r.T) + ',"mx":' + $mi.rcM.L + ',"my":' + $mi.rcM.T + ',"mw":' + ($mi.rcM.R - $mi.rcM.L) + ',"mh":' + ($mi.rcM.B - $mi.rcM.T) + '}'`;
+  return new Promise(res => execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", ps], { windowsHide: true, timeout: 8000 }, (e, out) => {
+    try { const j = JSON.parse(String(out || "").trim().split(/\r?\n/).pop()); res(j && j.w > 0 ? j : null); } catch { res(null); }
+  }));
+}
+// drag a file out of Sothis (clips, videos, music, photos) into Discord, a folder or any app
+const DRAG_RE = /\.(mp4|mkv|webm|mov|m4v|mp3|wav|m4a|png|jpe?g|gif|webp|bmp)$/i;
+let dragIcon = null;
+ipcMain.on("file:drag", (e, f) => {
+  try {
+    f = String(f || "");
+    if (!DRAG_RE.test(f) || !path.isAbsolute(f) || !fs.existsSync(f) || !fs.statSync(f).isFile()) return;
+    if (!dragIcon) dragIcon = nativeImage.createFromPath(path.join(__dirname, "icon.png")).resize({ width: 48, height: 48 });
+    e.sender.startDrag({ file: f, icon: dragIcon });
+  } catch {}
+});
 ipcMain.on("clip:audioRes", (_e, r) => { const f = r && audioReqs[r.id]; if (f) { delete audioReqs[r.id]; f(r); } });
 ipcMain.handle("clips:state", () => clipper().state());
 ipcMain.handle("clips:setup", async () => { const ok = await clipper().ffEnsure(); if (ok && sess) clipper().start(); return clipper().state(); });
 ipcMain.handle("clips:save", () => clipper().save());
 ipcMain.handle("clips:set", (_e, o) => {
   const cur = Object.assign({}, settings.clips || {}), was = JSON.stringify(cur);
-  const k = ["on", "len", "key", "overlay", "mic", "fps", "monitor"];
+  const k = ["on", "len", "key", "overlay", "mic", "fps", "monitor", "sysVol", "micVol", "sysMute", "micMute", "window", "audioOffset"];
   for (const x of k) if (o && x in o) cur[x] = o[x];
+  for (const x of ["sysVol", "micVol"]) cur[x] = Math.max(0, Math.min(200, Math.round(+cur[x] >= 0 ? +cur[x] : 100)));
+  for (const x of ["sysMute", "micMute"]) cur[x] = !!cur[x];
+  cur.audioOffset = Math.max(-1000, Math.min(1000, Math.round(+cur.audioOffset || 0)));
   cur.len = [15, 30, 60, 120].includes(+cur.len) ? +cur.len : 30;
   if (!/^(F([6-9]|1[0-2])|Mouse4|Mouse5)$/.test(cur.key || "")) cur.key = "F8";
   cur.fps = +cur.fps === 30 ? 30 : 60;
@@ -1456,7 +1490,7 @@ ipcMain.handle("clips:set", (_e, o) => {
   saveSettings(); try { r6RegisterKey(); } catch {}
   const C = clipper(), s = C.state();
   const restartNeeded = ["fps", "monitor", "mic"].some(x => JSON.parse(was || "{}")[x] !== cur[x]);
-  if (cur.on === false) C.stop(); else if (sess && !s.recording) C.start(); else if (restartNeeded) C.restart();
+  if (cur.on === false) C.stop(); else if (sess && !s.recording) C.start(); else if (restartNeeded) C.restart(); else C.applyAudio();
   return C.state();
 });
 // Clips Medal saved loose in the main clips folder go into the folder of the game you were playing then

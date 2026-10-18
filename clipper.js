@@ -6,12 +6,13 @@
 const path = require("path"), fs = require("fs"), { spawn, execFile } = require("child_process");
 
 module.exports = function makeClipper(ctx) {
-  const { app, screen, DATA_DIR, log, getSettings, clipsDir, VID_RE, currentGame, onState, requestAudio, setAudio, notify } = ctx;
+  const { app, screen, DATA_DIR, log, getSettings, clipsDir, VID_RE, currentGame, onState, requestAudio, setAudio, notify, gameRect } = ctx;
   const FF_DIR = path.join(DATA_DIR, "ffmpeg");
   const BUF = path.join(DATA_DIR, "clipbuf");
   const SEG = 2, WRAP = 70;   // 2 s pieces, 140 s kept at most
   const S = () => getSettings().clips || {};
-  const cfg = () => Object.assign({ on: true, len: 30, key: "F8", overlay: true, mic: false, fps: 60, monitor: "auto" }, S());
+  const cfg = () => Object.assign({ on: true, len: 30, key: "F8", overlay: true, mic: false, fps: 60, monitor: "auto", sysVol: 100, micVol: 100, sysMute: false, micMute: false, window: true, audioOffset: 0 }, S());
+  const audioCfg = () => { const c = cfg(); return { on: true, mic: !!c.mic && !c.micMute, sysVol: c.sysMute ? 0 : c.sysVol / 100, micVol: c.micMute ? 0 : c.micVol / 100 }; };
 
   let st = { phase: "off", msg: "", progress: 0 };
   const setSt = o => { st = Object.assign({}, st, o); try { onState(st); } catch {} };
@@ -119,7 +120,7 @@ module.exports = function makeClipper(ctx) {
       if (!quick) setTimeout(start, 3000);
     });
     listTimer = setInterval(readList, 500);
-    setAudio({ on: true, mic: !!c.mic });
+    setAudio(audioCfg());
     hookStart();
     const me = ff;
     setTimeout(() => { if (ff && ff === me) { setSt({ phase: "rec", msg: `Recording the last ${c.len} s (${enc.name})` }); log("clips: recording with " + enc.name + " on monitor " + (idx + 1)); } }, 3000);
@@ -234,7 +235,21 @@ module.exports = function makeClipper(ctx) {
       const clipStart = Math.max(startS, use[0].a), clipLen = Math.min(len, endS - clipStart), off = Math.max(0, clipStart - use[0].a);
       const wall0 = wallOff + clipStart * 1000;
       // sound for exactly that time
-      let audio = null; try { audio = await requestAudio(wall0, clipLen); } catch {}
+      let audio = null; try { audio = await requestAudio(wall0 + (+c.audioOffset || 0), clipLen); } catch {}
+      // only the game's window: crop to it when the game isn't filling the whole screen
+      let crop = "";
+      if (c.window !== false && typeof gameRect === "function") {
+        try {
+          const g = await Promise.race([gameRect(), new Promise(r => setTimeout(() => r(null), 5000))]);
+          const VW = (vidSize && vidSize.w) || 0, VH = (vidSize && vidSize.h) || 0;
+          if (g && VW && g.mw === VW && g.mh === VH && g.w > 200 && g.h > 150 && (g.w < VW - 8 || g.h < VH - 8)) {
+            const k = ENC[encIdx].soft && VH > 1080 ? 1080 / VH : 1;
+            const ev = n => Math.max(2, Math.floor(n * k / 2) * 2);
+            let x = Math.max(0, g.x - g.mx), y = Math.max(0, g.y - g.my), w = Math.min(g.w, VW - x), h = Math.min(g.h, VH - y);
+            crop = `crop=${ev(w)}:${ev(h)}:${ev(x)}:${ev(y)},`;
+          }
+        } catch {}
+      }
       let haveAudio = false;
       if (audio && audio.pcm && (audio.pcm.byteLength || audio.pcm.length)) { fs.writeFileSync(path.join(tmp, "a.wav"), wav(Buffer.from(audio.pcm), audio.rate || 48000, audio.ch || 2)); haveAudio = true; }
       // key overlay
@@ -251,7 +266,7 @@ module.exports = function makeClipper(ctx) {
       let res = { ok: false, err: "" };
       for (const e of encs) {
         const args = ["-hide_banner", "-y", "-ss", off.toFixed(3), "-i", "v.ts", ...(haveAudio ? ["-i", "a.wav"] : []), "-t", clipLen.toFixed(3),
-          "-map", "0:v:0", ...(haveAudio ? ["-map", "1:a:0"] : []), ...(overlay ? ["-vf", "subtitles=keys.ass,format=yuv420p"] : ["-pix_fmt", "yuv420p"]), ...e,
+          "-map", "0:v:0", ...(haveAudio ? ["-map", "1:a:0"] : []), ...(overlay ? ["-vf", crop + "subtitles=keys.ass,format=yuv420p"] : ["-vf", crop + "format=yuv420p"]), ...e,
           ...(haveAudio ? ["-c:a", "aac", "-b:a", "192k"] : []), "-movflags", "+faststart", file];
         res = await runFF(args, tmp);
         if (res.ok) break;
@@ -271,6 +286,7 @@ module.exports = function makeClipper(ctx) {
     keyName: () => cfg().key,
     hookActive, hookStart,
     _inject: evs => { inputs = evs; hookOk = true; hook = hook || { fake: true }; },
+    applyAudio: () => { if (ff) setAudio(audioCfg()); },
     restart: () => { if (ff) { const was = want; stop(); setTimeout(() => { if (was) start(); }, 2000); } }
   };
 };

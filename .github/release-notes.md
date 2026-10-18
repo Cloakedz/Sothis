@@ -6,10 +6,10 @@
 
 Sothis keeps itself up to date after that. Your settings and sign-ins stay on your own PC (`%APPDATA%\Sothis`).
 
-## New
+## New in 1.2.0
 
-- Phone remote: music, Discord mute/deafen, clips and Lock PC from your iPhone (Settings → Phone)
-- Retro library: real game titles, versions grouped, duplicates, play time, finished, shelves
-- Rewind in the retro emulator (hold Backspace)
-- Retro save backup to a folder you pick
-- Updates itself from this page
+- Clip sound stays in sync with the video (no more delayed or choppy audio)
+- Game sound and mic volume sliders with mute buttons for clips (Settings → Clips)
+- Sound timing nudge if a clip's sound is ever a little early or late
+- Clips show only the game window when the game isn't full screen
+- Drag clips, videos, music and photos out of the Files page into Discord or any folder
