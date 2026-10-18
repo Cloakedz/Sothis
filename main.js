@@ -1426,7 +1426,7 @@ function clipper() {
     getSettings: () => settings,
     gameRect: () => gameWindowRect(),
     currentGame: () => (sess && sess.game) || (dcGame && dcGame.name !== "a Steam game" ? dcGame.name : "") || "",
-    onState: st => { if (win && !win.isDestroyed()) win.webContents.send("clip:state", Object.assign({}, st, { ready: !!clipperObj && !!clipperObj.ffExe() })); },
+    onState: st => { try { clipHideApply(); } catch {} if (win && !win.isDestroyed()) win.webContents.send("clip:state", Object.assign({}, st, { ready: !!clipperObj && !!clipperObj.ffExe() })); },
     setAudio: o => { if (win && !win.isDestroyed()) win.webContents.send("clip:audio", o); },
     requestAudio: (from, dur) => new Promise(res => {
       if (!win || win.isDestroyed()) return res(null);
@@ -1441,6 +1441,15 @@ function clipper() {
   });
   return clipperObj;
 }
+// Sothis's own windows stay out of clips while the recorder runs (Windows leaves them out of screen captures)
+let clipHidden = false;
+function clipHideApply() {
+  const want = !!(clipperObj && clipperObj.state().recording) && ((settings.clips || {}).hideSothis !== false);
+  if (want === clipHidden) return;
+  clipHidden = want;
+  for (const w of BrowserWindow.getAllWindows()) { try { if (!w.isDestroyed()) w.setContentProtection(want); } catch {} }
+}
+app.on("browser-window-created", (_e, w) => { if (clipHidden) { try { w.setContentProtection(true); } catch {} } });
 // where the game's window is (its inside, without the title bar), in real screen pixels, plus the screen it's on
 function gameWindowRect() {
   const exe = sess && sess.exe ? String(sess.exe).replace(/\.exe$/i, "").replace(/[^\w .-]/g, "") : "";
@@ -1477,12 +1486,13 @@ ipcMain.handle("clips:setup", async () => { const ok = await clipper().ffEnsure(
 ipcMain.handle("clips:save", () => clipper().save());
 ipcMain.handle("clips:set", (_e, o) => {
   const cur = Object.assign({}, settings.clips || {}), was = JSON.stringify(cur);
-  const k = ["on", "len", "key", "overlay", "mic", "fps", "monitor", "sysVol", "micVol", "sysMute", "micMute", "window", "audioOffset", "noise"];
+  const k = ["on", "len", "key", "overlay", "mic", "fps", "monitor", "sysVol", "micVol", "sysMute", "micMute", "window", "audioOffset", "noise", "hideSothis"];
   for (const x of k) if (o && x in o) cur[x] = o[x];
   for (const x of ["sysVol", "micVol"]) cur[x] = Math.max(0, Math.min(200, Math.round(+cur[x] >= 0 ? +cur[x] : 100)));
   for (const x of ["sysMute", "micMute"]) cur[x] = !!cur[x];
   cur.audioOffset = Math.max(-1000, Math.min(1000, Math.round(+cur.audioOffset || 0)));
   cur.noise = ["off", "standard", "strong"].includes(cur.noise) ? cur.noise : "strong";
+  cur.hideSothis = cur.hideSothis !== false;
   cur.len = [15, 30, 60, 120].includes(+cur.len) ? +cur.len : 30;
   if (!/^(F([6-9]|1[0-2])|Mouse4|Mouse5)$/.test(cur.key || "")) cur.key = "F8";
   cur.fps = +cur.fps === 30 ? 30 : 60;
@@ -1492,6 +1502,7 @@ ipcMain.handle("clips:set", (_e, o) => {
   const C = clipper(), s = C.state();
   const restartNeeded = ["fps", "monitor", "mic"].some(x => JSON.parse(was || "{}")[x] !== cur[x]);
   if (cur.on === false) C.stop(); else if (sess && !s.recording) C.start(); else if (restartNeeded) C.restart(); else C.applyAudio();
+  try { clipHideApply(); } catch {}
   return C.state();
 });
 // Clips Medal saved loose in the main clips folder go into the folder of the game you were playing then

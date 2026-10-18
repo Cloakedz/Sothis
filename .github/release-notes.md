@@ -6,6 +6,10 @@
 
 Sothis keeps itself up to date after that. Your settings and sign-ins stay on your own PC (`%APPDATA%\Sothis`).
 
+## New in 1.3.1
+
+- Sothis hides itself from your clips while recording (Settings → Clips → Hide Sothis from clips)
+
 ## New in 1.3.0
 
 - Mic noise suppression for clips: Strong (AI, RNNoise) or Light, in Settings → Clips
