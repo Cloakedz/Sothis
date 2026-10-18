@@ -6487,7 +6487,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       $("hxT").textContent = L.game;
       $("hxS").textContent = [L.map, L.mode, L.rank].filter(Boolean).join(" · ") || "Have a good one";
       const lg = HX_LOGO[L.game]; $("hxLogo").hidden = !lg; if (lg) $("hxLogo").dataset.logo = lg;
-      hxSetImg([L.mapImg, L.art, L.artAlt]);
+      hxSetImg([L.art, L.artAlt, L.mapImg]);   // the game's Steam banner first; the map picture only if there's no banner
       $("hxHero").hidden = L.game !== "Overwatch 2";
       if (L.game === "Overwatch 2") hxHeroFill();
       $("hxWd").hidden = !/^wardogs\b/i.test(L.game || "");

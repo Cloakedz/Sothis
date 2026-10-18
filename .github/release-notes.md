@@ -6,6 +6,10 @@
 
 Sothis keeps itself up to date after that. Your settings and sign-ins stay on your own PC (`%APPDATA%\Sothis`).
 
+## New in 1.6.1
+
+- The Home game banner shows the game's Steam banner while you play
+
 ## New in 1.6.0
 
 - Discord voice on its own track in clips: turn your friends up, down or off in Settings → Clips or later in the clip editor
