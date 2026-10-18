@@ -1427,12 +1427,18 @@ function clipper() {
     gameRect: () => gameWindowRect(),
     currentGame: () => (sess && sess.game) || (dcGame && dcGame.name !== "a Steam game" ? dcGame.name : "") || "",
     onState: st => { try { clipHideApply(); } catch {} if (win && !win.isDestroyed()) win.webContents.send("clip:state", Object.assign({}, st, { ready: !!clipperObj && !!clipperObj.ffExe() })); },
-    setAudio: o => { if (win && !win.isDestroyed()) win.webContents.send("clip:audio", o); },
+    setAudio: o => { try { aaSet(o && o.on); } catch {} if (win && !win.isDestroyed()) win.webContents.send("clip:audio", o); },
     requestAudio: (from, dur) => new Promise(res => {
-      if (!win || win.isDestroyed()) return res(null);
-      const id = ++audioReqN; audioReqs[id] = res;
+      // game and Discord from the per-app recorder when it's running; your mic always from the Sothis window
+      const done = r => {
+        let g = null, v = null; try { g = aaRead("game", from, dur); v = aaRead("voice", from, dur); } catch {}
+        if (g) r = Object.assign({}, r || {}, { pcm: g.buffer, rate: 48000, ch: 2, voice: v ? v.buffer : null });
+        res(r);
+      };
+      if (!win || win.isDestroyed()) return done(null);
+      const id = ++audioReqN; audioReqs[id] = done;
       win.webContents.send("clip:audioReq", { id, from, dur });
-      setTimeout(() => { if (audioReqs[id]) { delete audioReqs[id]; res(null); } }, 6000);
+      setTimeout(() => { if (audioReqs[id]) { delete audioReqs[id]; done(null); } }, 6000);
     }),
     notify: (name, file) => {
       if (win && !win.isDestroyed()) win.webContents.send("clip:saved", { name, file });
@@ -1441,6 +1447,65 @@ function clipper() {
   });
   return clipperObj;
 }
+
+/* ---------- Clip sound per app: game (everything except Discord) and Discord voice, recorded apart (app-audio.ps1).
+   Uses Windows' own per-app recording (Windows 10 2004+). If it can't run, clips use the Sothis window's recording as before. ---------- */
+const AA_RATE = 48, AA_FRAMES = 48000 * 130;   // 48 samples per ms, 130 s kept
+const aa = { want: false, procs: {}, rings: {}, fails: { game: 0, voice: 0 }, timers: {} };
+function aaRing() { return { buf: new Int16Array(AA_FRAMES * 2), hi: -1, ok: false, at: 0 }; }
+function aaWrite(ring, wallMs, data, n) {
+  const f0 = Math.round(wallMs * AA_RATE), b = ring.buf;
+  if (ring.hi >= 0 && f0 > ring.hi + 1) for (let f = ring.hi + 1, e = Math.min(f0, ring.hi + 1 + AA_FRAMES); f < e; f++) { const p = (f % AA_FRAMES) * 2; b[p] = b[p + 1] = 0; }
+  for (let i = 0; i < n; i++) { const p = ((f0 + i) % AA_FRAMES) * 2; b[p] = data.readInt16LE(i * 4); b[p + 1] = data.readInt16LE(i * 4 + 2); }
+  ring.hi = Math.max(ring.hi, f0 + n - 1); ring.at = Date.now();
+}
+function aaRead(key, fromMs, durS) {
+  const ring = aa.rings[key];
+  if (!ring || !ring.ok || ring.hi < 0 || !aa.procs[key]) return null;
+  const n = Math.round(durS * 48000), out = new Int16Array(n * 2), f0 = Math.round(fromMs * AA_RATE), lo = ring.hi - AA_FRAMES + 1;
+  for (let i = 0; i < n; i++) { const f = f0 + i; if (f < lo || f > ring.hi) continue; const p = (f % AA_FRAMES) * 2; out[i * 2] = ring.buf[p]; out[i * 2 + 1] = ring.buf[p + 1]; }
+  return out;
+}
+function aaSpawn(key) {
+  clearTimeout(aa.timers[key]);
+  if (!aa.want || aa.procs[key] || process.platform !== "win32" || aa.fails[key] >= 5) return;
+  const mode = key === "voice" ? "Include" : "Exclude", started = Date.now();
+  let p; try { p = require("child_process").spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-MTA", "-ExecutionPolicy", "Bypass", "-File", path.join(__dirname, "app-audio.ps1"), "-Mode", mode, "-Target", "Discord"], { windowsHide: true }); } catch { aa.fails[key]++; return; }
+  aa.procs[key] = p;
+  const ring = aa.rings[key] || (aa.rings[key] = aaRing());
+  let pend = Buffer.alloc(0), map = null, err = "";
+  p.stdout.on("data", d => {
+    pend = pend.length ? Buffer.concat([pend, d]) : d;
+    for (;;) {
+      if (map === null) {
+        if (pend.length < 20) break;
+        if (pend.toString("latin1", 0, 4) !== "SOTA") { try { p.kill(); } catch {} return; }
+        map = Number(pend.readBigInt64LE(4)) - Number(pend.readBigInt64LE(12)) / 1e4;   // wall-clock ms of audio-clock 0
+        pend = pend.subarray(20); ring.ok = true; aa.fails[key] = 0; continue;
+      }
+      if (pend.length < 12) break;
+      const n = pend.readInt32LE(8), bytes = n * 4;
+      if (n < 0 || n > 480000) { try { p.kill(); } catch {} return; }
+      if (pend.length < 12 + bytes) break;
+      aaWrite(ring, map + Number(pend.readBigInt64LE(0)) / 1e4, pend.subarray(12, 12 + bytes), n);
+      pend = pend.subarray(12 + bytes);
+    }
+  });
+  p.stderr.on("data", d => { err = (err + d).slice(-500); });
+  p.on("exit", code => {
+    if (aa.procs[key] === p) delete aa.procs[key];
+    const noTarget = /notarget/.test(err);
+    if (!noTarget && code !== 0) { aa.fails[key]++; try { presLog("clips: " + key + " sound helper stopped (" + code + "): " + err.trim().split("\n").pop()); } catch {} }
+    if (aa.want) aa.timers[key] = setTimeout(() => aaSpawn(key), noTarget ? 15000 : Date.now() - started < 5000 ? 8000 : 2000);
+  });
+}
+function aaSet(on) {
+  on = !!on && (settings.clips || {}).splitVoice !== false;
+  aa.want = on;
+  if (on) { aaSpawn("game"); aaSpawn("voice"); }
+  else for (const k of Object.keys(aa.procs)) { try { aa.procs[k].kill(); } catch {} delete aa.procs[k]; }
+}
+app.on("will-quit", () => aaSet(false));
 // Sothis's own windows stay out of clips while the recorder runs (Windows leaves them out of screen captures)
 let clipHidden = false;
 function clipHideApply() {
@@ -1486,10 +1551,11 @@ ipcMain.handle("clips:setup", async () => { const ok = await clipper().ffEnsure(
 ipcMain.handle("clips:save", () => clipper().save());
 ipcMain.handle("clips:set", (_e, o) => {
   const cur = Object.assign({}, settings.clips || {}), was = JSON.stringify(cur);
-  const k = ["on", "len", "key", "overlay", "mic", "fps", "monitor", "sysVol", "micVol", "sysMute", "micMute", "window", "audioOffset", "noise", "hideSothis", "quality"];
+  const k = ["on", "len", "key", "overlay", "mic", "fps", "monitor", "sysVol", "micVol", "sysMute", "micMute", "window", "audioOffset", "noise", "hideSothis", "quality", "voiceVol", "voiceMute", "splitVoice"];
   for (const x of k) if (o && x in o) cur[x] = o[x];
-  for (const x of ["sysVol", "micVol"]) cur[x] = Math.max(0, Math.min(200, Math.round(+cur[x] >= 0 ? +cur[x] : 100)));
-  for (const x of ["sysMute", "micMute"]) cur[x] = !!cur[x];
+  for (const x of ["sysVol", "micVol", "voiceVol"]) cur[x] = Math.max(0, Math.min(200, Math.round(+cur[x] >= 0 ? +cur[x] : 100)));
+  for (const x of ["sysMute", "micMute", "voiceMute"]) cur[x] = !!cur[x];
+  cur.splitVoice = cur.splitVoice !== false;
   cur.audioOffset = Math.max(-1000, Math.min(1000, Math.round(+cur.audioOffset || 0)));
   cur.noise = ["off", "standard", "strong"].includes(cur.noise) ? cur.noise : "strong";
   cur.hideSothis = cur.hideSothis !== false;
@@ -1503,6 +1569,7 @@ ipcMain.handle("clips:set", (_e, o) => {
   const C = clipper(), s = C.state();
   const restartNeeded = ["fps", "monitor", "mic", "quality"].some(x => JSON.parse(was || "{}")[x] !== cur[x]);
   if (cur.on === false) C.stop(); else if (sess && !s.recording) C.start(); else if (restartNeeded) C.restart(); else C.applyAudio();
+  try { if (C.state().recording) aaSet(true); } catch {}
   try { clipHideApply(); } catch {}
   return C.state();
 });
@@ -1566,17 +1633,24 @@ const runFF = (exe, args, onTime) => new Promise(resolve => {
   p.on("close", code => resolve({ ok: code === 0, err }));
 });
 // how many sound tracks a clip has: Sothis clips have 1 mix + game (+ mic), others usually just 1
-async function clipTracks(file, tools) {
+// the clip's sound tracks by name: Sothis clips are "Mix" then "Game", "Discord", "Mic"; other clips usually one unnamed track
+async function clipTrackNames(file, tools) {
   tools = tools || medalTools();
-  if (!tools || !tools.ffprobe) return 1;
-  const r = await new Promise(res => execFile(tools.ffprobe, ["-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", file], { windowsHide: true, timeout: 15000 }, (err, so) => res(err ? null : String(so).trim())));
-  return r === null ? 1 : r ? r.split(/\r?\n/).filter(Boolean).length : 0;
+  if (!tools || !tools.ffprobe) return [""];
+  const r = await new Promise(res => execFile(tools.ffprobe, ["-v", "error", "-select_streams", "a", "-show_entries", "stream=index:stream_tags=handler_name", "-of", "csv=p=0", file], { windowsHide: true, timeout: 15000 }, (err, so) => res(err ? null : String(so).trim())));
+  if (r === null) return [""];
+  // MP4 keeps a track's name as its "handler name"; the default one ("SoundHandler") means no name
+  return r ? r.split(/\r?\n/).filter(Boolean).map(l => { const t = (l.split(",")[1] || "").trim(); return /^(SoundHandler|)$/i.test(t) ? "" : t; }) : [];
 }
+async function clipTracks(file, tools) { return (await clipTrackNames(file, tools)).length; }
 ipcMain.handle("clips:tracks", async (_e, file) => {
-  if (typeof file !== "string" || !inDirs(file, [clipsDir(), dlDir("mp4")]) || !fs.existsSync(file)) return 0;
-  return clipTracks(file);
+  if (typeof file !== "string" || !inDirs(file, [clipsDir(), dlDir("mp4")]) || !fs.existsSync(file)) return [];
+  const t = await clipTrackNames(file);
+  // older Sothis clips had no names: 2 tracks = mix + game, 3 = mix + game + mic
+  if (t.length >= 2 && t.every(x => !x)) return t.length === 2 ? ["Mix", "Game"] : ["Mix", "Game", "Mic"];
+  return t;
 });
-ipcMain.handle("clips:export", async (e, { file, segs, quick, gameVol, micVol }) => {
+ipcMain.handle("clips:export", async (e, { file, segs, quick, gameVol, micVol, voiceVol }) => {
   if (typeof file !== "string" || !inDirs(file, [clipsDir(), dlDir("mp4")]) || !fs.existsSync(file)) return { ok: false, err: "That clip isn't in your clips folder." };
   const tools = medalTools();
   if (!tools) return { ok: false, err: "Couldn't find Medal's video tools. Is Medal installed?" };
@@ -1591,32 +1665,38 @@ ipcMain.handle("clips:export", async (e, { file, segs, quick, gameVol, micVol })
   let n = count + 1, out = path.join(dirOf, `${base} ${n}.mp4`);
   while (fs.existsSync(out)) out = path.join(dirOf, `${base} ${++n}.mp4`);
   const progress = t => { try { e.sender.send("clips:progress", Math.min(99, Math.round(t / total * 100))); } catch {} };
-  // sound: tracks of a Sothis clip are 1 mix, 2 game, 3 mic; the editor's volumes remix them
-  const nA = await clipTracks(file, tools), hasAudio = nA > 0;
-  const gv = Math.max(0, Math.min(2, isFinite(+gameVol) ? +gameVol : 1)), mv = Math.max(0, Math.min(2, isFinite(+micVol) ? +micVol : 1));
-  const volChanged = Math.abs(gv - 1) > 0.001 || Math.abs(mv - 1) > 0.001;
+  // sound: a Sothis clip's tracks are the mix, then game, Discord and mic; the editor's volumes remix them
+  let names = await clipTrackNames(file, tools);
+  if (names.length >= 2 && names.every(x => !x)) names = names.length === 2 ? ["Mix", "Game"] : ["Mix", "Game", "Mic"];
+  const nA = names.length, hasAudio = nA > 0;
+  const vol = x => Math.max(0, Math.min(2, isFinite(+x) ? +x : 1));
+  const gv = vol(gameVol), mv = vol(micVol), dv = vol(voiceVol);
+  const volChanged = [gv, mv, dv].some(x => Math.abs(x - 1) > 0.001);
   if (quick && parts.length === 1 && !volChanged) {   // no re-encode: instant, but the cut lands on the nearest keyframe
     const r = await runFF(tools.ffmpeg, ["-hide_banner", "-y", "-ss", String(parts[0].a), "-to", String(parts[0].b), "-i", file, "-map", "0", "-c", "copy", "-avoid_negative_ts", "make_zero", "-movflags", "+faststart", out], progress);
     return r.ok ? { ok: true, out, name: path.basename(out) } : { ok: false, err: "ffmpeg: " + r.err.split("\n").filter(Boolean).slice(-2).join(" ") };
   }
-  // the new clip keeps the same tracks (mix + game + mic), with the mix redone at the editor's volumes
-  const nOut = nA >= 3 ? 3 : nA === 2 ? 2 : nA ? 1 : 0;
+  // the new clip keeps the same tracks, with the mix redone at the editor's volumes
+  const split = nA >= 2 && names[0] === "Mix";
+  const srcs = split ? names.slice(1).map((t, k) => ({ t: t || "Game", idx: k + 1 })) : [];
+  const vOf = t => t === "Mic" ? mv : t === "Discord" ? dv : gv;
+  const nOut = split ? 1 + srcs.length : nA ? 1 : 0;
   let fc = "";
   parts.forEach((x, i) => {
     const tr = `trim=start=${x.a.toFixed(3)}:end=${x.b.toFixed(3)}`;
     fc += `[0:v:0]${tr},setpts=PTS-STARTPTS[v${i}];`;
-    if (nOut === 1) fc += `[0:a:0]a${tr},asetpts=PTS-STARTPTS,volume=${gv.toFixed(2)}[a${i}x0];`;
-    if (nOut >= 2) {
-      fc += `[0:a:1]a${tr},asetpts=PTS-STARTPTS,asplit=2[g${i}a][a${i}x1];[g${i}a]volume=${gv.toFixed(2)}[g${i}v];`;
-      if (nOut === 3) fc += `[0:a:2]a${tr},asetpts=PTS-STARTPTS,asplit=2[m${i}a][a${i}x2];[m${i}a]volume=${mv.toFixed(2)},pan=stereo|c0=c0|c1=c0[m${i}v];[g${i}v][m${i}v]amix=inputs=2:normalize=0:duration=first[a${i}x0];`;
-      else fc += `[g${i}v]anull[a${i}x0];`;
+    if (!split && nA) fc += `[0:a:0]a${tr},asetpts=PTS-STARTPTS,volume=${gv.toFixed(2)}[a${i}x0];`;
+    if (split) {
+      srcs.forEach((s2, k) => {
+        fc += `[0:a:${s2.idx}]a${tr},asetpts=PTS-STARTPTS,asplit=2[s${i}_${k}][a${i}x${k + 1}];[s${i}_${k}]volume=${vOf(s2.t).toFixed(2)}${s2.t === "Mic" ? ",pan=stereo|c0=c0|c1=c0" : ""}[w${i}_${k}];`;
+      });
+      fc += srcs.map((_, k) => `[w${i}_${k}]`).join("") + (srcs.length > 1 ? `amix=inputs=${srcs.length}:normalize=0:duration=first` : "anull") + `[a${i}x0];`;
     }
   });
   fc += parts.map((_, i) => `[v${i}]` + Array.from({ length: nOut }, (_, k) => `[a${i}x${k}]`).join("")).join("") + `concat=n=${parts.length}:v=1:a=${nOut}[v]` + Array.from({ length: nOut }, (_, k) => `[ao${k}]`).join("");
   const amaps = [];
   for (let k = 0; k < nOut; k++) amaps.push("-map", `[ao${k}]`);
-  if (nOut >= 2) amaps.push("-metadata:s:a:0", "title=Mix", "-metadata:s:a:1", "title=Game", "-disposition:a:0", "default", "-disposition:a:1", "0");
-  if (nOut === 3) amaps.push("-metadata:s:a:2", "title=Mic", "-disposition:a:2", "0");
+  if (split) { amaps.push("-metadata:s:a:0", "handler_name=Mix", "-disposition:a:0", "default"); srcs.forEach((s2, k) => amaps.push(`-metadata:s:a:${k + 1}`, "handler_name=" + s2.t, `-disposition:a:${k + 1}`, "0")); }
   const ENC = [
     ["-c:v", "h264_amf", "-quality", "quality", "-rc", "cqp", "-qp_i", "18", "-qp_p", "20", "-qp_b", "22"],   // your Radeon card
     ["-c:v", "h264_nvenc", "-preset", "p5", "-cq", "19"],

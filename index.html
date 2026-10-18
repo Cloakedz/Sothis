@@ -2038,6 +2038,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
             <div class="ed-bar ed-aud" id="edAud" hidden>
               <span class="ed-k">Sound</span>
               <label class="ed-vol" id="edGameW">Game <input type="range" id="edGame" min="0" max="200" step="5" value="100" aria-label="Game sound"><b id="edGameV">100%</b><button class="btn ghost ed-b ed-mute" id="edGameMute" type="button" aria-pressed="false">Mute</button></label>
+              <label class="ed-vol" id="edVoiceW" hidden>Discord <input type="range" id="edVoice" min="0" max="200" step="5" value="100" aria-label="Discord voice"><b id="edVoiceV">100%</b><button class="btn ghost ed-b ed-mute" id="edVoiceMute" type="button" aria-pressed="false">Mute</button></label>
               <label class="ed-vol" id="edMicW" hidden>Mic <input type="range" id="edMic" min="0" max="200" step="5" value="100" aria-label="Mic"><b id="edMicV">100%</b><button class="btn ghost ed-b ed-mute" id="edMicMute" type="button" aria-pressed="false">Mute</button></label>
             </div>
             <div class="ed-bar">
@@ -2242,6 +2243,10 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
           <div class="setting ck-vol">
             <div class="txt"><div class="name">Game sound</div><div class="desc">How loud your game, music and chat are in clips.</div></div>
             <div class="ck-volc"><input type="range" id="ckSysVol" min="0" max="200" step="5" value="100" aria-label="Game sound volume in clips"><b id="ckSysV">100%</b><button class="btn ghost ck-mute" id="ckSysMute" type="button" aria-pressed="false">Mute</button></div>
+          </div>
+          <div class="setting ck-vol">
+            <div class="txt"><div class="name">Discord voice</div><div class="desc">Your friends in your Discord call, kept on their own track so you can turn them down later in the editor.</div></div>
+            <div class="ck-volc"><input type="range" id="ckVoiceVol" min="0" max="200" step="5" value="100" aria-label="Discord voice volume in clips"><b id="ckVoiceV">100%</b><button class="btn ghost ck-mute" id="ckVoiceMute" type="button" aria-pressed="false">Mute</button></div>
           </div>
           <div class="setting ck-vol" id="ckMicRow">
             <div class="txt"><div class="name">Mic</div><div class="desc">How loud your microphone is in clips.</div></div>
@@ -5885,7 +5890,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   $("edSave").onclick = async () => {
     if (!clipNow || edBusy || !edSegs.length) return;
     edBusy = true; ev.pause(); $("edSave").disabled = true; $("edSave").textContent = "Saving…"; $("edProg").hidden = false; $("edProgI").style.width = "0%";
-    let r = null; try { r = await D.clipsExport({ file: clipNow.path, segs: edSegs, quick: $("edQuick").checked, gameVol: edVol("game"), micVol: edVol("mic") }); } catch {}
+    let r = null; try { r = await D.clipsExport({ file: clipNow.path, segs: edSegs, quick: $("edQuick").checked, gameVol: edVol("game"), micVol: edVol("mic"), voiceVol: edVol("voice") }); } catch {}
     edBusy = false; $("edSave").disabled = false; $("edSave").textContent = "Save as new clip"; $("edProg").hidden = true;
     if (r && r.ok) { toast("Saved " + r.name); loadClips(); } else toast((r && r.err) || "Couldn't save the clip");
   };
@@ -5899,29 +5904,30 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     else if (k === "arrowright") { ev.currentTime = Math.min(edDur, ev.currentTime + (e.shiftKey ? 1 : 1 / 30)); edRender(); }
   });
   // sound in the editor: game and mic volume (separately on Sothis clips that kept a mic track)
-  const edA = { game: 100, mic: 100, gameMute: false, micMute: false, tracks: 1 };
+  const edA = { game: 100, mic: 100, voice: 100, gameMute: false, micMute: false, voiceMute: false, tracks: [""] };
   const edVol = k => edA[k + "Mute"] ? 0 : edA[k] / 100;
   function edAudRender() {
-    $("edAud").hidden = edA.tracks < 1;
-    $("edMicW").hidden = edA.tracks < 3;
-    for (const k of ["game", "mic"]) {
-      const K = k === "game" ? "Game" : "Mic";
+    $("edAud").hidden = !edA.tracks.length;
+    $("edMicW").hidden = !edA.tracks.includes("Mic");
+    $("edVoiceW").hidden = !edA.tracks.includes("Discord");
+    for (const k of ["game", "mic", "voice"]) {
+      const K = k === "game" ? "Game" : k === "mic" ? "Mic" : "Voice";
       $("ed" + K).value = edA[k]; $("ed" + K + "V").textContent = edA[k] + "%"; $("ed" + K).disabled = edA[k + "Mute"];
       $("ed" + K + "Mute").setAttribute("aria-pressed", edA[k + "Mute"]); $("ed" + K + "Mute").textContent = edA[k + "Mute"] ? "Muted" : "Mute";
     }
     // the preview plays the clip's mixed sound; turn it down with the game slider so you can hear roughly how it'll be
     try { $("clVid").volume = Math.min(1, edVol("game")); } catch {}
-    if (edVol("game") !== 1 || edVol("mic") !== 1) { $("edQuick").checked = false; $("edQuick").disabled = true; }
+    if (edVol("game") !== 1 || edVol("mic") !== 1 || edVol("voice") !== 1) { $("edQuick").checked = false; $("edQuick").disabled = true; }
   }
-  for (const k of ["game", "mic"]) {
-    const K = k === "game" ? "Game" : "Mic";
+  for (const k of ["game", "mic", "voice"]) {
+    const K = k === "game" ? "Game" : k === "mic" ? "Mic" : "Voice";
     $("ed" + K).addEventListener("input", () => { edA[k] = +$("ed" + K).value; edAudRender(); });
     $("ed" + K + "Mute").onclick = e => { e.preventDefault(); edA[k + "Mute"] = !edA[k + "Mute"]; edAudRender(); };
   }
   function playClip(c) {
     clipNow = c; edDur = 0; edSegs = [];
-    Object.assign(edA, { game: 100, mic: 100, gameMute: false, micMute: false, tracks: 1 }); edAudRender();
-    D.clipsTracks(c.path).then(n => { if (clipNow === c) { edA.tracks = +n || 0; edAudRender(); } }).catch(() => {});
+    Object.assign(edA, { game: 100, mic: 100, voice: 100, gameMute: false, micMute: false, voiceMute: false, tracks: [""] }); edAudRender();
+    D.clipsTracks(c.path).then(t => { if (clipNow === c) { edA.tracks = Array.isArray(t) ? t : []; edAudRender(); } }).catch(() => {});
     $("clPlay").hidden = false; $("clVid").src = c.url; $("clVid").play().catch(() => {});
     $("clPlayName").textContent = c.name; $("clPlayMeta").textContent = [c.game, ago(c.at), fmtSize(c.size)].filter(Boolean).join(" · ");
     $("tab-clips").scrollTop = 0;
@@ -5958,7 +5964,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     if (document.activeElement !== $("ckFps")) $("ckFps").value = String(c.fps || 60);
     if (document.activeElement !== $("ckQ")) $("ckQ").value = c.quality || "high";
     if (document.activeElement !== $("ckMon")) $("ckMon").value = String(c.monitor ?? "auto");
-    const sv = c.sysVol ?? 100, mv = c.micVol ?? 100;
+    const sv = c.sysVol ?? 100, mv = c.micVol ?? 100, vv = c.voiceVol ?? 100;
+    if (!ckVolDrag.voice) { $("ckVoiceVol").value = vv; $("ckVoiceV").textContent = vv + "%"; }
+    $("ckVoiceMute").setAttribute("aria-pressed", !!c.voiceMute); $("ckVoiceMute").textContent = c.voiceMute ? "Muted" : "Mute"; $("ckVoiceVol").disabled = !!c.voiceMute;
     if (!ckVolDrag.sys) { $("ckSysVol").value = sv; $("ckSysV").textContent = sv + "%"; }
     if (!ckVolDrag.mic) { $("ckMicVol").value = mv; $("ckMicV").textContent = mv + "%"; }
     $("ckSysMute").setAttribute("aria-pressed", !!c.sysMute); $("ckSysMute").textContent = c.sysMute ? "Muted" : "Mute";
@@ -5978,12 +5986,13 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       : c.on === false ? "Recording is off." : `Ready. It starts recording when you open a game. Press ${keyTxt} to save a clip.`;
   }
   const ckSet = o => D.clipsSet(o).then(ckRender).catch(() => {});
-  const ckVolDrag = { sys: false, mic: false };
-  for (const [k, id, lab] of [["sys", "ckSysVol", "ckSysV"], ["mic", "ckMicVol", "ckMicV"]]) {
+  const ckVolDrag = { sys: false, mic: false, voice: false };
+  for (const [k, id, lab] of [["sys", "ckSysVol", "ckSysV"], ["mic", "ckMicVol", "ckMicV"], ["voice", "ckVoiceVol", "ckVoiceV"]]) {
     let t = null;
     $(id).addEventListener("input", () => { ckVolDrag[k] = true; $(lab).textContent = $(id).value + "%"; clearTimeout(t); t = setTimeout(() => { ckSet({ [k + "Vol"]: +$(id).value }).then(() => { ckVolDrag[k] = false; }); }, 200); });
   }
   $("ckSysMute").onclick = () => ckSet({ sysMute: $("ckSysMute").getAttribute("aria-pressed") !== "true" });
+  $("ckVoiceMute").onclick = () => ckSet({ voiceMute: $("ckVoiceMute").getAttribute("aria-pressed") !== "true" });
   $("ckMicMute").onclick = () => ckSet({ micMute: $("ckMicMute").getAttribute("aria-pressed") !== "true" });
   $("ckSync").onchange = () => ckSet({ audioOffset: +$("ckSync").value });
   $("ckNs").onchange = () => ckSet({ noise: $("ckNs").value });
