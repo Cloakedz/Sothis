@@ -3447,7 +3447,63 @@ ipcMain.handle("session:now", () => sess ? { game: sess.game, start: sess.start 
 // What the Home banner shows while you play: map (with its picture), mode and rank
 const STEAM_IDS = { "Overwatch 2": 2357570, "Rainbow Six Siege": 359550, "Counter-Strike 2": 730, "Marvel Rivals": 2767030, "PUBG": 578080, "Palworld": 1623730, "Elden Ring": 1245620, "GTA V": 271590, "Red Dead Redemption 2": 1174180, "7 Days to Die": 251570, "Vampire Survivors": 1794680, "FragPunk": 2943650, "The Witcher 3": 292030, "Skyrim": 489830, "Fallout 4": 377160 };
 let steamLibAsk = null, steamLib = null;
-ipcMain.handle("session:live", () => {
+// Banner pictures for a Steam game: the copy Steam already saved on this PC first (always right, even for new games
+// whose pictures live at hashed addresses), then the store's own addresses, then the plain CDN guesses
+const steamArtCache = {};
+async function steamBannerList(sid) {
+  sid = String(sid || "");
+  if (!/^\d+$/.test(sid)) return [];
+  if (steamArtCache[sid] && Date.now() - steamArtCache[sid].at < 6 * 3600000) return steamArtCache[sid].list;
+  const list = [];
+  try {
+    let root = await regQuery("HKCU\\Software\\Valve\\Steam", "SteamPath");
+    root = (root || "C:\\Program Files (x86)\\Steam").replace(/\//g, "\\");
+    const cache = path.join(root, "appcache", "librarycache"), found = [];
+    const look = d => { try { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const q = path.join(d, e.name); if (e.isDirectory()) look(q); else if (/^(library_hero|header)\.(jpg|png)$/i.test(e.name)) found.push(q); } } catch {} };
+    look(path.join(cache, sid));
+    for (const f of [sid + "_library_hero.jpg", sid + "_header.jpg"]) if (fs.existsSync(path.join(cache, f))) found.push(path.join(cache, f));
+    found.sort((a, b) => (/hero/i.test(path.basename(b)) ? 1 : 0) - (/hero/i.test(path.basename(a)) ? 1 : 0));
+    for (const f of found) list.push(require("url").pathToFileURL(f).href);
+  } catch {}
+  list.push(`https://cdn.cloudflare.steamstatic.com/steam/apps/${sid}/library_hero.jpg`);
+  try {
+    const r = await fetch(`https://store.steampowered.com/api/appdetails?appids=${sid}`, { signal: AbortSignal.timeout(6000) });
+    const d = ((await r.json()) || {})[sid];
+    const x = d && d.data;
+    if (x) {
+      const hdr = x.header_image || "";
+      // the hero sits next to the header at the same (hashed) address on newer games
+      if (/\/header\.jpg/.test(hdr)) list.push(hdr.replace(/\/header\.jpg.*/, "/library_hero.jpg"));
+      if (x.background_raw) list.push(x.background_raw);
+      if (hdr) list.push(hdr);
+    }
+  } catch {}
+  list.push(`https://cdn.cloudflare.steamstatic.com/steam/apps/${sid}/header.jpg`);
+  const uniq = [...new Set(list)];
+  steamArtCache[sid] = { at: Date.now(), list: uniq };
+  return uniq;
+}
+async function steamIdFor(g, exe) {
+  let sid = STEAM_IDS[g] || (/^steam:(\d+)$/.exec(exe || "") || [])[1];
+  if (sid) return String(sid);
+  const norm = t => String(t || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const n = norm(g);
+  if (!n) return "";
+  // the Steam list itself (the Games list drops a Steam copy when another store has a game with the same name)
+  if (!steamLib) { if (!steamLibAsk) steamLibAsk = steamGames().then(l => { steamLib = l || []; }).catch(() => { steamLibAsk = null; }); try { await steamLibAsk; } catch {} }
+  const all = [...(steamLib || []), ...(gamesCache || [])];
+  const hit = all.find(x => /^steam:\d+$/.test(x.key || "") && norm(x.name) === n)
+    || all.find(x => /^steam:\d+$/.test(x.key || "") && norm(x.name) && (norm(x.name).startsWith(n) || n.startsWith(norm(x.name))));
+  return hit ? hit.key.slice(6) : "";
+}
+ipcMain.handle("session:art", async () => {
+  // between games: the last game you played
+  const L = settings.lastSession;
+  if (!L || !L.game) return null;
+  const sid = await steamIdFor(L.game, "");
+  return sid ? { game: L.game, art: await steamBannerList(sid) } : null;
+});
+ipcMain.handle("session:live", async () => {
   if (!sess) return null;
   const g = sess.game, gr = settings.gameRanks || {};
   let map = "", mode = "", rank = "";
@@ -3455,15 +3511,10 @@ ipcMain.handle("session:live", () => {
   else if (g === "Rainbow Six Siege") { if (r6MapNow && Date.now() - r6MapNow.at < 45 * 60000) map = r6MapNow.name; rank = settings.r6RankName ? String(settings.r6RankName).replace(/^(no rank|not ranked)$/i, "Unranked") + (typeof settings.r6RP === "number" ? " · " + Number(settings.r6RP).toLocaleString("en-US") + " RP" : "") : ""; }
   else if (/^wardogs\b/i.test(g || "")) { map = wdTeamName(); if (wdCash && Date.now() - wdCash.at < 10 * 60000) rank = wdCash.txt; }
   else if (g === "Counter-Strike 2") { if (csLive && Date.now() - csLive.at < 90000) { map = csLive.map; mode = csLive.score || ""; } rank = gr.cs || ""; }
-  // the game's Steam app: known games, games started through Steam, or found by name in your Steam library
-  const norm = t => String(t || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
-  let sid = STEAM_IDS[g] || (/^steam:(\d+)$/.exec(sess.exe || "") || [])[1];
-  if (!sid && !gamesCache && !steamLibAsk) { steamLibAsk = steamGames().then(l => { steamLib = l || []; }).catch(() => { steamLibAsk = null; }); }
-  if (!sid) { const hit = (gamesCache || steamLib || []).find(x => /^steam:\d+$/.test(x.key || "") && norm(x.name) && (norm(x.name) === norm(g) || norm(x.name).startsWith(norm(g)) || norm(g).startsWith(norm(x.name)))); if (hit) sid = hit.key.slice(6); }
-  return { game: g, start: sess.start, map, mode, rank, mapImg: map ? mapPicture(g) : "",
-    art: sid ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${sid}/library_hero.jpg` : "",
-    artAlt: sid ? `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${sid}/library_hero.jpg` : "",
-    artHdr: sid ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${sid}/header.jpg` : "" };
+  const sid = await steamIdFor(g, sess.exe);
+  const art = sid ? await steamBannerList(sid) : [];
+  if (!sess) return null;
+  return { game: g, start: sess.start, map, mode, rank, mapImg: map ? mapPicture(g) : "", art };
 });
 ipcMain.handle("session:dismiss", () => { delete settings.lastSession; saveSettings(); return true; });
 ipcMain.handle("session:save", (_e, extra) => {

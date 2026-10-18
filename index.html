@@ -6463,7 +6463,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 
   /* ---------- Home banner ---------- */
   const HX_LOGO = { "Overwatch 2": "ow", "Rainbow Six Siege": "r6", "Counter-Strike 2": "cs" };
-  let hxLive = null, hxImgKey = "";
+  let hxLive = null, hxImgKey = "", hxIdleArt = null;
   function hxSetImg(srcs) {
     const key = srcs.join("|"), im = $("hxBg");
     if (key === hxImgKey) return;
@@ -6487,7 +6487,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       $("hxT").textContent = L.game;
       $("hxS").textContent = [L.map, L.mode, L.rank].filter(Boolean).join(" · ") || "Have a good one";
       const lg = HX_LOGO[L.game]; $("hxLogo").hidden = !lg; if (lg) $("hxLogo").dataset.logo = lg;
-      hxSetImg([L.art, L.artAlt, L.artHdr, L.mapImg]);   // the game's Steam banner first; the map picture only if there's no banner
+      hxSetImg([...(Array.isArray(L.art) ? L.art : [L.art]), L.mapImg]);   // the game's Steam banner first; the map picture only if there's no banner
       $("hxHero").hidden = L.game !== "Overwatch 2";
       if (L.game === "Overwatch 2") hxHeroFill();
       $("hxWd").hidden = !/^wardogs\b/i.test(L.game || "");
@@ -6503,7 +6503,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       $("hxT").textContent = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
       $("hxS").textContent = d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
       $("hxLogo").hidden = true;
-      hxSetImg([]);
+      hxSetImg(hxIdleArt && hxIdleArt.art ? hxIdleArt.art : []);   // between games: the last game's banner
     }
   }
   // Overwatch: tell Sothis which hero you're on (it learns your skin's picture for next time); heroes grouped by role
@@ -6641,6 +6641,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   { let icT = null; new MutationObserver(() => { clearTimeout(icT); icT = setTimeout(() => icDecorate(), 120); }).observe(document.body, { childList: true, subtree: true }); }
   async function hxPoll() {
     try { hxLive = await D.sessionLive(); } catch { hxLive = null; }
+    if (!hxLive && !hxIdleArt) { try { hxIdleArt = await D.sessionArt(); } catch {} }
+    if (hxLive) hxIdleArt = null;
     hxRender();
   }
   hxPoll();

@@ -146,6 +146,7 @@ contextBridge.exposeInMainWorld("desktop", {
   sessionLast: () => ipcRenderer.invoke("session:last"),
   sessionNow: () => ipcRenderer.invoke("session:now"),
   sessionLive: () => ipcRenderer.invoke("session:live"),
+  sessionArt: () => ipcRenderer.invoke("session:art"),
   watchOpen: key => ipcRenderer.invoke("watch:open", key),
   watchTop: on => ipcRenderer.invoke("watch:top", on),
   filesList: kind => ipcRenderer.invoke("files:list", kind),
