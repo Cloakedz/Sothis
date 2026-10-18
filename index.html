@@ -695,6 +695,11 @@ input::selection, textarea::selection { background: rgba(255, 77, 115, .4); }
 .ynp-play svg { width: 17px; height: 17px; }
 #tab-ytm .webwrap { visibility: hidden; position: absolute; left: 10px; right: 10px; top: 42px; bottom: var(--dock, 82px); z-index: 4; }
 #tab-ytm.site .webwrap { visibility: visible; }
+#tab-ytm #spotWrap { visibility: hidden; }
+#tab-ytm.spot .ynp, #tab-ytm.spot #ytSite { visibility: hidden !important; }
+#tab-ytm.spot #spotWrap { visibility: visible; background: #0b0b0f; }
+#tab-ytm.spot #ytWrap, #tab-ytm.spot .yts, #tab-ytm.spot .atp-fab { visibility: hidden !important; }
+#spotWrap webview { width: 100%; height: 100%; }
 #tab-ytm.site .yts, #tab-ytm.site .ynp { visibility: hidden; }
 #ytSite { visibility: hidden; pointer-events: none; }
 #tab-ytm.site #ytSite { visibility: visible; pointer-events: auto; color: var(--accent); }
@@ -1799,11 +1804,13 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
         <div class="seg ytsw" id="ytSw" role="radiogroup" aria-label="Music or YouTube">
           <button type="button" role="radio" data-yv="music" aria-checked="true">Library</button>
           <button type="button" role="radio" data-yv="yt" aria-checked="false">Search</button>
+          <button type="button" role="radio" data-yv="spot" aria-checked="false">Songspot</button>
         </div>
         <span class="ytbar-sp"></span>
         <button class="ib ytnav" id="ytSite" type="button" aria-label="Open the YouTube Music website" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></button>
       </div>
       <div class="webwrap" id="ytWrap"><div class="loadline" id="ytLoad"></div></div>
+      <div class="webwrap" id="spotWrap"><div class="loadline" id="spotLoad"></div></div>
       <div class="yts" id="ytlView">
         <div class="seg yts-kind" id="ytlKind" role="radiogroup" aria-label="Library section">
           <button type="button" role="radio" data-k="playlists">Playlists</button>
@@ -3811,7 +3818,21 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   }
 
   /* Regular YouTube, in the same tab (shares the YouTube Music sign-in) */
-  let ytv = null, ytView = store.get("yt.view") === "yt" ? "yt" : "music";
+  let ytv = null, ytView = ["yt", "spot"].includes(store.get("yt.view")) ? store.get("yt.view") : "music";
+  // Songspot: the song guessing game, in its own webview (its own storage, so your streak is kept)
+  let spotv = null;
+  function ensureSpot() {
+    if (spotv) return;
+    spotv = document.createElement("webview");
+    spotv.setAttribute("partition", "persist:songspot");
+    spotv.setAttribute("webpreferences", "backgroundThrottling=no");
+    spotv.setAttribute("src", "https://songspot.net/");
+    $("spotWrap").append(spotv);
+    spotv.addEventListener("did-start-loading", () => { if (ytView === "spot") $("spotLoad").classList.add("on"); });
+    spotv.addEventListener("did-stop-loading", () => $("spotLoad").classList.remove("on"));
+    spotv.addEventListener("did-navigate-in-page", () => ytNavState());
+    spotv.addEventListener("did-navigate", () => ytNavState());
+  }
   function ensureYouTube() {
     if (ytv) return;
     ytv = document.createElement("webview");
@@ -3826,11 +3847,19 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     watchNav(ytv);
   }
   function showYtView(v) {
-    ytView = v === "yt" ? "yt" : "music";
+    const was = ytView;
+    ytView = v === "yt" || v === "spot" ? v : "music";
     store.set("yt.view", ytView);
+    $("tab-ytm").classList.toggle("spot", ytView === "spot");
+    if (ytView === "spot") {
+      ensureSpot();
+      // the game needs to be heard: pause your music while you play
+      if (was !== "spot" && ytState && ytState.playing) { ytCmd("playpause"); toast("Music paused for Songspot"); }
+      setTimeout(() => { try { spotv.focus(); } catch {} }, 60);
+    } else if (spotv && was === "spot") { try { spotv.setAudioMuted(true); setTimeout(() => { try { spotv.setAudioMuted(false); } catch {} }, 50); spotv.executeJavaScript("document.querySelectorAll('audio,video').forEach(m=>m.pause())").catch(() => {}); } catch {} }
     ensureYTM();
     yt.classList.remove("yv-off");
-    $("ytsView").hidden = ytView !== "yt";
+    $("ytsView").hidden = ytView !== "yt" || false;
     $("ytlView").hidden = ytView !== "music";
     $("tab-ytm").classList.toggle("searching", ytView === "yt");
     $("tab-ytm").classList.toggle("site", ytSite);
@@ -3842,7 +3871,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     ytNavState();
   }
   document.querySelectorAll("#ytSw button").forEach(b => b.addEventListener("click", () => showYtView(b.dataset.yv)));
-  const ytActive = () => ytSite ? yt : null;
+  const ytActive = () => ytView === "spot" ? spotv : ytSite ? yt : null;
   function ytNavState() {
     const w = ytActive();
     let back = false, fwd = false;

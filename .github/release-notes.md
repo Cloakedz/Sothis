@@ -6,6 +6,10 @@
 
 Sothis keeps itself up to date after that. Your settings and sign-ins stay on your own PC (`%APPDATA%\Sothis`).
 
+## New in 1.4.0
+
+- Songspot, the song guessing game, inside the Music tab (Music → Songspot)
+
 ## New in 1.3.1
 
 - Sothis hides itself from your clips while recording (Settings → Clips → Hide Sothis from clips)

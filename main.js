@@ -2791,7 +2791,9 @@ app.on("will-quit", () => { try { globalShortcut.unregisterAll(); } catch {} });
 /* ---------- stats.cc (Rainbow Six Siege) shown inside the Stats tab ---------- */
 const isStatsCC = url => { try { const h = new URL(url).hostname.toLowerCase(); return h === "stats.cc" || h.endsWith(".stats.cc"); } catch { return false; } };
 const isDiscord = url => { try { const h = new URL(url).hostname.toLowerCase(); return /(^|\.)(discord\.com|discordapp\.com|discord\.gg)$/.test(h); } catch { return false; } };
-const inAppSite = url => isStatsCC(url) || isDiscord(url);
+// Songspot (the song guessing game in the Music tab) and its sister games on allspot.net
+const isSongspot = url => { try { const h = new URL(url).hostname.toLowerCase(); return /(^|\.)(songspot\.net|allspot\.net)$/.test(h); } catch { return false; } };
+const inAppSite = url => isStatsCC(url) || isDiscord(url) || isSongspot(url);
 /* ---------- Temporary Discord login log (addresses + error codes only, no content) ---------- */
 const DLOG = path.join(app.getPath("downloads"), "Sothis", "sothis-discord-log.txt");
 const DLOG_ON = false;   // temporary Discord login log, now switched off
