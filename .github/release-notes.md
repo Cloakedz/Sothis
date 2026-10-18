@@ -6,6 +6,10 @@
 
 Sothis keeps itself up to date after that. Your settings and sign-ins stay on your own PC (`%APPDATA%\Sothis`).
 
+## New in 1.4.2
+
+- The black background is see-through again, with a Background slider in Settings → Window
+
 ## New in 1.4.1
 
 - Long playlists show every song in Music → Library (they were cut off after the first 100 or so)

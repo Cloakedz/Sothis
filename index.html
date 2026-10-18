@@ -49,7 +49,7 @@ button:disabled { opacity: .35; cursor: default; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* The window itself is transparent; this shell is the visible, rounded window. */
-.shell { position: relative; isolation: isolate; height: 100%; background: #000; border: 1px solid var(--line); border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; box-shadow: none; }
+.shell { position: relative; isolation: isolate; height: 100%; background: rgba(0, 0, 0, var(--shell-a, .7)); border: 1px solid var(--line); border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; box-shadow: none; }
 /* Background art: slightly blurred, with a veil on top so text stays readable */
 .shell::before { content: ""; position: absolute; inset: 0; z-index: -2; transition: opacity .7s ease; background: url("crest-bg.png") center 50% / min(58vw, 48vh) auto no-repeat; opacity: .95; transform: scale(var(--beat, 1)); will-change: transform; }
 .shell::after { content: ""; position: absolute; inset: 0; z-index: -1; background: transparent; }
@@ -1409,7 +1409,7 @@ body.on-music .snd-pop, body.on-music .dc-pop { margin-bottom: 12px; }
 body.is-mini .titlebar, body.is-mini .tabs, body.is-mini .grip { display: none; }
 /* Mini player: see-through with a light blur (Windows frosted glass behind it) */
 body.is-mini { padding: 2px; }
-body.is-mini .shell { background: #000; border-color: rgba(255, 255, 255, .14); box-shadow: none; border-radius: 14px; }
+body.is-mini .shell { background: rgba(0, 0, 0, var(--shell-a, .7)); border-color: rgba(255, 255, 255, .14); box-shadow: none; border-radius: 14px; }
 body.is-mini .shell::before { display: none; }
 body.is-mini .shell::after { background: transparent; }
 body.is-mini .mini { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); background: transparent; }
@@ -1422,7 +1422,7 @@ body.is-mini .panels { position: absolute; inset: 0; visibility: hidden; pointer
 .rail { display: none; }
 body.is-compact { padding: 3px; }
 body.is-compact .shell > *:not(.rail) { display: none !important; }
-body.is-compact .shell { border-radius: 20px; background: #000; border-color: rgba(255, 77, 115, .3); }
+body.is-compact .shell { border-radius: 20px; background: rgba(0, 0, 0, var(--shell-a, .7)); border-color: rgba(255, 77, 115, .3); }
 body.is-compact .shell::before, body.is-compact .shell::after { display: none; }
 body.is-compact .bell, body.is-compact .dcn-stack, body.is-compact #splash { display: none !important; }
 body.is-compact .rail { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; -webkit-app-region: drag; user-select: none; }
@@ -2070,6 +2070,10 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
         <nav class="set-nav" id="setNav" aria-label="Settings sections"></nav>
         <div class="group">
           <h2>Window</h2>
+          <div class="setting">
+            <div class="txt"><div class="name">Background</div><div class="desc">How dark Sothis's black background is. Lower lets more of your desktop show through.</div></div>
+            <div class="ck-volc"><input type="range" id="setShellA" min="0" max="100" step="5" value="70" aria-label="Background darkness"><b id="setShellAV">70%</b></div>
+          </div>
           <div class="setting">
             <div class="txt"><div class="name">Always on top</div><div class="desc">Keep Sothis above your other apps.</div></div>
             <button class="switch" id="setPin" role="switch" aria-checked="true" aria-label="Always on top"></button>
@@ -5232,6 +5236,10 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   try { const ro = new ResizeObserver(() => requestAnimationFrame(tbFit)); document.querySelectorAll(".tb-left > *, .tb-right > *, .titlebar").forEach(x => ro.observe(x)); } catch {}
   D.wxCfg().then(c => { if (c) wxCfg = c; wxSettings(); wxChip(); wxLoad(); }).catch(() => {});
   setInterval(() => wxLoad(), 15 * 60 * 1000);
+  /* ---------- Background darkness (Settings → Window) ---------- */
+  function shellA(v) { v = Math.max(0, Math.min(100, Math.round(+v))); if (!isFinite(v)) v = 70; document.documentElement.style.setProperty("--shell-a", (v / 100).toFixed(2)); $("setShellA").value = v; $("setShellAV").textContent = v + "%"; return v; }
+  shellA(store.get("shell.a") ?? 70);
+  $("setShellA").addEventListener("input", () => store.set("shell.a", String(shellA($("setShellA").value))));
 
   /* ---------- Phone remote (Settings → Phone) ---------- */
   let phInfo = null;
