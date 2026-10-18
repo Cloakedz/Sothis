@@ -3446,6 +3446,7 @@ ipcMain.handle("session:last", () => settings.lastSession || null);
 ipcMain.handle("session:now", () => sess ? { game: sess.game, start: sess.start } : null);
 // What the Home banner shows while you play: map (with its picture), mode and rank
 const STEAM_IDS = { "Overwatch 2": 2357570, "Rainbow Six Siege": 359550, "Counter-Strike 2": 730, "Marvel Rivals": 2767030, "PUBG": 578080, "Palworld": 1623730, "Elden Ring": 1245620, "GTA V": 271590, "Red Dead Redemption 2": 1174180, "7 Days to Die": 251570, "Vampire Survivors": 1794680, "FragPunk": 2943650, "The Witcher 3": 292030, "Skyrim": 489830, "Fallout 4": 377160 };
+let steamLibAsk = null, steamLib = null;
 ipcMain.handle("session:live", () => {
   if (!sess) return null;
   const g = sess.game, gr = settings.gameRanks || {};
@@ -3454,9 +3455,15 @@ ipcMain.handle("session:live", () => {
   else if (g === "Rainbow Six Siege") { if (r6MapNow && Date.now() - r6MapNow.at < 45 * 60000) map = r6MapNow.name; rank = settings.r6RankName ? String(settings.r6RankName).replace(/^(no rank|not ranked)$/i, "Unranked") + (typeof settings.r6RP === "number" ? " · " + Number(settings.r6RP).toLocaleString("en-US") + " RP" : "") : ""; }
   else if (/^wardogs\b/i.test(g || "")) { map = wdTeamName(); if (wdCash && Date.now() - wdCash.at < 10 * 60000) rank = wdCash.txt; }
   else if (g === "Counter-Strike 2") { if (csLive && Date.now() - csLive.at < 90000) { map = csLive.map; mode = csLive.score || ""; } rank = gr.cs || ""; }
-  const sid = STEAM_IDS[g] || (/^steam:(\d+)$/.exec(sess.exe || "") || [])[1];
+  // the game's Steam app: known games, games started through Steam, or found by name in your Steam library
+  const norm = t => String(t || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  let sid = STEAM_IDS[g] || (/^steam:(\d+)$/.exec(sess.exe || "") || [])[1];
+  if (!sid && !gamesCache && !steamLibAsk) { steamLibAsk = steamGames().then(l => { steamLib = l || []; }).catch(() => { steamLibAsk = null; }); }
+  if (!sid) { const hit = (gamesCache || steamLib || []).find(x => /^steam:\d+$/.test(x.key || "") && norm(x.name) && (norm(x.name) === norm(g) || norm(x.name).startsWith(norm(g)) || norm(g).startsWith(norm(x.name)))); if (hit) sid = hit.key.slice(6); }
   return { game: g, start: sess.start, map, mode, rank, mapImg: map ? mapPicture(g) : "",
-    art: sid ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${sid}/library_hero.jpg` : "", artAlt: sid ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${sid}/header.jpg` : "" };
+    art: sid ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${sid}/library_hero.jpg` : "",
+    artAlt: sid ? `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${sid}/library_hero.jpg` : "",
+    artHdr: sid ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${sid}/header.jpg` : "" };
 });
 ipcMain.handle("session:dismiss", () => { delete settings.lastSession; saveSettings(); return true; });
 ipcMain.handle("session:save", (_e, extra) => {
