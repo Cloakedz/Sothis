@@ -6,6 +6,10 @@
 
 Sothis keeps itself up to date after that. Your settings and sign-ins stay on your own PC (`%APPDATA%\Sothis`).
 
+## New in 1.2.1
+
+- Dragging files out of the Files page works on clip cards too
+
 ## New in 1.2.0
 
 - Clip sound stays in sync with the video (no more delayed or choppy audio)

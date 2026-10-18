@@ -6537,8 +6537,20 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   // drag a file out of Sothis into Discord, a folder or any app
   function fileDrag(el, f) {
     if (!f) return el;
-    el.draggable = true; el.title = (el.title ? el.title + "\n" : "") + "Drag into Discord or a folder";
-    el.addEventListener("dragstart", e => { e.preventDefault(); D.dragFile(f); });
+    el.title = (el.title ? el.title + "\n" : "") + "Drag into Discord or a folder";
+    el.draggable = false;
+    // press and move the mouse a little: Windows takes over the drag from there (buttons can't start a normal web drag)
+    let start = null, dragged = false;
+    el.addEventListener("pointerdown", e => { if (e.button === 0) { start = { x: e.clientX, y: e.clientY }; dragged = false; } });
+    el.addEventListener("pointermove", e => {
+      if (!start || !(e.buttons & 1)) { start = null; return; }
+      if (Math.abs(e.clientX - start.x) + Math.abs(e.clientY - start.y) < 8) return;
+      start = null; dragged = true;
+      try { D.dragFile(f); } catch {}
+    });
+    el.addEventListener("pointerup", () => { start = null; });
+    el.addEventListener("click", e => { if (dragged) { dragged = false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+    el.addEventListener("dragstart", e => e.preventDefault());
     return el;
   }
   function fmRow(icon, title, sub, onPlay, acts, on) {
