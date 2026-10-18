@@ -4454,6 +4454,23 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       const j = await ytApi("browse", { browseId: it.id });
       if (seq !== ytlSeq) return;
       const tracks = trackParse(j);
+      // long playlists come in pages of about 100 songs: keep asking for the next page until there are no more
+      const nextTok = o => { const c = findAll(o, "continuationCommand").map(x => x.token).concat(findAll(o, "nextContinuationData").map(x => x.continuation)).filter(Boolean); return c[c.length - 1] || ""; };
+      const seenTok = new Set();
+      const shelf = findAll(j, "musicPlaylistShelfRenderer")[0] || findAll(j, "musicShelfRenderer")[0] || null;
+      let tok = shelf ? nextTok(shelf) : "";
+      for (let page = 0; tok && !seenTok.has(tok) && page < 60; page++) {
+        seenTok.add(tok);
+        $("ytlMsg").textContent = `Loading… ${tracks.length} songs`;
+        let more = null;
+        try { more = await ytApi("browse", { continuation: tok }); } catch { break; }
+        if (seq !== ytlSeq) return;
+        const part = findAll(more, "appendContinuationItemsAction")[0] || findAll(more, "musicPlaylistShelfContinuation")[0] || findAll(more, "musicShelfContinuation")[0] || more || {};
+        const add = trackParse(part);
+        if (!add.length) break;
+        tracks.push(...add);
+        tok = nextTok(part);
+      }
       const wpe = findAll(j, "watchPlaylistEndpoint")[0];
       // use the playlist itself; never a "radio"/mix (RD…) list, which fills up with random songs
       const okList = id => id && !/^RD/.test(id);
