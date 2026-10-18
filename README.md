@@ -26,6 +26,8 @@ Optional personal defaults can go in `%APPDATA%\Sothis\personal.json`:
 
 Sothis plays your own game files with [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS) (GPL-3.0, see `emu/LICENSE-EmulatorJS.txt`). No games are included. Game identification uses the [libretro database](https://github.com/libretro/libretro-database).
 
+Mic noise suppression uses an RNNoise model from [rnnoise-models](https://github.com/GregorR/rnnoise-models) (`noise-model.rnnn`).
+
 ## Updates
 
 Sothis checks this repository a few times a day. When `package.json` has a newer version, it downloads the app files from here, swaps them in and shows **Update ready**. Settings and sign-ins are never touched.

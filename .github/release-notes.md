@@ -6,6 +6,12 @@
 
 Sothis keeps itself up to date after that. Your settings and sign-ins stay on your own PC (`%APPDATA%\Sothis`).
 
+## New in 1.3.0
+
+- Mic noise suppression for clips: Strong (AI, RNNoise) or Light, in Settings → Clips
+- Clips keep game sound and your mic on separate tracks, so the clip editor can turn each up, down or off
+- Game and mic volume and mute in the clip editor
+
 ## New in 1.2.1
 
 - Dragging files out of the Files page works on clip cards too

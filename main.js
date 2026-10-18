@@ -1477,11 +1477,12 @@ ipcMain.handle("clips:setup", async () => { const ok = await clipper().ffEnsure(
 ipcMain.handle("clips:save", () => clipper().save());
 ipcMain.handle("clips:set", (_e, o) => {
   const cur = Object.assign({}, settings.clips || {}), was = JSON.stringify(cur);
-  const k = ["on", "len", "key", "overlay", "mic", "fps", "monitor", "sysVol", "micVol", "sysMute", "micMute", "window", "audioOffset"];
+  const k = ["on", "len", "key", "overlay", "mic", "fps", "monitor", "sysVol", "micVol", "sysMute", "micMute", "window", "audioOffset", "noise"];
   for (const x of k) if (o && x in o) cur[x] = o[x];
   for (const x of ["sysVol", "micVol"]) cur[x] = Math.max(0, Math.min(200, Math.round(+cur[x] >= 0 ? +cur[x] : 100)));
   for (const x of ["sysMute", "micMute"]) cur[x] = !!cur[x];
   cur.audioOffset = Math.max(-1000, Math.min(1000, Math.round(+cur.audioOffset || 0)));
+  cur.noise = ["off", "standard", "strong"].includes(cur.noise) ? cur.noise : "strong";
   cur.len = [15, 30, 60, 120].includes(+cur.len) ? +cur.len : 30;
   if (!/^(F([6-9]|1[0-2])|Mouse4|Mouse5)$/.test(cur.key || "")) cur.key = "F8";
   cur.fps = +cur.fps === 30 ? 30 : 60;
@@ -1552,7 +1553,18 @@ const runFF = (exe, args, onTime) => new Promise(resolve => {
   p.on("error", e => resolve({ ok: false, err: String(e.message || e) }));
   p.on("close", code => resolve({ ok: code === 0, err }));
 });
-ipcMain.handle("clips:export", async (e, { file, segs, quick }) => {
+// how many sound tracks a clip has: Sothis clips have 1 mix + game (+ mic), others usually just 1
+async function clipTracks(file, tools) {
+  tools = tools || medalTools();
+  if (!tools || !tools.ffprobe) return 1;
+  const r = await new Promise(res => execFile(tools.ffprobe, ["-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", file], { windowsHide: true, timeout: 15000 }, (err, so) => res(err ? null : String(so).trim())));
+  return r === null ? 1 : r ? r.split(/\r?\n/).filter(Boolean).length : 0;
+}
+ipcMain.handle("clips:tracks", async (_e, file) => {
+  if (typeof file !== "string" || !inDirs(file, [clipsDir(), dlDir("mp4")]) || !fs.existsSync(file)) return 0;
+  return clipTracks(file);
+});
+ipcMain.handle("clips:export", async (e, { file, segs, quick, gameVol, micVol }) => {
   if (typeof file !== "string" || !inDirs(file, [clipsDir(), dlDir("mp4")]) || !fs.existsSync(file)) return { ok: false, err: "That clip isn't in your clips folder." };
   const tools = medalTools();
   if (!tools) return { ok: false, err: "Couldn't find Medal's video tools. Is Medal installed?" };
@@ -1567,22 +1579,32 @@ ipcMain.handle("clips:export", async (e, { file, segs, quick }) => {
   let n = count + 1, out = path.join(dirOf, `${base} ${n}.mp4`);
   while (fs.existsSync(out)) out = path.join(dirOf, `${base} ${++n}.mp4`);
   const progress = t => { try { e.sender.send("clips:progress", Math.min(99, Math.round(t / total * 100))); } catch {} };
-  // does the clip have sound?
-  let hasAudio = true;
-  if (tools.ffprobe) {
-    const r = await new Promise(res => execFile(tools.ffprobe, ["-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", file], { windowsHide: true, timeout: 15000 }, (err, so) => res(err ? null : String(so).trim())));
-    if (r !== null) hasAudio = !!r;
-  }
-  if (quick && parts.length === 1) {   // no re-encode: instant, but the cut lands on the nearest keyframe
+  // sound: tracks of a Sothis clip are 1 mix, 2 game, 3 mic; the editor's volumes remix them
+  const nA = await clipTracks(file, tools), hasAudio = nA > 0;
+  const gv = Math.max(0, Math.min(2, isFinite(+gameVol) ? +gameVol : 1)), mv = Math.max(0, Math.min(2, isFinite(+micVol) ? +micVol : 1));
+  const volChanged = Math.abs(gv - 1) > 0.001 || Math.abs(mv - 1) > 0.001;
+  if (quick && parts.length === 1 && !volChanged) {   // no re-encode: instant, but the cut lands on the nearest keyframe
     const r = await runFF(tools.ffmpeg, ["-hide_banner", "-y", "-ss", String(parts[0].a), "-to", String(parts[0].b), "-i", file, "-map", "0", "-c", "copy", "-avoid_negative_ts", "make_zero", "-movflags", "+faststart", out], progress);
     return r.ok ? { ok: true, out, name: path.basename(out) } : { ok: false, err: "ffmpeg: " + r.err.split("\n").filter(Boolean).slice(-2).join(" ") };
   }
+  // the new clip keeps the same tracks (mix + game + mic), with the mix redone at the editor's volumes
+  const nOut = nA >= 3 ? 3 : nA === 2 ? 2 : nA ? 1 : 0;
   let fc = "";
   parts.forEach((x, i) => {
-    fc += `[0:v:0]trim=start=${x.a.toFixed(3)}:end=${x.b.toFixed(3)},setpts=PTS-STARTPTS[v${i}];`;
-    if (hasAudio) fc += `[0:a:0]atrim=start=${x.a.toFixed(3)}:end=${x.b.toFixed(3)},asetpts=PTS-STARTPTS[a${i}];`;
+    const tr = `trim=start=${x.a.toFixed(3)}:end=${x.b.toFixed(3)}`;
+    fc += `[0:v:0]${tr},setpts=PTS-STARTPTS[v${i}];`;
+    if (nOut === 1) fc += `[0:a:0]a${tr},asetpts=PTS-STARTPTS,volume=${gv.toFixed(2)}[a${i}x0];`;
+    if (nOut >= 2) {
+      fc += `[0:a:1]a${tr},asetpts=PTS-STARTPTS,asplit=2[g${i}a][a${i}x1];[g${i}a]volume=${gv.toFixed(2)}[g${i}v];`;
+      if (nOut === 3) fc += `[0:a:2]a${tr},asetpts=PTS-STARTPTS,asplit=2[m${i}a][a${i}x2];[m${i}a]volume=${mv.toFixed(2)},pan=stereo|c0=c0|c1=c0[m${i}v];[g${i}v][m${i}v]amix=inputs=2:normalize=0:duration=first[a${i}x0];`;
+      else fc += `[g${i}v]anull[a${i}x0];`;
+    }
   });
-  fc += parts.map((_, i) => `[v${i}]` + (hasAudio ? `[a${i}]` : "")).join("") + `concat=n=${parts.length}:v=1:a=${hasAudio ? 1 : 0}[v]` + (hasAudio ? "[a]" : "");
+  fc += parts.map((_, i) => `[v${i}]` + Array.from({ length: nOut }, (_, k) => `[a${i}x${k}]`).join("")).join("") + `concat=n=${parts.length}:v=1:a=${nOut}[v]` + Array.from({ length: nOut }, (_, k) => `[ao${k}]`).join("");
+  const amaps = [];
+  for (let k = 0; k < nOut; k++) amaps.push("-map", `[ao${k}]`);
+  if (nOut >= 2) amaps.push("-metadata:s:a:0", "title=Mix", "-metadata:s:a:1", "title=Game", "-disposition:a:0", "default", "-disposition:a:1", "0");
+  if (nOut === 3) amaps.push("-metadata:s:a:2", "title=Mic", "-disposition:a:2", "0");
   const ENC = [
     ["-c:v", "h264_amf", "-quality", "quality", "-rc", "cqp", "-qp_i", "18", "-qp_p", "20", "-qp_b", "22"],   // your Radeon card
     ["-c:v", "h264_nvenc", "-preset", "p5", "-cq", "19"],
@@ -1592,7 +1614,7 @@ ipcMain.handle("clips:export", async (e, { file, segs, quick }) => {
   ];
   let last = "";
   for (const enc of ENC) {
-    const r = await runFF(tools.ffmpeg, ["-hide_banner", "-y", "-i", file, "-filter_complex", fc, "-map", "[v]", ...(hasAudio ? ["-map", "[a]"] : []),
+    const r = await runFF(tools.ffmpeg, ["-hide_banner", "-y", "-i", file, "-filter_complex", fc, "-map", "[v]", ...amaps,
       ...enc, "-pix_fmt", "yuv420p", ...(hasAudio ? ["-c:a", "aac", "-b:a", "192k"] : []), "-movflags", "+faststart", out], progress);
     if (r.ok) return { ok: true, out, name: path.basename(out) };
     last = r.err;

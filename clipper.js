@@ -11,8 +11,9 @@ module.exports = function makeClipper(ctx) {
   const BUF = path.join(DATA_DIR, "clipbuf");
   const SEG = 2, WRAP = 70;   // 2 s pieces, 140 s kept at most
   const S = () => getSettings().clips || {};
-  const cfg = () => Object.assign({ on: true, len: 30, key: "F8", overlay: true, mic: false, fps: 60, monitor: "auto", sysVol: 100, micVol: 100, sysMute: false, micMute: false, window: true, audioOffset: 0 }, S());
-  const audioCfg = () => { const c = cfg(); return { on: true, mic: !!c.mic && !c.micMute, sysVol: c.sysMute ? 0 : c.sysVol / 100, micVol: c.micMute ? 0 : c.micVol / 100 }; };
+  const cfg = () => Object.assign({ on: true, len: 30, key: "F8", overlay: true, mic: false, fps: 60, monitor: "auto", sysVol: 100, micVol: 100, sysMute: false, micMute: false, window: true, audioOffset: 0, noise: "strong" }, S());
+  // the mic is recorded whenever it's switched on (even muted), so a saved clip can still turn it up later in the editor
+  const audioCfg = () => { const c = cfg(); return { on: true, mic: !!c.mic }; };
 
   let st = { phase: "off", msg: "", progress: 0 };
   const setSt = o => { st = Object.assign({}, st, o); try { onState(st); } catch {} };
@@ -215,6 +216,12 @@ module.exports = function makeClipper(ctx) {
     h.writeUInt32LE(rate, 24); h.writeUInt32LE(rate * ch * 2, 28); h.writeUInt16LE(ch * 2, 32); h.writeUInt16LE(16, 34); h.write("data", 36); h.writeUInt32LE(n, 40);
     return Buffer.concat([h, pcm]);
   }
+  // mic clean-up: "strong" is RNNoise (an AI model, noise-model.rnnn next to Sothis), "standard" is ffmpeg's own noise filter
+  function nsFilter(mode, tmp) {
+    if (mode === "off") return "";
+    if (mode !== "standard") { try { fs.copyFileSync(path.join(__dirname, "noise-model.rnnn"), path.join(tmp, "nn.rnnn")); return "highpass=f=80,arnndn=m=nn.rnnn:mix=0.95,"; } catch {} }
+    return "highpass=f=80,afftdn=nr=15:nf=-40:tn=1,";
+  }
   async function save() {
     if (saving) return { ok: false, err: "Already saving a clip" };
     if (!ff || wallOff == null) return { ok: false, err: ffExe() ? (want ? "The recorder is still starting. Try again in a few seconds." : "Clips record while you're in a game. Start a game first, or turn on Record all the time in Settings.") : "The recorder isn't set up yet. Open Settings → Clips." };
@@ -250,8 +257,10 @@ module.exports = function makeClipper(ctx) {
           }
         } catch {}
       }
-      let haveAudio = false;
+      let haveAudio = false, haveMic = false;
       if (audio && audio.pcm && (audio.pcm.byteLength || audio.pcm.length)) { fs.writeFileSync(path.join(tmp, "a.wav"), wav(Buffer.from(audio.pcm), audio.rate || 48000, audio.ch || 2)); haveAudio = true; }
+      if (haveAudio && audio.mic && (audio.mic.byteLength || audio.mic.length)) { fs.writeFileSync(path.join(tmp, "m.wav"), wav(Buffer.from(audio.mic), audio.rate || 48000, 1)); haveMic = true; }
+      const ns = haveMic ? nsFilter(c.noise, tmp) : "";
       // key overlay
       const W = (vidSize && vidSize.w) || 1920, H = (vidSize && vidSize.h) || 1080;
       const overlay = false; // key overlay removed
@@ -264,9 +273,20 @@ module.exports = function makeClipper(ctx) {
       let n = count + 1, file = path.join(dir, `${base} ${n}.mp4`); while (fs.existsSync(file)) file = path.join(dir, `${base} ${++n}.mp4`);
       const encs = [["-c:v", "h264_amf", "-quality", "quality", "-rc", "cqp", "-qp_i", "18", "-qp_p", "20"], ["-c:v", "h264_nvenc", "-preset", "p5", "-cq", "19"], ["-c:v", "h264_qsv", "-global_quality", "20"], ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18"]];
       let res = { ok: false, err: "" };
+      // tracks: 1 = the mix you hear (what Discord and players play), 2 = game sound, 3 = your mic (cleaned up), so the editor can remix them
+      const sv = c.sysMute ? 0 : (+c.sysVol || 0) / 100, mv = c.micMute ? 0 : (+c.micVol || 0) / 100;
+      let fc = `[0:v]${crop}${overlay ? "subtitles=keys.ass," : ""}format=yuv420p[v]`;
+      const amap = [];
+      if (haveAudio && haveMic) {
+        fc += `;[1:a]asplit=2[g1][g2];[g1]volume=${sv.toFixed(2)}[gv];[2:a]${ns}asplit=2[m1][m2];[m1]volume=${mv.toFixed(2)},pan=stereo|c0=c0|c1=c0[mv];[gv][mv]amix=inputs=2:normalize=0:duration=first[mix]`;
+        amap.push("-map", "[mix]", "-map", "[g2]", "-map", "[m2]", "-metadata:s:a:0", "title=Mix", "-metadata:s:a:1", "title=Game", "-metadata:s:a:2", "title=Mic", "-disposition:a:0", "default", "-disposition:a:1", "0", "-disposition:a:2", "0");
+      } else if (haveAudio) {
+        fc += `;[1:a]asplit=2[g1][g2];[g1]volume=${sv.toFixed(2)}[mix]`;
+        amap.push("-map", "[mix]", "-map", "[g2]", "-metadata:s:a:0", "title=Mix", "-metadata:s:a:1", "title=Game", "-disposition:a:0", "default", "-disposition:a:1", "0");
+      }
       for (const e of encs) {
-        const args = ["-hide_banner", "-y", "-ss", off.toFixed(3), "-i", "v.ts", ...(haveAudio ? ["-i", "a.wav"] : []), "-t", clipLen.toFixed(3),
-          "-map", "0:v:0", ...(haveAudio ? ["-map", "1:a:0"] : []), ...(overlay ? ["-vf", crop + "subtitles=keys.ass,format=yuv420p"] : ["-vf", crop + "format=yuv420p"]), ...e,
+        const args = ["-hide_banner", "-y", "-ss", off.toFixed(3), "-i", "v.ts", ...(haveAudio ? ["-i", "a.wav"] : []), ...(haveMic ? ["-i", "m.wav"] : []), "-t", clipLen.toFixed(3),
+          "-filter_complex", fc, "-map", "[v]", ...amap, ...e,
           ...(haveAudio ? ["-c:a", "aac", "-b:a", "192k"] : []), "-movflags", "+faststart", file];
         res = await runFF(args, tmp);
         if (res.ok) break;

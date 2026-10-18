@@ -180,6 +180,7 @@ contextBridge.exposeInMainWorld("desktop", {
   retroBackupNow: () => ipcRenderer.invoke("retro:backupNow"),
   phoneGet: () => ipcRenderer.invoke("phone:get"),
   dragFile: f => ipcRenderer.send("file:drag", f),
+  clipsTracks: f => ipcRenderer.invoke("clips:tracks", f),
   updGet: () => ipcRenderer.invoke("upd:get"),
   updCheck: () => ipcRenderer.invoke("upd:check"),
   updAuto: on => ipcRenderer.invoke("upd:auto", on),

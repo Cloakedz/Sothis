@@ -899,6 +899,12 @@ body.tb-narrow .titlebar .batt { cursor: grab; }
 .ph-row { display: flex; align-items: center; gap: 10px; font-size: .82rem; padding: 6px 2px; }
 .ph-row span { flex: 1; color: var(--muted); }
 .ph-row b { color: var(--ink); font-weight: 600; margin-right: 6px; }
+.ed-aud { flex-wrap: wrap; gap: 14px; }
+.ed-vol { display: inline-flex; align-items: center; gap: 8px; font-size: .8rem; font-weight: 600; }
+.ed-vol input[type=range] { width: 120px; accent-color: var(--accent); }
+.ed-vol b { width: 38px; font: 600 .72rem/1 var(--f-mono); text-align: right; }
+.ed-vol .ed-mute[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.ed-vol[hidden], .ed-aud[hidden] { display: none; }
 .ck-volc { display: flex; align-items: center; gap: 8px; flex: none; }
 .ck-volc input[type=range] { width: 140px; accent-color: var(--accent); }
 .ck-volc b { width: 40px; text-align: right; font: 600 .76rem/1 var(--f-mono); }
@@ -2022,6 +2028,11 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
               <button class="btn ghost ed-b" id="edDel" type="button" title="Remove the selected part (Delete)">Remove part</button>
               <button class="btn ghost ed-b" id="edReset" type="button">Reset</button>
             </div>
+            <div class="ed-bar ed-aud" id="edAud" hidden>
+              <span class="ed-k">Sound</span>
+              <label class="ed-vol" id="edGameW">Game <input type="range" id="edGame" min="0" max="200" step="5" value="100" aria-label="Game sound"><b id="edGameV">100%</b><button class="btn ghost ed-b ed-mute" id="edGameMute" type="button" aria-pressed="false">Mute</button></label>
+              <label class="ed-vol" id="edMicW" hidden>Mic <input type="range" id="edMic" min="0" max="200" step="5" value="100" aria-label="Mic"><b id="edMicV">100%</b><button class="btn ghost ed-b ed-mute" id="edMicMute" type="button" aria-pressed="false">Mute</button></label>
+            </div>
             <div class="ed-bar">
               <span class="ed-k" id="edLen"></span>
               <span class="ed-sp"></span>
@@ -2224,6 +2235,10 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
           <div class="setting ck-vol" id="ckMicRow">
             <div class="txt"><div class="name">Mic</div><div class="desc">How loud your microphone is in clips.</div></div>
             <div class="ck-volc"><input type="range" id="ckMicVol" min="0" max="200" step="5" value="100" aria-label="Mic volume in clips"><b id="ckMicV">100%</b><button class="btn ghost ck-mute" id="ckMicMute" type="button" aria-pressed="false">Mute</button></div>
+          </div>
+          <div class="setting ck-vol" id="ckNsRow">
+            <div class="txt"><div class="name">Mic noise suppression</div><div class="desc">Removes keyboard clicks, fans and background noise from your mic, like Medal does. Game sound isn't touched.</div></div>
+            <select id="ckNs" aria-label="Mic noise suppression"><option value="strong">Strong (AI)</option><option value="standard">Light</option><option value="off">Off</option></select>
           </div>
           <div class="setting">
             <div class="txt"><div class="name">Sound timing</div><div class="desc">If the sound in your clips is early or late, nudge it here.</div></div>
@@ -5808,7 +5823,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   $("edSave").onclick = async () => {
     if (!clipNow || edBusy || !edSegs.length) return;
     edBusy = true; ev.pause(); $("edSave").disabled = true; $("edSave").textContent = "Saving…"; $("edProg").hidden = false; $("edProgI").style.width = "0%";
-    let r = null; try { r = await D.clipsExport({ file: clipNow.path, segs: edSegs, quick: $("edQuick").checked }); } catch {}
+    let r = null; try { r = await D.clipsExport({ file: clipNow.path, segs: edSegs, quick: $("edQuick").checked, gameVol: edVol("game"), micVol: edVol("mic") }); } catch {}
     edBusy = false; $("edSave").disabled = false; $("edSave").textContent = "Save as new clip"; $("edProg").hidden = true;
     if (r && r.ok) { toast("Saved " + r.name); loadClips(); } else toast((r && r.err) || "Couldn't save the clip");
   };
@@ -5821,8 +5836,30 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     else if (k === "arrowleft") { ev.currentTime = Math.max(0, ev.currentTime - (e.shiftKey ? 1 : 1 / 30)); edRender(); }
     else if (k === "arrowright") { ev.currentTime = Math.min(edDur, ev.currentTime + (e.shiftKey ? 1 : 1 / 30)); edRender(); }
   });
+  // sound in the editor: game and mic volume (separately on Sothis clips that kept a mic track)
+  const edA = { game: 100, mic: 100, gameMute: false, micMute: false, tracks: 1 };
+  const edVol = k => edA[k + "Mute"] ? 0 : edA[k] / 100;
+  function edAudRender() {
+    $("edAud").hidden = edA.tracks < 1;
+    $("edMicW").hidden = edA.tracks < 3;
+    for (const k of ["game", "mic"]) {
+      const K = k === "game" ? "Game" : "Mic";
+      $("ed" + K).value = edA[k]; $("ed" + K + "V").textContent = edA[k] + "%"; $("ed" + K).disabled = edA[k + "Mute"];
+      $("ed" + K + "Mute").setAttribute("aria-pressed", edA[k + "Mute"]); $("ed" + K + "Mute").textContent = edA[k + "Mute"] ? "Muted" : "Mute";
+    }
+    // the preview plays the clip's mixed sound; turn it down with the game slider so you can hear roughly how it'll be
+    try { $("clVid").volume = Math.min(1, edVol("game")); } catch {}
+    if (edVol("game") !== 1 || edVol("mic") !== 1) { $("edQuick").checked = false; $("edQuick").disabled = true; }
+  }
+  for (const k of ["game", "mic"]) {
+    const K = k === "game" ? "Game" : "Mic";
+    $("ed" + K).addEventListener("input", () => { edA[k] = +$("ed" + K).value; edAudRender(); });
+    $("ed" + K + "Mute").onclick = e => { e.preventDefault(); edA[k + "Mute"] = !edA[k + "Mute"]; edAudRender(); };
+  }
   function playClip(c) {
     clipNow = c; edDur = 0; edSegs = [];
+    Object.assign(edA, { game: 100, mic: 100, gameMute: false, micMute: false, tracks: 1 }); edAudRender();
+    D.clipsTracks(c.path).then(n => { if (clipNow === c) { edA.tracks = +n || 0; edAudRender(); } }).catch(() => {});
     $("clPlay").hidden = false; $("clVid").src = c.url; $("clVid").play().catch(() => {});
     $("clPlayName").textContent = c.name; $("clPlayMeta").textContent = [c.game, ago(c.at), fmtSize(c.size)].filter(Boolean).join(" · ");
     $("tab-clips").scrollTop = 0;
@@ -5864,7 +5901,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     $("ckSysMute").setAttribute("aria-pressed", !!c.sysMute); $("ckSysMute").textContent = c.sysMute ? "Muted" : "Mute";
     $("ckMicMute").setAttribute("aria-pressed", !!c.micMute); $("ckMicMute").textContent = c.micMute ? "Muted" : "Mute";
     $("ckSysVol").disabled = !!c.sysMute; $("ckMicVol").disabled = !!c.micMute;
-    $("ckMicRow").hidden = !c.mic;
+    $("ckMicRow").hidden = !c.mic; $("ckNsRow").hidden = !c.mic;
+    if (document.activeElement !== $("ckNs")) $("ckNs").value = c.noise || "strong";
     if (document.activeElement !== $("ckSync")) $("ckSync").value = String(c.audioOffset || 0);
     $("ckWin").setAttribute("aria-checked", c.window !== false);
     $("ckSetup").hidden = !!s.ready || s.phase === "setup";
@@ -5884,6 +5922,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   $("ckSysMute").onclick = () => ckSet({ sysMute: $("ckSysMute").getAttribute("aria-pressed") !== "true" });
   $("ckMicMute").onclick = () => ckSet({ micMute: $("ckMicMute").getAttribute("aria-pressed") !== "true" });
   $("ckSync").onchange = () => ckSet({ audioOffset: +$("ckSync").value });
+  $("ckNs").onchange = () => ckSet({ noise: $("ckNs").value });
   $("ckWin").onclick = () => ckSet({ window: $("ckWin").getAttribute("aria-checked") !== "true" });
   D.clipsState().then(ckRender).catch(() => {});
   D.onClipState(() => D.clipsState().then(ckRender).catch(() => {}));
@@ -5898,15 +5937,16 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   D.onClipSaved(v => { toast("Clip saved: " + v.name); try { if (tab === "clips") loadClips(); } catch {} });
   // clip sound: system sound (and your mic) kept for the last ~2 minutes in memory, handed over when a clip is saved
   // Sound is kept by sample position on the audio clock (not by when a chunk happens to arrive), so it lines up with the video.
-  const CA = { ctx: null, node: null, streams: [], ring: null, frames: 0, hi: -1, on: false, mic: false, sysG: null, micG: null, wall0: null };
+  // Game sound and your mic are kept apart, so a clip can turn either up, down or off, and clean up only the mic.
+  const CA = { ctx: null, node: null, streams: [], ringS: null, ringM: null, frames: 0, hi: -1, on: false, mic: false, hasMic: false, wall0: null };
   const CA_RATE = 48000, CA_SECS = 130;
-  function caOff() { CA.on = false; try { CA.streams.forEach(s => s.getTracks().forEach(t => t.stop())); } catch {} CA.streams = []; try { CA.ctx && CA.ctx.close(); } catch {} CA.ctx = null; CA.node = null; CA.ring = null; CA.hi = -1; CA.sysG = CA.micG = null; CA.wall0 = null; }
-  function caGains(o) { if (CA.sysG) CA.sysG.gain.value = Math.max(0, +o.sysVol >= 0 ? +o.sysVol : 1); if (CA.micG) CA.micG.gain.value = Math.max(0, +o.micVol >= 0 ? +o.micVol : 1); }
-  // wall-clock time (ms) of audio-clock time 0, refreshed from the browser's own pairing of the two clocks
+  function caOff() { CA.on = false; try { CA.streams.forEach(s => s.getTracks().forEach(t => t.stop())); } catch {} CA.streams = []; try { CA.ctx && CA.ctx.close(); } catch {} CA.ctx = null; CA.node = null; CA.ringS = CA.ringM = null; CA.hi = -1; CA.hasMic = false; CA.wall0 = null; }
+  // wall-clock time (ms) of audio-clock time 0, from the browser's own pairing of the two clocks
   function caSync() {
     const ctx = CA.ctx; if (!ctx) return;
     try { const t = ctx.getOutputTimestamp(); if (t && t.performanceTime > 0 && t.contextTime > 0) { const lat = ((ctx.baseLatency || 0) + (ctx.outputLatency || 0)) * 1000, w = performance.timeOrigin + t.performanceTime - t.contextTime * 1000 - lat; CA.wall0 = CA.wall0 == null ? w : CA.wall0 * 0.9 + w * 0.1; } } catch {}
   }
+  const s16 = v => Math.max(-32768, Math.min(32767, v * 32767));
   async function caOn(o) {
     caOff(); CA.on = true; CA.mic = !!o.mic;
     try {
@@ -5914,23 +5954,27 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       ds.getVideoTracks().forEach(t => t.stop());
       if (!CA.on) { ds.getTracks().forEach(t => t.stop()); return; }
       const ctx = new AudioContext({ sampleRate: CA_RATE, latencyHint: "interactive" }); CA.ctx = ctx; CA.streams = [ds];
-      const code = 'class R extends AudioWorkletProcessor{process(i){const c=i[0];if(c&&c.length&&c[0].length){this.port.postMessage([currentFrame,c[0].slice(0),(c[1]||c[0]).slice(0)]);}return true}}registerProcessor("sothis-rec",R)';
+      const code = 'class R extends AudioWorkletProcessor{process(i){const g=i[0],m=i[1];const n=(g&&g[0]&&g[0].length)||(m&&m[0]&&m[0].length)||0;if(n){const z=new Float32Array(n);this.port.postMessage([currentFrame,g&&g[0]?g[0].slice(0):z,g&&g[0]?(g[1]||g[0]).slice(0):z,m&&m[0]?m[0].slice(0):null]);}return true}}registerProcessor("sothis-rec2",R)';
       await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([code], { type: "application/javascript" })));
-      const node = new AudioWorkletNode(ctx, "sothis-rec", { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 2, channelCountMode: "explicit" });
-      const mix = ctx.createGain(); mix.connect(node);
-      CA.sysG = ctx.createGain(); CA.sysG.connect(mix);
-      if (ds.getAudioTracks().length) ctx.createMediaStreamSource(ds).connect(CA.sysG);
-      if (o.mic) { try { const ms = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); CA.streams.push(ms); CA.micG = ctx.createGain(); CA.micG.connect(mix); ctx.createMediaStreamSource(ms).connect(CA.micG); } catch {} }
-      caGains(o);
+      const node = new AudioWorkletNode(ctx, "sothis-rec2", { numberOfInputs: 2, numberOfOutputs: 1, channelCount: 2, channelCountMode: "explicit" });
+      if (ds.getAudioTracks().length) ctx.createMediaStreamSource(ds).connect(node, 0, 0);
+      if (o.mic) {
+        try {
+          // the browser's own light noise filter stays off: Sothis cleans the mic up itself when it saves a clip
+          const ms = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: true } });
+          CA.streams.push(ms); ctx.createMediaStreamSource(ms).connect(node, 0, 1); CA.hasMic = true;
+        } catch {}
+      }
       const sink = ctx.createGain(); sink.gain.value = 0; node.connect(sink); sink.connect(ctx.destination);
-      CA.frames = CA_RATE * CA_SECS; CA.ring = new Int16Array(CA.frames * 2); CA.hi = -1;
+      CA.frames = CA_RATE * CA_SECS; CA.ringS = new Int16Array(CA.frames * 2); CA.ringM = CA.hasMic ? new Int16Array(CA.frames) : null; CA.hi = -1;
       node.port.onmessage = e => {
-        const [f0, L, Rr] = e.data, ring = CA.ring; if (!ring) return;
-        // write each sample at its own place on the audio clock; anything missed stays silent instead of shifting the rest
-        if (CA.hi >= 0 && f0 > CA.hi + 1) { for (let f = CA.hi + 1; f < f0 && f < CA.hi + 1 + CA.frames; f++) { const k = (f % CA.frames) * 2; ring[k] = 0; ring[k + 1] = 0; } }
+        const [f0, L, Rr, M] = e.data, rs = CA.ringS, rm = CA.ringM; if (!rs) return;
+        // each sample goes to its own place on the audio clock; anything missed stays silent instead of shifting the rest
+        if (CA.hi >= 0 && f0 > CA.hi + 1) for (let f = CA.hi + 1; f < f0 && f < CA.hi + 1 + CA.frames; f++) { const p = f % CA.frames; rs[p * 2] = rs[p * 2 + 1] = 0; if (rm) rm[p] = 0; }
         for (let i = 0; i < L.length; i++) {
-          const k = ((f0 + i) % CA.frames) * 2;
-          ring[k] = Math.max(-32768, Math.min(32767, L[i] * 32767)); ring[k + 1] = Math.max(-32768, Math.min(32767, Rr[i] * 32767));
+          const p = (f0 + i) % CA.frames;
+          rs[p * 2] = s16(L[i]); rs[p * 2 + 1] = s16(Rr[i]);
+          if (rm) rm[p] = M ? s16(M[i]) : 0;
         }
         CA.hi = Math.max(CA.hi, f0 + L.length - 1);
       };
@@ -5940,19 +5984,19 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   }
   D.onClipAudio(o => {
     if (!o || !o.on) { clearInterval(caOn.t); caOff(); return; }
-    if (CA.on && CA.ctx && CA.mic === !!o.mic) caGains(o); else caOn(o);
+    if (!(CA.on && CA.ctx && CA.mic === !!o.mic)) caOn(o);
   });
   D.onClipAudioReq(({ id, from, dur }) => {
-    const ring = CA.ring;
+    const rs = CA.ringS, rm = CA.ringM;
     caSync();
-    if (!ring || CA.hi < 0 || CA.wall0 == null) { D.clipAudioRes({ id, pcm: null }); return; }
-    const frames = Math.round(dur * CA_RATE), out = new Int16Array(frames * 2);
+    if (!rs || CA.hi < 0 || CA.wall0 == null) { D.clipAudioRes({ id, pcm: null }); return; }
+    const frames = Math.round(dur * CA_RATE), out = new Int16Array(frames * 2), mic = rm ? new Int16Array(frames) : null;
     const f0 = Math.round((from - CA.wall0) / 1000 * CA_RATE), lo = CA.hi - CA.frames + 1;
     for (let f = 0; f < frames; f++) {
       const a = f0 + f; if (a < lo || a > CA.hi || a < 0) continue;
-      const k = (a % CA.frames) * 2; out[f * 2] = ring[k]; out[f * 2 + 1] = ring[k + 1];
+      const p = a % CA.frames; out[f * 2] = rs[p * 2]; out[f * 2 + 1] = rs[p * 2 + 1]; if (mic) mic[f] = rm[p];
     }
-    D.clipAudioRes({ id, rate: CA_RATE, ch: 2, pcm: out.buffer });
+    D.clipAudioRes({ id, rate: CA_RATE, ch: 2, pcm: out.buffer, mic: mic ? mic.buffer : null });
   });
 
   /* ---------- Keep content clear of the corner buttons ---------- */
