@@ -11,7 +11,7 @@ module.exports = function makeClipper(ctx) {
   const BUF = path.join(DATA_DIR, "clipbuf");
   const SEG = 2, WRAP = 70;   // 2 s pieces, 140 s kept at most
   const S = () => getSettings().clips || {};
-  const cfg = () => Object.assign({ on: true, len: 30, key: "F8", overlay: true, mic: false, fps: 60, monitor: "auto", sysVol: 100, micVol: 100, sysMute: false, micMute: false, window: true, audioOffset: 0, noise: "strong" }, S());
+  const cfg = () => Object.assign({ quality: "high", on: true, len: 30, key: "F8", overlay: true, mic: false, fps: 60, monitor: "auto", sysVol: 100, micVol: 100, sysMute: false, micMute: false, window: true, audioOffset: 0, noise: "strong" }, S());
   // the mic is recorded whenever it's switched on (even muted), so a saved clip can still turn it up later in the editor
   const audioCfg = () => { const c = cfg(); return { on: true, mic: !!c.mic }; };
 
@@ -65,11 +65,14 @@ module.exports = function makeClipper(ctx) {
 
   /* ---- rolling buffer ---- */
   let ff = null, encIdx = 0, startedAt = 0, segs = [], wallOff = null, listPos = 0, listTimer = null, want = false, vidSize = null;
+  // recording quality, like Medal's: constant quality on the graphics card (lower number = sharper, bigger files)
+  const QP = { standard: 23, high: 19, max: 16 };
+  const qp = () => QP[cfg().quality] || QP.high;
   const ENC = [
-    { name: "AMD", v: ["-c:v", "h264_amf", "-usage", "transcoding", "-quality", "speed", "-rc", "cqp", "-qp_i", "21", "-qp_p", "23", "-qp_b", "25"] },
-    { name: "NVIDIA", v: ["-c:v", "h264_nvenc", "-preset", "p3", "-rc", "constqp", "-qp", "23"] },
-    { name: "Intel", hw: "qsv", v: ["-c:v", "h264_qsv", "-global_quality", "23"] },
-    { name: "CPU", soft: true, v: ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "23", "-pix_fmt", "yuv420p"] }
+    { name: "AMD", get v() { const q = qp(); return ["-c:v", "h264_amf", "-usage", "transcoding", "-quality", q <= 19 ? "balanced" : "speed", "-rc", "cqp", "-qp_i", String(q), "-qp_p", String(q + 2), "-qp_b", String(q + 4)]; } },
+    { name: "NVIDIA", get v() { const q = qp(); return ["-c:v", "h264_nvenc", "-preset", q <= 19 ? "p5" : "p3", "-tune", "hq", "-rc", "constqp", "-qp", String(q)]; } },
+    { name: "Intel", hw: "qsv", get v() { return ["-c:v", "h264_qsv", "-global_quality", String(qp())]; } },
+    { name: "CPU", soft: true, get v() { return ["-c:v", "libx264", "-preset", qp() <= 19 ? "superfast" : "ultrafast", "-crf", String(qp() + 1), "-pix_fmt", "yuv420p"]; } }
   ];
   function monitorIdx() {
     const c = cfg(), all = screen.getAllDisplays();
@@ -239,10 +242,6 @@ module.exports = function makeClipper(ctx) {
       const ts = path.join(tmp, "v.ts"), out = fs.openSync(ts, "w");
       for (const s of use) { try { fs.writeSync(out, fs.readFileSync(path.join(BUF, s.file))); } catch {} }
       fs.closeSync(out);
-      const clipStart = Math.max(startS, use[0].a), clipLen = Math.min(len, endS - clipStart), off = Math.max(0, clipStart - use[0].a);
-      const wall0 = wallOff + clipStart * 1000;
-      // sound for exactly that time
-      let audio = null; try { audio = await requestAudio(wall0 + (+c.audioOffset || 0), clipLen); } catch {}
       // only the game's window: crop to it when the game isn't filling the whole screen
       let crop = "";
       if (c.window !== false && typeof gameRect === "function") {
@@ -257,13 +256,22 @@ module.exports = function makeClipper(ctx) {
           }
         } catch {}
       }
+      // full quality, like Medal: when nothing needs cropping the video is copied straight from the recording (no second
+      // compression), starting at the nearest 2-second piece; otherwise it's re-encoded at very high quality
+      const overlay = false; // key overlay removed
+      const copyV = !crop && !overlay;
+      const clipStart = copyV ? use[0].a : Math.max(startS, use[0].a);
+      const clipLen = copyV ? Math.min(len + SEG, endS - clipStart) : Math.min(len, endS - clipStart);
+      const off = copyV ? 0 : Math.max(0, clipStart - use[0].a);
+      const wall0 = wallOff + clipStart * 1000;
+      // sound for exactly that time
+      let audio = null; try { audio = await requestAudio(wall0 + (+c.audioOffset || 0), clipLen); } catch {}
       let haveAudio = false, haveMic = false;
       if (audio && audio.pcm && (audio.pcm.byteLength || audio.pcm.length)) { fs.writeFileSync(path.join(tmp, "a.wav"), wav(Buffer.from(audio.pcm), audio.rate || 48000, audio.ch || 2)); haveAudio = true; }
       if (haveAudio && audio.mic && (audio.mic.byteLength || audio.mic.length)) { fs.writeFileSync(path.join(tmp, "m.wav"), wav(Buffer.from(audio.mic), audio.rate || 48000, 1)); haveMic = true; }
       const ns = haveMic ? nsFilter(c.noise, tmp) : "";
       // key overlay
       const W = (vidSize && vidSize.w) || 1920, H = (vidSize && vidSize.h) || 1080;
-      const overlay = false; // key overlay removed
       if (overlay) fs.writeFileSync(path.join(tmp, "keys.ass"), overlayAss(wall0, clipLen, ENC[encIdx].soft && H > 1080 ? Math.round(W * 1080 / H) : W, ENC[encIdx].soft && H > 1080 ? 1080 : H));
       // where it goes: <clips>/<Game>/<Game N>.mp4
       const game = String(currentGame() || "").replace(/[<>:"/\\|?*]/g, "").trim();
@@ -271,30 +279,32 @@ module.exports = function makeClipper(ctx) {
       const base = game || "Clip";
       let count = 0; try { count = fs.readdirSync(dir).filter(n => VID_RE.test(n)).length; } catch {}
       let n = count + 1, file = path.join(dir, `${base} ${n}.mp4`); while (fs.existsSync(file)) file = path.join(dir, `${base} ${++n}.mp4`);
-      const encs = [["-c:v", "h264_amf", "-quality", "quality", "-rc", "cqp", "-qp_i", "18", "-qp_p", "20"], ["-c:v", "h264_nvenc", "-preset", "p5", "-cq", "19"], ["-c:v", "h264_qsv", "-global_quality", "20"], ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18"]];
+      const q = Math.max(14, qp() - 3);
+      const encs = copyV ? [["-c:v", "copy"]] : [["-c:v", "h264_amf", "-quality", "quality", "-rc", "cqp", "-qp_i", String(q), "-qp_p", String(q + 1), "-bf", "0"], ["-c:v", "h264_nvenc", "-preset", "p6", "-tune", "hq", "-rc", "constqp", "-qp", String(q)], ["-c:v", "h264_qsv", "-global_quality", String(q)], ["-c:v", "libx264", "-preset", "fast", "-crf", String(q + 1)]];
       let res = { ok: false, err: "" };
       // tracks: 1 = the mix you hear (what Discord and players play), 2 = game sound, 3 = your mic (cleaned up), so the editor can remix them
       const sv = c.sysMute ? 0 : (+c.sysVol || 0) / 100, mv = c.micMute ? 0 : (+c.micVol || 0) / 100;
-      let fc = `[0:v]${crop}${overlay ? "subtitles=keys.ass," : ""}format=yuv420p[v]`;
+      let fc = copyV ? "" : `[0:v]${crop}${overlay ? "subtitles=keys.ass," : ""}format=yuv420p[v]`;
+      const sep = fc ? ";" : "";
       const amap = [];
       if (haveAudio && haveMic) {
-        fc += `;[1:a]asplit=2[g1][g2];[g1]volume=${sv.toFixed(2)}[gv];[2:a]${ns}asplit=2[m1][m2];[m1]volume=${mv.toFixed(2)},pan=stereo|c0=c0|c1=c0[mv];[gv][mv]amix=inputs=2:normalize=0:duration=first[mix]`;
+        fc += `${sep}[1:a]asplit=2[g1][g2];[g1]volume=${sv.toFixed(2)}[gv];[2:a]${ns}asplit=2[m1][m2];[m1]volume=${mv.toFixed(2)},pan=stereo|c0=c0|c1=c0[mv];[gv][mv]amix=inputs=2:normalize=0:duration=first[mix]`;
         amap.push("-map", "[mix]", "-map", "[g2]", "-map", "[m2]", "-metadata:s:a:0", "title=Mix", "-metadata:s:a:1", "title=Game", "-metadata:s:a:2", "title=Mic", "-disposition:a:0", "default", "-disposition:a:1", "0", "-disposition:a:2", "0");
       } else if (haveAudio) {
-        fc += `;[1:a]asplit=2[g1][g2];[g1]volume=${sv.toFixed(2)}[mix]`;
+        fc += `${sep}[1:a]asplit=2[g1][g2];[g1]volume=${sv.toFixed(2)}[mix]`;
         amap.push("-map", "[mix]", "-map", "[g2]", "-metadata:s:a:0", "title=Mix", "-metadata:s:a:1", "title=Game", "-disposition:a:0", "default", "-disposition:a:1", "0");
       }
       for (const e of encs) {
-        const args = ["-hide_banner", "-y", "-ss", off.toFixed(3), "-i", "v.ts", ...(haveAudio ? ["-i", "a.wav"] : []), ...(haveMic ? ["-i", "m.wav"] : []), "-t", clipLen.toFixed(3),
-          "-filter_complex", fc, "-map", "[v]", ...amap, ...e,
-          ...(haveAudio ? ["-c:a", "aac", "-b:a", "192k"] : []), "-movflags", "+faststart", file];
+        const args = ["-hide_banner", "-y", ...(copyV ? [] : ["-ss", off.toFixed(3)]), "-i", "v.ts", ...(haveAudio ? ["-i", "a.wav"] : []), ...(haveMic ? ["-i", "m.wav"] : []), "-t", clipLen.toFixed(3),
+          ...(fc ? ["-filter_complex", fc] : []), "-map", copyV ? "0:v:0" : "[v]", ...amap, ...e,
+          ...(haveAudio ? ["-c:a", "aac", "-b:a", "256k"] : []), ...(copyV ? ["-avoid_negative_ts", "make_zero"] : []), "-movflags", "+faststart", file];
         res = await runFF(args, tmp);
         if (res.ok) break;
         try { fs.unlinkSync(file); } catch {}
       }
       try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
       if (!res.ok) { log("clips: save failed: " + res.err.split("\n").filter(Boolean).slice(-2).join(" | ")); return { ok: false, err: "Couldn't save the clip" }; }
-      log("clips: saved " + path.basename(file) + " (" + clipLen.toFixed(1) + " s" + (overlay ? ", keys" : "") + (haveAudio ? ", sound" : ", no sound") + ")");
+      log("clips: saved " + path.basename(file) + " (" + clipLen.toFixed(1) + " s, " + (copyV ? "straight copy" : "re-encoded") + (overlay ? ", keys" : "") + (haveAudio ? ", sound" : ", no sound") + ")");
       try { notify(path.basename(file, ".mp4"), file); } catch {}
       return { ok: true, name: path.basename(file), file };
     } finally { saving = false; }

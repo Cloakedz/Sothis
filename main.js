@@ -1486,13 +1486,14 @@ ipcMain.handle("clips:setup", async () => { const ok = await clipper().ffEnsure(
 ipcMain.handle("clips:save", () => clipper().save());
 ipcMain.handle("clips:set", (_e, o) => {
   const cur = Object.assign({}, settings.clips || {}), was = JSON.stringify(cur);
-  const k = ["on", "len", "key", "overlay", "mic", "fps", "monitor", "sysVol", "micVol", "sysMute", "micMute", "window", "audioOffset", "noise", "hideSothis"];
+  const k = ["on", "len", "key", "overlay", "mic", "fps", "monitor", "sysVol", "micVol", "sysMute", "micMute", "window", "audioOffset", "noise", "hideSothis", "quality"];
   for (const x of k) if (o && x in o) cur[x] = o[x];
   for (const x of ["sysVol", "micVol"]) cur[x] = Math.max(0, Math.min(200, Math.round(+cur[x] >= 0 ? +cur[x] : 100)));
   for (const x of ["sysMute", "micMute"]) cur[x] = !!cur[x];
   cur.audioOffset = Math.max(-1000, Math.min(1000, Math.round(+cur.audioOffset || 0)));
   cur.noise = ["off", "standard", "strong"].includes(cur.noise) ? cur.noise : "strong";
   cur.hideSothis = cur.hideSothis !== false;
+  cur.quality = ["standard", "high", "max"].includes(cur.quality) ? cur.quality : "high";
   cur.len = [15, 30, 60, 120].includes(+cur.len) ? +cur.len : 30;
   if (!/^(F([6-9]|1[0-2])|Mouse4|Mouse5)$/.test(cur.key || "")) cur.key = "F8";
   cur.fps = +cur.fps === 30 ? 30 : 60;
@@ -1500,7 +1501,7 @@ ipcMain.handle("clips:set", (_e, o) => {
   if (/^F/.test(cur.key)) settings.medalKey = cur.key;   // keeps the Siege scoreboard key off the clip key
   saveSettings(); try { r6RegisterKey(); } catch {}
   const C = clipper(), s = C.state();
-  const restartNeeded = ["fps", "monitor", "mic"].some(x => JSON.parse(was || "{}")[x] !== cur[x]);
+  const restartNeeded = ["fps", "monitor", "mic", "quality"].some(x => JSON.parse(was || "{}")[x] !== cur[x]);
   if (cur.on === false) C.stop(); else if (sess && !s.recording) C.start(); else if (restartNeeded) C.restart(); else C.applyAudio();
   try { clipHideApply(); } catch {}
   return C.state();

@@ -2264,6 +2264,10 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
             <button class="switch" id="ckWin" role="switch" aria-checked="true" aria-label="Only the game window"></button>
           </div>
           <div class="setting">
+            <div class="txt"><div class="name">Quality</div><div class="desc">High looks like Medal's default. Max is sharper still with bigger files. Clips are saved straight from the recording, without a second compression.</div></div>
+            <select id="ckQ" aria-label="Clip quality"><option value="max">Max</option><option value="high">High</option><option value="standard">Standard (small files)</option></select>
+          </div>
+          <div class="setting">
             <div class="txt"><div class="name">Frame rate</div><div class="desc">60 is smoother, 30 makes smaller files.</div></div>
             <select id="ckFps" aria-label="Frame rate"><option value="60">60 fps</option><option value="30">30 fps</option></select>
           </div>
@@ -5952,6 +5956,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     if (document.activeElement !== $("ckKey")) $("ckKey").value = c.key || "F8";
     if (document.activeElement !== $("ckLen")) $("ckLen").value = String(c.len || 30);
     if (document.activeElement !== $("ckFps")) $("ckFps").value = String(c.fps || 60);
+    if (document.activeElement !== $("ckQ")) $("ckQ").value = c.quality || "high";
     if (document.activeElement !== $("ckMon")) $("ckMon").value = String(c.monitor ?? "auto");
     const sv = c.sysVol ?? 100, mv = c.micVol ?? 100;
     if (!ckVolDrag.sys) { $("ckSysVol").value = sv; $("ckSysV").textContent = sv + "%"; }
@@ -5992,6 +5997,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   $("ckKey").onchange = () => ckSet({ key: $("ckKey").value });
   $("ckLen").onchange = () => ckSet({ len: +$("ckLen").value });
   $("ckFps").onchange = () => ckSet({ fps: +$("ckFps").value });
+  $("ckQ").onchange = () => ckSet({ quality: $("ckQ").value });
   $("ckMon").onchange = () => ckSet({ monitor: $("ckMon").value });
   $("ckSetup").onclick = () => { $("ckSetup").hidden = true; D.clipsSetup().then(ckRender).catch(() => {}); };
   D.onClipSaved(v => { toast("Clip saved: " + v.name); try { if (tab === "clips") loadClips(); } catch {} });
