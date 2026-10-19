@@ -248,7 +248,8 @@ module.exports = function makeClipper(ctx) {
         try {
           const g = await Promise.race([gameRect(), new Promise(r => setTimeout(() => r(null), 5000))]);
           const VW = (vidSize && vidSize.w) || 0, VH = (vidSize && vidSize.h) || 0;
-          if (g && VW && g.mw === VW && g.mh === VH && g.w > 200 && g.h > 150 && (g.w < VW - 8 || g.h < VH - 8)) {
+          // only a real game window: landscape and a good part of the screen (never a tall app window like Sothis or Discord)
+          if (g && VW && g.mw === VW && g.mh === VH && g.w >= g.h && g.w >= 640 && g.w * g.h >= VW * VH * 0.3 && (g.w < VW - 8 || g.h < VH - 8)) {
             const k = ENC[encIdx].soft && VH > 1080 ? 1080 / VH : 1;
             const ev = n => Math.max(2, Math.floor(n * k / 2) * 2);
             let x = Math.max(0, g.x - g.mx), y = Math.max(0, g.y - g.my), w = Math.min(g.w, VW - x), h = Math.min(g.h, VH - y);

@@ -1520,15 +1520,31 @@ function clipHideApply() {
 }
 app.on("browser-window-created", (_e, w) => { if (clipHidden) { try { w.setContentProtection(true); } catch {} } });
 // where the game's window is (its inside, without the title bar), in real screen pixels, plus the screen it's on
-function gameWindowRect() {
-  const exe = sess && sess.exe ? String(sess.exe).replace(/\.exe$/i, "").replace(/[^\w .-]/g, "") : "";
+// the folder a Steam game is installed in (to find its window)
+async function steamInstallDir(appid) {
+  let root = await regQuery("HKCU\\Software\\Valve\\Steam", "SteamPath");
+  root = (root || "C:\\Program Files (x86)\\Steam").replace(/\//g, "\\");
+  const libs = new Set([path.join(root, "steamapps")]);
+  try { const vdf = fs.readFileSync(path.join(root, "steamapps", "libraryfolders.vdf"), "utf8"); for (const mm of vdf.matchAll(/"path"\s+"([^"]+)"/g)) libs.add(path.join(mm[1].replace(/\\\\/g, "\\"), "steamapps")); } catch {}
+  for (const lib of libs) {
+    try { const acf = fs.readFileSync(path.join(lib, "appmanifest_" + appid + ".acf"), "utf8"); const d = (acf.match(/"installdir"\s+"([^"]+)"/) || [])[1]; if (d) return path.join(lib, "common", d); } catch {}
+  }
+  return "";
+}
+async function gameWindowRect() {
+  if (!sess || !sess.exe) return null;   // no game running: record the whole screen
+  const sid = (/^steam:(\d+)$/.exec(sess.exe) || [])[1];
+  const exe = sid ? "" : String(sess.exe).replace(/\.exe$/i, "").replace(/[^\w .-]/g, "");
+  const dir = sid ? (await steamInstallDir(sid).catch(() => "")).replace(/'/g, "''") : "";
+  if (!exe && !dir) return null;
   const ps = `$ErrorActionPreference='SilentlyContinue'
 Add-Type -Namespace S -Name W -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetProcessDPIAware(); [DllImport("user32.dll")] public static extern System.IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern bool GetClientRect(System.IntPtr h, out RECT r); [DllImport("user32.dll")] public static extern bool ClientToScreen(System.IntPtr h, ref POINT p); [DllImport("user32.dll")] public static extern System.IntPtr MonitorFromWindow(System.IntPtr h, uint f); [DllImport("user32.dll")] public static extern bool GetMonitorInfo(System.IntPtr m, ref MI i); [DllImport("user32.dll")] public static extern bool IsIconic(System.IntPtr h); public struct RECT { public int L, T, R, B; } public struct POINT { public int X, Y; } public struct MI { public int cb; public RECT rcM; public RECT rcW; public uint f; }'
 [S.W]::SetProcessDPIAware() | Out-Null
 $h = [System.IntPtr]::Zero
 $n = '${exe}'
-if ($n) { $p = Get-Process -Name $n | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1; if ($p) { $h = $p.MainWindowHandle } }
-if ($h -eq [System.IntPtr]::Zero) { $h = [S.W]::GetForegroundWindow() }
+$d = '${dir}'
+if ($n) { $p = Get-Process -Name $n | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1; if ($p) { $h = $p.MainWindowHandle } } elseif ($d) { $p = Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.Path -and $_.Path.StartsWith($d + '\', [System.StringComparison]::OrdinalIgnoreCase) } | Select-Object -First 1; if ($p) { $h = $p.MainWindowHandle } }
+if ($h -eq [System.IntPtr]::Zero) { exit }
 if ([S.W]::IsIconic($h)) { exit }
 $r = New-Object S.W+RECT; [S.W]::GetClientRect($h, [ref]$r) | Out-Null
 $pt = New-Object S.W+POINT; [S.W]::ClientToScreen($h, [ref]$pt) | Out-Null
