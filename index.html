@@ -2158,6 +2158,10 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
             <div class="ck-volc"><input type="range" id="rgbSpeed" min="1" max="10" step="1" value="5" aria-label="Effect speed"><b id="rgbSpeedV">5</b></div>
           </div>
           <div class="setting">
+            <div class="txt"><div class="name">Wardogs team colors</div><div class="desc" id="rgbWdDesc">In Wardogs your lights turn your team's color: blue for Lonestar, red for Valkyra, green for Manticore. Back to your own color when you leave.</div></div>
+            <button class="switch" id="setRgbWd" role="switch" aria-checked="true" aria-label="Wardogs team colors"></button>
+          </div>
+          <div class="setting">
             <div class="txt"><div class="name">Flash on match found</div><div class="desc">Your lights blink white when a queue pops. <button class="linkbtn" id="rgbTest" type="button">Try it</button></div></div>
             <button class="switch" id="setRgbFlash" role="switch" aria-checked="true" aria-label="Flash on match found"></button>
           </div>
@@ -5314,6 +5318,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     const i = rgbI; if (!i) return;
     $("setRgb").setAttribute("aria-checked", String(!!i.on));
     $("setRgbFlash").setAttribute("aria-checked", String(!!i.flashMatch));
+    $("setRgbWd").setAttribute("aria-checked", String(!!i.wdTeam));
+    $("rgbWdDesc").textContent = i.team ? "Showing " + i.team.name + " right now. Your own color comes back when you leave Wardogs." : "In Wardogs your lights turn your team's color: blue for Lonestar, red for Valkyra, green for Manticore. Back to your own color when you leave.";
     $("rgbMode").value = i.mode;
     for (const b of $("rgbSw").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.c === i.color));
     $("rgbPick").value = "#" + i.color;
@@ -5328,6 +5334,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   D.rgbGet().then(i => { rgbI = i; rgbRender(); }).catch(() => {});
   D.onRgb(i => { rgbI = i; rgbRender(); });
   $("setRgb").onclick = () => rgbPut({ on: !(rgbI && rgbI.on) });
+  $("setRgbWd").onclick = () => rgbPut({ wdTeam: !(rgbI && rgbI.wdTeam) });
   $("setRgbFlash").onclick = () => rgbPut({ flashMatch: !(rgbI && rgbI.flashMatch) });
   $("rgbMode").onchange = () => rgbPut({ mode: $("rgbMode").value });
   { let t = null; $("rgbBri").addEventListener("input", () => { rgbDragB = true; $("rgbBriV").textContent = $("rgbBri").value + "%"; clearTimeout(t); t = setTimeout(async () => { await rgbPut({ bri: +$("rgbBri").value }); rgbDragB = false; }, 120); }); }

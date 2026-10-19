@@ -849,7 +849,7 @@ async function dcGamePoll() {
   if (!dcPresOn() || dc.status !== "ok" || process.platform !== "win32") return;
   let g = null; try { g = await dcGameNow(); } catch {}
   const was = dcGame ? dcGame.name : "", now = g ? g.name : "";
-  if (was !== now) { if (STATS_KEY[was]) statsRefreshSoon(STATS_KEY[was]); dcGameAt = Date.now(); if (now !== "Overwatch 2") { owMapNow = null; owPhase = null; owHero = null; } if (now !== "Rainbow Six Siege") { r6MapNow = null; r6Op = null; } if (/^wardogs\b/i.test(was) || /^wardogs\b/i.test(now)) { wdFinish(); wdCash = null; if (settings.wdTeam) { settings.wdTeam = ""; saveSettings(); } } }
+  if (was !== now) { if (STATS_KEY[was]) statsRefreshSoon(STATS_KEY[was]); dcGameAt = Date.now(); if (now !== "Overwatch 2") { owMapNow = null; owPhase = null; owHero = null; } if (now !== "Rainbow Six Siege") { r6MapNow = null; r6Op = null; } if (/^wardogs\b/i.test(was) || /^wardogs\b/i.test(now)) { wdFinish(); wdCash = null; if (settings.wdTeam) { settings.wdTeam = ""; saveSettings(); } try { rgbApply(); rgbEmit(); } catch {} } }
   dcGame = g;
   dcPresence();
 }
@@ -1051,8 +1051,12 @@ const wdTeamName = () => WD_TEAMS[String(settings.wdTeam || "").toUpperCase()] |
 function wdTeamSet(k) {
   k = String(k || "").toUpperCase(); if (k && !WD_TEAMS[k]) return false;
   if ((settings.wdTeam || "") === k.toLowerCase()) return true;
-  settings.wdTeam = k.toLowerCase(); saveSettings(); dcPresence(); return true;
+  settings.wdTeam = k.toLowerCase(); saveSettings(); dcPresence();
+  try { rgbApply(); if (WD_RGB[k] && rgbCfg().wdTeam) rgbFlash(WD_RGB[k], 2); rgbEmit(); } catch {}
+  return true;
 }
+// each team's color for your lights
+const WD_RGB = { LONESTAR: "0050ff", VALKYRA: "ff0000", MANTICORE: "00ff40" };
 const GAME_FG = { "Overwatch 2": /^overwatch\.exe$/i, "Rainbow Six Siege": /^rainbowsix(_vulkan|_be)?\.exe$/i };
 const normTxt = t => " " + String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/['’`]/g, "").replace(/[^A-Z0-9]+/g, " ").trim() + " ";
 // Your rank for the role of the hero you're on (falls back to your best role)
@@ -4377,14 +4381,24 @@ function updStart() {
 /* ---------- RGB: Sothis drives the ASUS Aura lights (board, RAM, LED strip) itself, through the Aura SDK Armoury Crate installs ---------- */
 const rgb = { proc: null, status: "off", devices: "", err: "", fails: 0, timer: null, x86: false };
 function rgbCfg() {
-  const d = { on: false, mode: "static", color: "ff0000", bri: 100, speed: 5, flashMatch: true };
+  const d = { on: false, mode: "static", color: "ff0000", bri: 100, speed: 5, flashMatch: true, wdTeam: true };
   settings.rgb = Object.assign(d, settings.rgb || {});
   return settings.rgb;
 }
-function rgbInfo() { const c = rgbCfg(); return { ...c, status: rgb.status, devices: rgb.devices, err: rgb.err }; }
+// what the lights should show right now: your Wardogs team's color while you play Wardogs, otherwise your own pick
+function rgbTeam() {
+  const c = rgbCfg();
+  if (!c.wdTeam || !sess || !/^wardogs\b/i.test(sess.game || "")) return "";
+  return WD_RGB[String(settings.wdTeam || "").toUpperCase()] || "";
+}
+function rgbInfo() { const c = rgbCfg(), t = rgbTeam(); return { ...c, status: rgb.status, devices: rgb.devices, err: rgb.err, team: t ? { color: t, name: wdTeamName() } : null }; }
 function rgbEmit() { try { if (win && !win.isDestroyed()) win.webContents.send("rgb:info", rgbInfo()); } catch {} try { phPush(); } catch {} }
 function rgbLine(l) { try { if (rgb.proc && rgb.status === "ready") rgb.proc.stdin.write(l + "\n"); } catch {} }
-function rgbApply() { const c = rgbCfg(); rgbLine(`set ${c.mode} ${c.color} ${c.bri} ${c.speed}`); }
+function rgbApply() {
+  const c = rgbCfg(), t = rgbTeam();
+  if (t) rgbLine(`set ${c.mode === "breathe" ? "breathe" : "static"} ${t} ${Math.max(c.bri, 20)} ${c.speed}`);
+  else rgbLine(`set ${c.mode} ${c.color} ${c.bri} ${c.speed}`);
+}
 function rgbStart() {
   clearTimeout(rgb.timer);
   if (rgb.proc || !rgbCfg().on || process.platform !== "win32") return;
@@ -4430,6 +4444,7 @@ function rgbSet(patch) {
   if (patch.bri != null) c.bri = Math.max(0, Math.min(100, Math.round(+patch.bri) || 0));
   if (patch.speed != null) c.speed = Math.max(1, Math.min(10, Math.round(+patch.speed) || 5));
   if ("flashMatch" in patch) c.flashMatch = !!patch.flashMatch;
+  if ("wdTeam" in patch) c.wdTeam = !!patch.wdTeam;
   // picking a color or effect while it's off turns Sothis's lighting on
   if (!("on" in patch) && (patch.color || patch.mode) && !c.on) c.on = true;
   saveSettings();
