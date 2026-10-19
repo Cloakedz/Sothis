@@ -1977,8 +1977,7 @@ const LAUNCH_PRESETS = () => {
     { name: "OBS Studio", path: path.join(PF, "obs-studio", "bin", "64bit", "obs64.exe"), proc: "obs64.exe", cwd: true },
     { name: "Steam", path: path.join(PF86, "Steam", "steam.exe"), proc: "steam.exe" },
     { name: "Battle.net", path: path.join(PF86, "Battle.net", "Battle.net Launcher.exe"), proc: "battle.net.exe" },
-    { name: "Modrinth App", path: modrinthPath(), proc: "modrinth app.exe" },
-    { name: "Proton VPN", path: path.join(PF, "Proton", "VPN", "ProtonVPN.Launcher.exe"), proc: "protonvpn.client.exe", vpn: true }
+    { name: "Modrinth App", path: modrinthPath(), proc: "modrinth app.exe" }
   ].filter(p => p.path && fs.existsSync(p.path));
 };
 function launchers() {
@@ -1986,17 +1985,9 @@ function launchers() {
     const op = LAUNCH_PRESETS().find(p => p.name === "Opera GX");
     settings.launchers = op ? [{ name: op.name, path: op.path, proc: op.proc, logo: "opera" }] : [];
   }
-  // Proton VPN: pinned once when it's installed (remove it in Settings → Launcher buttons if you don't want it)
-  if (!settings.protonPinned) {
-    const pv = LAUNCH_PRESETS().find(p => p.name === "Proton VPN");
-    if (pv) { settings.protonPinned = true; if (!settings.launchers.some(l => /protonvpn/i.test(l.path))) settings.launchers.push({ name: pv.name, path: pv.path, proc: pv.proc, vpn: true }); saveSettings(); }
-  }
+  // Proton VPN was pinned for a moment: take it back out
+  if (settings.protonPinned) { delete settings.protonPinned; settings.launchers = settings.launchers.filter(l => !/protonvpn/i.test(l.path || "")); saveSettings(); }
   return settings.launchers;
-}
-// Proton VPN is connected when its network adapter is up
-ipcMain.handle("vpn:status", () => vpnUp());
-function vpnUp() {
-  try { return Object.keys(require("os").networkInterfaces()).some(n => /proton/i.test(n)); } catch { return false; }
 }
 const launchIcons = {};
 async function launchIcon(l) {
@@ -2019,8 +2010,7 @@ ipcMain.handle("launch:list", async () => {
   const run = await runningSet();
   const out = [];
   for (const [i, l] of launchers().entries()) {
-    const vpn = l.vpn || /protonvpn/i.test(l.path || "");
-    out.push({ i, name: l.name, logo: l.logo || "", icon: await launchIcon(l), vpn, running: vpn ? vpnUp() : run.has((l.proc || path.basename(l.path)).toLowerCase()) });
+    out.push({ i, name: l.name, logo: l.logo || "", icon: await launchIcon(l), running: run.has((l.proc || path.basename(l.path)).toLowerCase()) });
   }
   return out;
 });
@@ -2031,7 +2021,6 @@ ipcMain.handle("launch:presets", () => {
 ipcMain.handle("launch:open", async (_e, i) => {
   const l = launchers()[i];
   if (!l) return false;
-  if ((l.vpn || /protonvpn/i.test(l.path || "")) && win && !win.isDestroyed()) { showWindow(); win.webContents.send("vpn:open"); return true; }   // opens inside Sothis
   if (/obs64\.exe$/i.test(l.proc || l.path)) {          // OBS button: open the OBS controls pop-out, start OBS if needed
     const running = (await runningSet()).has("obs64.exe");
     if (running) { toggleObsWin(); return true; }
@@ -2045,7 +2034,7 @@ ipcMain.handle("launch:open", async (_e, i) => {
 ipcMain.handle("launch:addPreset", (_e, name) => {
   const p = LAUNCH_PRESETS().find(x => x.name === name);
   if (!p) return false;
-  launchers().push({ name: p.name, path: p.path, alt: p.alt, args: p.args, proc: p.proc, cwd: p.cwd, logo: p.logo, vpn: p.vpn });
+  launchers().push({ name: p.name, path: p.path, alt: p.alt, args: p.args, proc: p.proc, cwd: p.cwd, logo: p.logo });
   saveSettings(); return true;
 });
 ipcMain.handle("launch:addFile", async () => {
@@ -2083,11 +2072,8 @@ function discordExe() {
 const DOCK_CFG = {
   opera: { name: "Opera GX", exe: () => operaPath(), args: "--new-window", proc: "opera", any: false },
   // Discord keeps its own window (never re-parented), so closing Sothis just hands it back and your call carries on
-  discord: { name: "Discord", exe: () => discordExe(), args: "--processStart Discord.exe", proc: "Discord", any: true, overlay: true },
-  // Proton VPN keeps its own window too, laid over Sothis's VPN page
-  vpn: { name: "Proton VPN", exe: () => protonExe(), args: "", proc: "ProtonVPN.Client", any: true, overlay: true }
+  discord: { name: "Discord", exe: () => discordExe(), args: "--processStart Discord.exe", proc: "Discord", any: true, overlay: true }
 };
-function protonExe() { const f = path.join(process.env.ProgramFiles || "C:\\Program Files", "Proton", "VPN", "ProtonVPN.Launcher.exe"); return fs.existsSync(f) ? f : ""; }
 const docks = {};
 function dk(key) {
   if (!DOCK_CFG[key]) return null;
@@ -2129,7 +2115,7 @@ function dockStart(d) {
   const hwnd = hb.length >= 8 ? hb.readBigUInt64LE(0).toString() : String(hb.readUInt32LE(0));
   try {
     d.helper = require("child_process").spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path.join(__dirname, "dock-window.ps1"),
-      "-Parent", hwnd, "-Exe", exe, ...(cfg.args ? ["-AppArgs", cfg.args] : []), "-Proc", cfg.proc, ...(cfg.any ? ["-AnyWindow"] : []), ...(cfg.overlay ? ["-Overlay"] : [])], { windowsHide: true });
+      "-Parent", hwnd, "-Exe", exe, "-AppArgs", cfg.args, "-Proc", cfg.proc, ...(cfg.any ? ["-AnyWindow"] : []), ...(cfg.overlay ? ["-Overlay"] : [])], { windowsHide: true });
   } catch { dockTell(d, "failed"); return; }
   dockTell(d, "starting");
   let buf = "";

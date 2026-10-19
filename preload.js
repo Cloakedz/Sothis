@@ -133,8 +133,6 @@ contextBridge.exposeInMainWorld("desktop", {
   operaRestart: () => ipcRenderer.invoke("opera:restart"),
   onOperaState: cb => ipcRenderer.on("opera:state", (_e, s) => cb(s)),
   dockShow: (key, r) => ipcRenderer.invoke("dock:show", key, r),
-  onVpnOpen: cb => ipcRenderer.on("vpn:open", () => cb()),
-  vpnStatus: () => ipcRenderer.invoke("vpn:status"),
   dockMove: (key, r) => ipcRenderer.send("dock:move", key, r),
   dockHide: key => ipcRenderer.send("dock:hide", key),
   dockRelease: key => ipcRenderer.send("dock:release", key),
