@@ -1826,7 +1826,9 @@ async function otherGames() {
   }
   // Rainbow Six Siege on Ubisoft Connect (the Steam copy shows up with Steam games)
   if (await regQuery("HKLM\\SOFTWARE\\WOW6432Node\\Ubisoft\\Launcher\\Installs\\635", "InstallDir"))
-    out.push({ key: "ubi:635", name: "Rainbow Six Siege", store: "Ubisoft", launch: "uplay://launch/635/0", logo: "r6", played: 0 });
+    out.push({ key: "ubi:635", name: "Rainbow Six Siege", store: "Ubisoft", launch: "uplay://launch/635/0", logo: "r6", played: 0,
+      // Ubisoft keeps no cover picture on the PC, so use Siege's cover from Steam (same game)
+      appid: "359550", art: "https://cdn.cloudflare.steamstatic.com/steam/apps/359550/library_600x900.jpg", artAlt: "https://cdn.cloudflare.steamstatic.com/steam/apps/359550/header.jpg" });
   return out;
 }
 let gamesCache = null;

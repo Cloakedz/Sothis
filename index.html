@@ -5142,7 +5142,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
           tried++;
           if (tried === 1 && g.artAlt) { im.src = g.artAlt; im.classList.add("hdr"); return; }
           if (tried <= 2 && g.appid) { const u = await D.gameStoreArt(g.appid).catch(() => ""); if (u) { tried = 3; im.src = u; im.classList.add("hdr"); return; } }
-          im.remove(); art.append(mk("span", "gm-init", g.name.slice(0, 2)));
+          im.remove();
+          if (g.logo) { const lg = mk("span", "glogo"); lg.dataset.logo = g.logo; art.append(lg); } else art.append(mk("span", "gm-init", g.name.slice(0, 2)));
         };
         art.append(im);
       } else if (g.logo) { const lg = mk("span", "glogo"); lg.dataset.logo = g.logo; art.append(lg); }
