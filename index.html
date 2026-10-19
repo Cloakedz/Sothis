@@ -5596,6 +5596,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     lnList.forEach(l => {
       const b = mk("button", "cl-fab ln-b"); b.type = "button";
       b.setAttribute("aria-label", "Open " + l.name); b.setAttribute("aria-pressed", !!l.running);
+      if (l.vpn) b.title = l.name + (l.running ? " · connected" : " · not connected");
       let ic;
       if (l.logo) { ic = mk("span", "glogo"); ic.dataset.logo = l.logo; }
       else if (l.icon) { ic = mk("img", "ln-img"); ic.src = l.icon; ic.alt = ""; }
