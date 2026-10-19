@@ -892,6 +892,10 @@ body.tb-narrow .titlebar .batt { cursor: grab; }
 .rt-bar .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: transparent; }
 .rt-bar .rt-sp { flex: 1; }
 .rt-dirs { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.rgb-sw { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.rgb-sw button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); cursor: pointer; padding: 0; }
+.rgb-sw button[aria-pressed="true"] { border-color: #fff; }
+.rgb-sw input[type="color"] { width: 30px; height: 28px; border: 0; padding: 0; background: none; cursor: pointer; }
 .ph-box { display: flex; gap: 16px; align-items: center; padding: 12px; margin: 8px 0; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); }
 .ph-box[hidden] { display: none; }
 .ph-qr { flex: none; width: 128px; height: 128px; padding: 8px; border-radius: 10px; background: #fff; }
@@ -2128,6 +2132,34 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
           <div class="setting">
             <div class="txt"><div class="name">Update on its own</div><div class="desc">Downloads new versions in the background and shows "Update ready" when it's time to restart. Your settings and sign-ins stay as they are.</div></div>
             <button class="switch" id="setUpdAuto" role="switch" aria-checked="true" aria-label="Update on its own"></button>
+          </div>
+        </div>
+
+        <div class="group" id="rgbGroup">
+          <h2>Lighting</h2>
+          <div class="setting">
+            <div class="txt"><div class="name">Sothis runs your RGB</div><div class="desc" id="rgbDesc">Takes over your ASUS Aura lights (motherboard, RAM, LED strip) from Armoury Crate. Turn it off to hand them back.</div></div>
+            <button class="switch" id="setRgb" role="switch" aria-checked="false" aria-label="Sothis runs your RGB"></button>
+          </div>
+          <div class="setting">
+            <div class="txt"><div class="name">Color</div></div>
+            <div class="rgb-sw" id="rgbSw"></div>
+          </div>
+          <div class="setting">
+            <div class="txt"><div class="name">Effect</div></div>
+            <select id="rgbMode" aria-label="Lighting effect"><option value="static">Solid</option><option value="breathe">Breathing</option><option value="cycle">Rainbow</option><option value="off">Lights off</option></select>
+          </div>
+          <div class="setting ck-vol">
+            <div class="txt"><div class="name">Brightness</div></div>
+            <div class="ck-volc"><input type="range" id="rgbBri" min="5" max="100" step="5" value="100" aria-label="Brightness"><b id="rgbBriV">100%</b></div>
+          </div>
+          <div class="setting ck-vol" id="rgbSpeedRow">
+            <div class="txt"><div class="name">Speed</div></div>
+            <div class="ck-volc"><input type="range" id="rgbSpeed" min="1" max="10" step="1" value="5" aria-label="Effect speed"><b id="rgbSpeedV">5</b></div>
+          </div>
+          <div class="setting">
+            <div class="txt"><div class="name">Flash on match found</div><div class="desc">Your lights blink white when a queue pops. <button class="linkbtn" id="rgbTest" type="button">Try it</button></div></div>
+            <button class="switch" id="setRgbFlash" role="switch" aria-checked="true" aria-label="Flash on match found"></button>
           </div>
         </div>
 
@@ -5271,6 +5303,38 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     });
   }
   D.phoneGet().then(i => { phInfo = i; phRender(); }).catch(() => {});
+  /* ---------- Lighting (ASUS Aura through Sothis) ---------- */
+  const RGB_SW = ["ff0000", "ff5a00", "ffc400", "00ff40", "00e5ff", "0050ff", "8a2be2", "ff00b4", "ffffff"];
+  let rgbI = null, rgbDragB = false;
+  { const w = $("rgbSw");
+    for (const c of RGB_SW) { const b = document.createElement("button"); b.type = "button"; b.dataset.c = c; b.style.background = "#" + c; b.setAttribute("aria-label", "#" + c); b.onclick = () => rgbPut({ color: c }); w.append(b); }
+    const pick = document.createElement("input"); pick.type = "color"; pick.id = "rgbPick"; pick.setAttribute("aria-label", "Any color"); w.append(pick);
+    let pT = null; pick.addEventListener("input", () => { clearTimeout(pT); pT = setTimeout(() => rgbPut({ color: pick.value }), 80); }); }
+  function rgbRender() {
+    const i = rgbI; if (!i) return;
+    $("setRgb").setAttribute("aria-checked", String(!!i.on));
+    $("setRgbFlash").setAttribute("aria-checked", String(!!i.flashMatch));
+    $("rgbMode").value = i.mode;
+    for (const b of $("rgbSw").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.c === i.color));
+    $("rgbPick").value = "#" + i.color;
+    if (!rgbDragB) { $("rgbBri").value = i.bri; $("rgbBriV").textContent = i.bri + "%"; }
+    $("rgbSpeed").value = i.speed; $("rgbSpeedV").textContent = i.speed;
+    $("rgbSpeedRow").hidden = !(i.mode === "breathe" || i.mode === "cycle");
+    const base = "Takes over your ASUS Aura lights (motherboard, RAM, LED strip) from Armoury Crate. Turn it off to hand them back.";
+    $("rgbDesc").textContent = !i.on ? base : i.status === "ready" ? "Sothis is running your lights" + (i.devices ? " (" + i.devices.split(",").length + " devices)" : "") + ". Turn it off to hand them back to Armoury Crate."
+      : i.status === "error" ? (i.err || "Couldn't reach your lights.") : "Connecting to your lights…";
+  }
+  async function rgbPut(p) { try { rgbI = await D.rgbSet(p); rgbRender(); } catch {} }
+  D.rgbGet().then(i => { rgbI = i; rgbRender(); }).catch(() => {});
+  D.onRgb(i => { rgbI = i; rgbRender(); });
+  $("setRgb").onclick = () => rgbPut({ on: !(rgbI && rgbI.on) });
+  $("setRgbFlash").onclick = () => rgbPut({ flashMatch: !(rgbI && rgbI.flashMatch) });
+  $("rgbMode").onchange = () => rgbPut({ mode: $("rgbMode").value });
+  { let t = null; $("rgbBri").addEventListener("input", () => { rgbDragB = true; $("rgbBriV").textContent = $("rgbBri").value + "%"; clearTimeout(t); t = setTimeout(async () => { await rgbPut({ bri: +$("rgbBri").value }); rgbDragB = false; }, 120); }); }
+  $("rgbSpeed").addEventListener("change", () => rgbPut({ speed: +$("rgbSpeed").value }));
+  $("rgbSpeed").addEventListener("input", () => { $("rgbSpeedV").textContent = $("rgbSpeed").value; });
+  $("rgbTest").onclick = () => D.rgbTest();
+
   /* ---------- Updates (Settings → Updates) ---------- */
   let updInfo = null;
   function updRender() {

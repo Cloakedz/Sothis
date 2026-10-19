@@ -3557,6 +3557,7 @@ function qpFlash(exe, hwnd) {
 function qpShow(d) {
   qpData = d;
   try { phEvent("match", { game: d.game || "", test: !!d.test }); } catch {}
+  try { if (rgbCfg().flashMatch) rgbFlash("ffffff", 4); } catch {}
   duckHoldUntil = Date.now() + 5000; try { duckEval(); } catch {}   // let the alert be heard
   if (!qpWin || qpWin.isDestroyed()) {
     qpReady = false;
@@ -4051,7 +4052,8 @@ function phState() {
     game: sess ? { name: sess.game, start: sess.start } : (emuGame ? { name: emuGame.name, start: 0 } : null),
     dc: { ok: dc.status === "ok", mute: !!(dc.vs && dc.vs.mute), deaf: !!(dc.vs && dc.vs.deaf),
       channel: ch ? { name: ch.name, guild: ch.guild || "", members: [...ch.members.values()].slice(0, 12).map(m => ({ id: m.id, name: m.name || "", avatar: m.avatar || "", speaking: dc.speaking.has(m.id), mute: !!m.muted, deaf: !!m.deaf, me: !!m.me })) } : null },
-    clip: { recording: clipRec }
+    clip: { recording: clipRec },
+    rgb: (() => { try { const c = rgbCfg(); return { on: c.on, mode: c.mode, color: c.color, ok: rgb.status === "ready" }; } catch { return null; } })()
   };
 }
 function phSend(res, ev, data) { try { res.write(`event: ${ev}\ndata: ${JSON.stringify(data)}\n\n`); } catch {} }
@@ -4070,6 +4072,7 @@ async function phCmd(cmd, value) {
   if (cmd === "mute" || cmd === "deaf") { if (dc.status !== "ok") return { ok: false, err: "Discord isn't connected on your PC." }; await dcToggle(cmd); return { ok: true }; }
   if (cmd === "clip") { const r = await doClip().catch(() => ({ ok: false })); return r && r.ok !== false ? { ok: true } : { ok: false, err: (r && r.err) || "Couldn't save a clip." }; }
   if (cmd === "show") { try { showWindow(); } catch {} return { ok: true }; }
+  if (cmd === "rgb") { const v = value && typeof value === "object" ? value : {}; rgbSet(v); return { ok: true }; }
   if (cmd === "lock") { return new Promise(res => execFile("rundll32.exe", ["user32.dll,LockWorkStation"], { windowsHide: true }, e => res(e ? { ok: false, err: "Couldn't lock the PC." } : { ok: true }))); }
   return { ok: false, err: "Unknown command" };
 }
@@ -4371,7 +4374,79 @@ function updStart() {
   setInterval(() => { if (settings.updAuto !== false) updCheck(); }, 3 * 3600000);
 }
 
+/* ---------- RGB: Sothis drives the ASUS Aura lights (board, RAM, LED strip) itself, through the Aura SDK Armoury Crate installs ---------- */
+const rgb = { proc: null, status: "off", devices: "", err: "", fails: 0, timer: null, x86: false };
+function rgbCfg() {
+  const d = { on: false, mode: "static", color: "ff0000", bri: 100, speed: 5, flashMatch: true };
+  settings.rgb = Object.assign(d, settings.rgb || {});
+  return settings.rgb;
+}
+function rgbInfo() { const c = rgbCfg(); return { ...c, status: rgb.status, devices: rgb.devices, err: rgb.err }; }
+function rgbEmit() { try { if (win && !win.isDestroyed()) win.webContents.send("rgb:info", rgbInfo()); } catch {} try { phPush(); } catch {} }
+function rgbLine(l) { try { if (rgb.proc && rgb.status === "ready") rgb.proc.stdin.write(l + "\n"); } catch {} }
+function rgbApply() { const c = rgbCfg(); rgbLine(`set ${c.mode} ${c.color} ${c.bri} ${c.speed}`); }
+function rgbStart() {
+  clearTimeout(rgb.timer);
+  if (rgb.proc || !rgbCfg().on || process.platform !== "win32") return;
+  const root = process.env.SystemRoot || "C:\\Windows";
+  // the Aura SDK is sometimes only registered for 32-bit programs, so fall back to 32-bit PowerShell
+  const ps = rgb.x86 ? path.join(root, "SysWOW64", "WindowsPowerShell", "v1.0", "powershell.exe") : "powershell.exe";
+  let p; try { p = require("child_process").spawn(ps, ["-NoProfile", "-NonInteractive", "-STA", "-ExecutionPolicy", "Bypass", "-File", path.join(__dirname, "rgb.ps1")], { windowsHide: true }); } catch { rgb.status = "error"; rgb.err = "Couldn't start the lighting helper."; rgbEmit(); return; }
+  rgb.proc = p; rgb.status = "starting"; rgb.err = ""; rgbEmit();
+  let buf = "";
+  p.stdout.on("data", d => {
+    buf += d.toString();
+    let i; while ((i = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+      if (line.startsWith("ready")) { rgb.status = "ready"; rgb.fails = 0; rgb.devices = line.slice(6).split("|")[1] || ""; rgbApply(); rgbEmit(); }
+      else if (line.startsWith("err")) {
+        if (/nosdk/.test(line) && !rgb.x86) { rgb.x86 = true; rgb.fails = 0; }
+        else { rgb.err = /nodevices/.test(line) ? "No Aura lights found." : "The Aura lighting service isn't available. Armoury Crate needs to be installed (it can stay closed)."; rgb.fails = 9; }
+      }
+    }
+  });
+  p.stderr.on("data", () => {});
+  p.on("exit", () => {
+    rgb.proc = null;
+    if (!rgbCfg().on) { rgb.status = "off"; rgbEmit(); return; }
+    rgb.fails++;
+    if (rgb.fails > 4) { rgb.status = "error"; rgb.err = rgb.err || "The lighting helper keeps stopping."; rgbEmit(); return; }
+    rgb.status = "starting"; rgbEmit();
+    rgb.timer = setTimeout(rgbStart, rgb.x86 && rgb.fails === 0 ? 200 : 3000 * rgb.fails);
+  });
+}
+function rgbStop() {
+  clearTimeout(rgb.timer);
+  const p = rgb.proc; rgb.proc = null; rgb.status = "off";
+  if (p) { try { p.stdin.write("release\n"); } catch {} setTimeout(() => { try { p.kill(); } catch {} }, 1500); }
+  rgbEmit();
+}
+function rgbSet(patch) {
+  const c = rgbCfg(), was = c.on;
+  patch = patch || {};
+  if ("on" in patch) c.on = !!patch.on;
+  if (["static", "breathe", "cycle", "off"].includes(patch.mode)) c.mode = patch.mode;
+  if (/^#?[0-9a-f]{6}$/i.test(patch.color || "")) c.color = patch.color.replace("#", "").toLowerCase();
+  if (patch.bri != null) c.bri = Math.max(0, Math.min(100, Math.round(+patch.bri) || 0));
+  if (patch.speed != null) c.speed = Math.max(1, Math.min(10, Math.round(+patch.speed) || 5));
+  if ("flashMatch" in patch) c.flashMatch = !!patch.flashMatch;
+  // picking a color or effect while it's off turns Sothis's lighting on
+  if (!("on" in patch) && (patch.color || patch.mode) && !c.on) c.on = true;
+  saveSettings();
+  if (c.on && !was) { rgb.fails = 0; rgbStart(); }
+  else if (!c.on && was) rgbStop();
+  else rgbApply();
+  rgbEmit();
+  return rgbInfo();
+}
+function rgbFlash(color, times) { if (rgbCfg().on) rgbLine(`flash ${String(color || "ffffff").replace("#", "")} ${times || 3}`); }
+ipcMain.handle("rgb:get", () => rgbInfo());
+ipcMain.handle("rgb:set", (_e, patch) => rgbSet(patch));
+ipcMain.handle("rgb:test", () => { rgbFlash("ffffff", 2); return true; });
+app.on("will-quit", () => { try { rgb.proc && rgb.proc.stdin.write("release\n"); } catch {} });
+
 function extrasStart() {
+  rgbStart();
   emuProtocol();
   updStart();
   phStart();

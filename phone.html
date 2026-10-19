@@ -97,6 +97,13 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
 .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 18px); transform: translateX(-50%) translateY(20px); opacity: 0; transition: .25s; padding: 10px 16px; border-radius: 999px; background: rgba(30, 30, 38, .96); border: 1px solid var(--line); font-size: .86rem; white-space: nowrap; z-index: 60; }
 .toast.on { opacity: 1; transform: translateX(-50%); }
 .off-note { text-align: center; color: var(--muted); font-size: .85rem; margin: 6px 0 14px; }
+.rgbh { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.rgbh b { font: 800 1.05rem/1.2 "Nunito", sans-serif; }
+.rgbfx { padding: 8px 14px; border-radius: 999px; background: var(--card2); font-weight: 700; font-size: .85rem; }
+.rgbsw { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.rgbsw button { aspect-ratio: 1; border-radius: 50%; border: 3px solid transparent; box-shadow: inset 0 0 0 1px rgba(255,255,255,.2); }
+.rgbsw button.on { border-color: #fff; }
+.rgbsw .offb { background: #111 !important; display: grid; place-items: center; font-size: .7rem; font-weight: 800; color: var(--muted); }
 .lock { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 15px; border-radius: 16px; background: var(--card2); font-weight: 700; }
 .lock svg { width: 21px; height: 21px; }
 .lock:active { transform: scale(.97); background: rgba(232, 52, 91, .2); }
@@ -145,6 +152,11 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
       <button id="mute" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Mute</span></button>
       <button id="deaf" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-6H5a2 2 0 0 0-2 2z"/></svg><span>Deafen</span></button>
     </div>
+  </section>
+
+  <section class="card" id="rgbCard" hidden>
+    <div class="rgbh"><b>Lights</b><button class="rgbfx" id="rgbFx" type="button">Solid</button></div>
+    <div class="rgbsw" id="rgbSw"></div>
   </section>
 
   <section class="card">
@@ -203,6 +215,9 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
   const fmtT = ms => { const m = Math.floor(ms / 60000), h = Math.floor(m / 60); return h ? h + "h " + (m % 60) + "m" : m + "m"; };
   function render() {
     if (!st) return;
+    { const r = st.rgb; $("rgbCard").hidden = !r;
+      if (r) { const off = !r.on || r.mode === "off"; for (const b of $("rgbSw").children) b.classList.toggle("on", b.dataset.c === "off" ? off : !off && b.dataset.c === r.color);
+        $("rgbFx").textContent = { static: "Solid", breathe: "Breathing", cycle: "Rainbow", off: "Off" }[r.mode] || "Solid"; } }
     $("pcName").textContent = st.pc || "Your PC";
     const p = st.player || {};
     $("title").textContent = p.connected && p.title ? p.title : "Nothing playing";
@@ -254,6 +269,15 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
   vol.addEventListener("touchstart", () => { volDrag = true; }, { passive: true });
   vol.addEventListener("touchend", () => { setTimeout(() => { volDrag = false; }, 1500); });
   vol.addEventListener("input", () => { vol.style.setProperty("--p", vol.value + "%"); clearTimeout(volT); volT = setTimeout(() => cmd("vol", vol.value / 100), 120); });
+  { const FX = ["static", "breathe", "cycle"];
+    for (const c of ["ff0000", "ff5a00", "ffc400", "00ff40", "00e5ff", "0050ff", "8a2be2", "ff00b4", "ffffff", "off"]) {
+      const b = document.createElement("button"); b.type = "button"; b.dataset.c = c;
+      if (c === "off") { b.className = "offb"; b.textContent = "OFF"; b.onclick = () => cmd("rgb", { mode: "off" }); }
+      else { b.style.background = "#" + c; b.onclick = () => cmd("rgb", { color: c, mode: st && st.rgb && FX.includes(st.rgb.mode) ? st.rgb.mode : "static", on: true }); }
+      $("rgbSw").append(b);
+    }
+    $("rgbFx").onclick = () => { const r = (st && st.rgb) || {}; const i = FX.indexOf(r.mode); cmd("rgb", { mode: FX[(i + 1) % FX.length], on: true }); };
+  }
   $("lock").onclick = async () => { if (!confirm("Lock your PC now?")) return; const r = await cmd("lock"); if (r && r.ok) toast("PC locked"); };
   $("unpair").onclick = () => { if (confirm("Unpair this phone? You'll need the code from Sothis again.")) unpaired(); };
 
