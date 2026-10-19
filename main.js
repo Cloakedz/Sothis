@@ -4057,6 +4057,7 @@ function phState() {
     dc: { ok: dc.status === "ok", mute: !!(dc.vs && dc.vs.mute), deaf: !!(dc.vs && dc.vs.deaf),
       channel: ch ? { name: ch.name, guild: ch.guild || "", members: [...ch.members.values()].slice(0, 12).map(m => ({ id: m.id, name: m.name || "", avatar: m.avatar || "", speaking: dc.speaking.has(m.id), mute: !!m.muted, deaf: !!m.deaf, me: !!m.me })) } : null },
     clip: { recording: clipRec },
+    files: (() => { try { return shInfo().out; } catch { return []; } })(),
     rgb: (() => { try { const c = rgbCfg(); return { on: c.on, mode: c.mode, color: c.color, ok: rgb.status === "ready" }; } catch { return null; } })()
   };
 }
@@ -4100,6 +4101,15 @@ function phStart() {
       const ka = setInterval(() => { try { res.write(": hi\n\n"); } catch {} }, 20000);
       req.on("close", () => { clearInterval(ka); phClients.delete(res); });
       return;
+    }
+    if (u.pathname === "/api/upload" && req.method === "POST") {
+      if (!phOk(phTok(req))) { req.resume(); res.writeHead(401); return res.end(); }
+      return shReceive(req, res, u.searchParams.get("name"));
+    }
+    const dl = /^\/api\/dl\/([0-9a-f]{12})$/.exec(u.pathname);
+    if (dl && req.method === "GET") {
+      if (!phOk(phTok(req))) { res.writeHead(401); return res.end(); }
+      return shServe(req, res, dl[1]);
     }
     if (req.method === "POST" && (u.pathname === "/api/pair" || u.pathname === "/api/cmd")) {
       let body = "";
@@ -4378,6 +4388,165 @@ function updStart() {
   setInterval(() => { if (settings.updAuto !== false) updCheck(); }, 3 * 3600000);
 }
 
+/* ---------- Your week: Sothis keeps its own small diary of music and games (Roaming\Sothis\week-stats.json, never uploaded)
+   and turns it into a Sunday recap ---------- */
+const WK_FILE = () => path.join(DATA_DIR, "week-stats.json");
+let wk = null, wkDirty = false, wkSong = { key: "", secs: 0, counted: false };
+function wkLoad() { if (wk) return wk; try { wk = JSON.parse(fs.readFileSync(WK_FILE(), "utf8")); } catch {} if (!wk || typeof wk !== "object" || !wk.days) wk = { days: {} }; return wk; }
+function wkSave() { if (!wkDirty) return; wkDirty = false; try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(WK_FILE(), JSON.stringify(wk)); } catch {} }
+const wkDayKey = t => { const d = new Date(t); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+function wkDay(t) { const k = wkDayKey(t), D = wkLoad().days; return D[k] || (D[k] = { music: 0, plays: 0, songs: {}, artists: {}, games: {} }); }
+function wkTick() {
+  const now = Date.now(), d = wkDay(now), step = 10;
+  if (player.connected && player.playing && player.title) {
+    d.music += step;
+    const key = player.title + "\u0001" + (player.artist || "");
+    if (wkSong.key !== key) wkSong = { key, secs: 0, counted: false };
+    wkSong.secs += step;
+    d.songs[key] = (d.songs[key] || 0) + step;
+    if (player.artist) d.artists[player.artist] = (d.artists[player.artist] || 0) + step;
+    if (!wkSong.counted && wkSong.secs >= 30) { wkSong.counted = true; d.plays++; }   // a song counts as played after 30 s
+    wkDirty = true;
+  }
+  if (sess && sess.game) { d.games[sess.game] = (d.games[sess.game] || 0) + step; wkDirty = true; }
+  // keep about a year
+  const D = wkLoad().days, ks = Object.keys(D);
+  if (ks.length > 400) { ks.sort(); for (const k of ks.slice(0, ks.length - 400)) delete D[k]; wkDirty = true; }
+}
+function wkStartOf(t) { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); }   // Monday
+function wkClipsBetween(a, b) {
+  let n = 0; const root = clipsDir();
+  const walk = (dir, depth) => {
+    let ents = []; try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of ents) {
+      const f = path.join(dir, e.name);
+      if (e.isDirectory()) { if (depth < 2 && !/^(thumbnails|screenshots|\.)/i.test(e.name)) walk(f, depth + 1); continue; }
+      if (!VID_RE.test(e.name)) continue;
+      try { const t = fs.statSync(f).mtimeMs; if (t >= a && t < b) n++; } catch {}
+    }
+  };
+  if (root) walk(root, 0);
+  return n;
+}
+function wkSum(from, to) {
+  const D = wkLoad().days, days = [];
+  const out = { music: 0, plays: 0, songs: {}, artists: {}, games: {}, days };
+  for (let t = from; t < to; t += 86400000) {
+    const k = wkDayKey(t + 3600000), d = D[k] || { music: 0, plays: 0, songs: {}, artists: {}, games: {} };
+    const gameSecs = Object.values(d.games || {}).reduce((a, b) => a + b, 0);
+    days.push({ day: k, music: d.music || 0, game: gameSecs });
+    out.music += d.music || 0; out.plays += d.plays || 0;
+    for (const [a, v] of Object.entries(d.songs || {})) out.songs[a] = (out.songs[a] || 0) + v;
+    for (const [a, v] of Object.entries(d.artists || {})) out.artists[a] = (out.artists[a] || 0) + v;
+    for (const [a, v] of Object.entries(d.games || {})) out.games[a] = (out.games[a] || 0) + v;
+  }
+  return out;
+}
+const wkTop = (o, n) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n);
+function wkReport(offset) {
+  offset = Math.max(0, Math.min(52, Math.round(+offset) || 0));
+  const start = wkStartOf(Date.now()) - offset * 7 * 86400000, end = start + 7 * 86400000;
+  const cur = wkSum(start, end), prev = wkSum(start - 7 * 86400000, start);
+  const gameSecs = o => Object.values(o.games).reduce((a, b) => a + b, 0);
+  const busiest = cur.days.reduce((b, d) => (d.music + d.game > (b ? b.music + b.game : -1) ? d : b), null);
+  const hasAny = Object.keys(wkLoad().days).length > 0;
+  return {
+    start, end: Math.min(end, Date.now()), offset, hasAny, since: Object.keys(wkLoad().days).sort()[0] || "",
+    music: cur.music, musicPrev: prev.music, plays: cur.plays,
+    game: gameSecs(cur), gamePrev: gameSecs(prev),
+    clips: wkClipsBetween(start, end), clipsPrev: wkClipsBetween(start - 7 * 86400000, start),
+    songs: wkTop(cur.songs, 5).map(([k, v]) => { const [title, artist] = k.split("\u0001"); return { title, artist, secs: v }; }),
+    artists: wkTop(cur.artists, 5).map(([name, secs]) => ({ name, secs })),
+    games: wkTop(cur.games, 5).map(([name, secs]) => ({ name, secs })),
+    days: cur.days, busiest: busiest && busiest.music + busiest.game > 0 ? busiest.day : ""
+  };
+}
+ipcMain.handle("week:get", (_e, offset) => { wkSave(); return wkReport(offset); });
+// Sunday evening: one heads-up that the week's recap is ready
+function wkNudge() {
+  const d = new Date();
+  if (d.getDay() !== 0 || d.getHours() < 19) return;
+  const key = wkDayKey(d.getTime());
+  if (settings.wkNudged === key) return;
+  const r = wkReport(0);
+  if (r.music < 600 && r.game < 600) return;
+  settings.wkNudged = key; saveSettings();
+  const h = s => s >= 3600 ? Math.round(s / 360) / 10 + " h" : Math.round(s / 60) + " min";
+  const body = [r.music ? h(r.music) + " of music" : "", r.game ? h(r.game) + " of games" : "", r.clips ? r.clips + " clips" : ""].filter(Boolean).join(" · ");
+  try { if (Notification.isSupported()) { const n = new Notification({ title: "Your week in Sothis", body, icon: path.join(__dirname, "icon.png"), silent: true }); n.on("click", () => { try { showWindow(); win.webContents.send("week:open"); } catch {} }); n.show(); } } catch {}
+  try { phEvent("week", { body }); } catch {}
+}
+
+/* ---------- Phone files: send files from your phone to this PC (they land in Downloads\From phone) and pick files on
+   the PC for your phone to download. Only paired phones on your home Wi-Fi can do either. ---------- */
+const SH_IN = () => path.join(app.getPath("downloads"), "From phone");
+const SH_MAX = 4 * 1024 ** 3;
+function shCfg() { settings.share = Object.assign({ out: [], got: [] }, settings.share || {}); return settings.share; }
+function shInfo() {
+  const c = shCfg();
+  c.out = c.out.filter(o => { try { return fs.statSync(o.path).isFile(); } catch { return false; } });
+  return { out: c.out.map(o => ({ id: o.id, name: o.name, size: o.size, at: o.at })), got: c.got.slice(-20).reverse(), folder: SH_IN() };
+}
+function shPush() { try { if (win && !win.isDestroyed()) win.webContents.send("share:info", shInfo()); } catch {} try { phEvent("files", shInfo().out); } catch {} }
+function shAdd(paths) {
+  const c = shCfg();
+  for (const p of (Array.isArray(paths) ? paths : []).slice(0, 50)) {
+    try {
+      const st = fs.statSync(p); if (!st.isFile()) continue;
+      c.out = c.out.filter(o => o.path !== p);
+      c.out.push({ id: require("crypto").randomBytes(6).toString("hex"), path: p, name: path.basename(p), size: st.size, at: Date.now() });
+    } catch {}
+  }
+  c.out = c.out.slice(-30); saveSettings(); shPush(); return shInfo();
+}
+const SH_TYPES = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp", ".heic": "image/heic", ".mp4": "video/mp4", ".mov": "video/quicktime", ".m4v": "video/mp4", ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav", ".pdf": "application/pdf", ".txt": "text/plain; charset=utf-8", ".zip": "application/zip" };
+function shServe(req, res, id) {
+  const o = shCfg().out.find(x => x.id === id);
+  let st; try { st = o && fs.statSync(o.path); } catch {}
+  if (!o || !st || !st.isFile()) { res.writeHead(404); return res.end(); }
+  const type = SH_TYPES[path.extname(o.name).toLowerCase()] || "application/octet-stream";
+  const disp = `attachment; filename="${o.name.replace(/[^\x20-\x7e]/g, "_").replace(/"/g, "")}"; filename*=UTF-8''${encodeURIComponent(o.name)}`;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || "");
+  if (m) {
+    let a = m[1] === "" ? Math.max(0, st.size - (+m[2] || 0)) : +m[1], b = m[1] !== "" && m[2] !== "" ? +m[2] : st.size - 1;
+    b = Math.min(b, st.size - 1);
+    if (a > b) { res.writeHead(416, { "Content-Range": `bytes */${st.size}` }); return res.end(); }
+    res.writeHead(206, { "Content-Type": type, "Content-Length": b - a + 1, "Content-Range": `bytes ${a}-${b}/${st.size}`, "Accept-Ranges": "bytes", "Content-Disposition": disp });
+    return fs.createReadStream(o.path, { start: a, end: b }).pipe(res);
+  }
+  res.writeHead(200, { "Content-Type": type, "Content-Length": st.size, "Accept-Ranges": "bytes", "Content-Disposition": disp });
+  fs.createReadStream(o.path).pipe(res);
+}
+function shReceive(req, res, rawName) {
+  const send = (code, o) => { res.writeHead(code, { "Content-Type": "application/json" }); res.end(JSON.stringify(o)); };
+  const len = +req.headers["content-length"] || 0;
+  if (len > SH_MAX) { req.resume(); return send(413, { ok: false, err: "That file is too big (4 GB max)." }); }
+  let name = String(rawName || "").replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").replace(/^\.+/, "").trim().slice(0, 120) || ("phone-" + Date.now());
+  const dir = SH_IN(); try { fs.mkdirSync(dir, { recursive: true }); } catch {}
+  const ext = path.extname(name), base = name.slice(0, name.length - ext.length);
+  let dest = path.join(dir, name);
+  for (let i = 1; fs.existsSync(dest) && i < 500; i++) dest = path.join(dir, `${base} (${i})${ext}`);
+  const part = dest + ".part", out = fs.createWriteStream(part);
+  let got = 0, failed = false;
+  const fail = msg => { if (failed) return; failed = true; try { out.destroy(); } catch {} try { fs.rmSync(part, { force: true }); } catch {} try { send(500, { ok: false, err: msg }); } catch {} };
+  req.on("data", c => { got += c.length; if (got > SH_MAX) { fail("That file is too big (4 GB max)."); req.destroy(); } });
+  req.on("aborted", () => fail("The upload was cut off."));
+  out.on("error", () => fail("Couldn't save it on your PC."));
+  out.on("finish", () => {
+    if (failed) return;
+    try { fs.renameSync(part, dest); } catch { return fail("Couldn't save it on your PC."); }
+    const c = shCfg(); c.got = c.got.concat({ name: path.basename(dest), path: dest, size: got, at: Date.now() }).slice(-30); saveSettings(); shPush();
+    try { if (Notification.isSupported()) { const n = new Notification({ title: "From your phone", body: path.basename(dest), icon: path.join(__dirname, "icon.png"), silent: true }); n.on("click", () => shell.showItemInFolder(dest)); n.show(); } } catch {}
+    send(200, { ok: true, name: path.basename(dest) });
+  });
+  req.pipe(out);
+}
+ipcMain.handle("share:get", () => shInfo());
+ipcMain.handle("share:add", (_e, paths) => shAdd(paths));
+ipcMain.handle("share:remove", (_e, id) => { const c = shCfg(); c.out = c.out.filter(o => o.id !== id); saveSettings(); shPush(); return shInfo(); });
+ipcMain.handle("share:clearGot", () => { shCfg().got = []; saveSettings(); shPush(); return shInfo(); });
+ipcMain.handle("share:show", (_e, p) => { const c = shCfg(); const ok = c.got.some(g => g.path === p); if (ok && fs.existsSync(p)) shell.showItemInFolder(p); else { try { fs.mkdirSync(SH_IN(), { recursive: true }); } catch {} shell.openPath(SH_IN()); } return true; });
+
 /* ---------- RGB: Sothis drives the ASUS Aura lights (board, RAM, LED strip) itself, through the Aura SDK Armoury Crate installs ---------- */
 const rgb = { proc: null, status: "off", devices: "", err: "", fails: 0, timer: null, x86: false };
 function rgbCfg() {
@@ -4458,10 +4627,13 @@ function rgbFlash(color, times) { if (rgbCfg().on) rgbLine(`flash ${String(color
 ipcMain.handle("rgb:get", () => rgbInfo());
 ipcMain.handle("rgb:set", (_e, patch) => rgbSet(patch));
 ipcMain.handle("rgb:test", () => { rgbFlash("ffffff", 2); return true; });
+app.on("will-quit", () => { try { wkSave(); } catch {} });
 app.on("will-quit", () => { try { rgb.proc && rgb.proc.stdin.write("release\n"); } catch {} });
 
 function extrasStart() {
   rgbStart();
+  setInterval(() => { try { wkTick(); } catch {} }, 10000);
+  setInterval(() => { try { wkSave(); wkNudge(); } catch {} }, 60000);
   emuProtocol();
   updStart();
   phStart();

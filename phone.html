@@ -104,6 +104,18 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
 .rgbsw button { aspect-ratio: 1; border-radius: 50%; border: 3px solid transparent; box-shadow: inset 0 0 0 1px rgba(255,255,255,.2); }
 .rgbsw button.on { border-color: #fff; }
 .rgbsw .offb { background: #111 !important; display: grid; place-items: center; font-size: .7rem; font-weight: 800; color: var(--muted); }
+.fxnote { color: var(--muted); font-size: .8rem; }
+.fxsend { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 15px; border-radius: 16px; background: var(--accent); color: #fff; font-weight: 800; box-shadow: 0 8px 24px var(--glow); }
+.fxsend svg { width: 22px; height: 22px; }
+.fxsend:active { transform: scale(.97); }
+.fxsend.busy { opacity: .6; pointer-events: none; }
+.fxbar { height: 6px; border-radius: 6px; background: var(--card2); margin-top: 10px; overflow: hidden; }
+.fxbar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.fxh { color: var(--muted); font-size: .8rem; font-weight: 700; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+.fxlist { display: grid; gap: 6px; }
+.fxlist a { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 14px; background: var(--card2); color: var(--ink); text-decoration: none; }
+.fxlist a b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fxlist a span { color: var(--muted); font-size: .8rem; }
 .lock { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 15px; border-radius: 16px; background: var(--card2); font-weight: 700; }
 .lock svg { width: 21px; height: 21px; }
 .lock:active { transform: scale(.97); background: rgba(232, 52, 91, .2); }
@@ -152,6 +164,14 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
       <button id="mute" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Mute</span></button>
       <button id="deaf" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-6H5a2 2 0 0 0-2 2z"/></svg><span>Deafen</span></button>
     </div>
+  </section>
+
+  <section class="card">
+    <div class="rgbh"><b>Files</b><span class="fxnote" id="fxNote"></span></div>
+    <label class="fxsend"><input type="file" id="fxPick" multiple hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><span id="fxSendT">Send to PC</span></label>
+    <div class="fxbar" id="fxBar" hidden><i id="fxBarI"></i></div>
+    <div class="fxh" id="fxH" hidden>From your PC</div>
+    <div class="fxlist" id="fxList"></div>
   </section>
 
   <section class="card" id="rgbCard" hidden>
@@ -204,6 +224,8 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
     es.addEventListener("state", e => { try { st = JSON.parse(e.data); } catch { return; } render(); });
     es.addEventListener("match", e => { let d = {}; try { d = JSON.parse(e.data); } catch {} matchFound(d); });
     es.addEventListener("unpaired", () => {});
+    es.addEventListener("files", e => { let l = []; try { l = JSON.parse(e.data); } catch {} const before = st && Array.isArray(st.files) ? st.files.length : 0; if (st) st.files = l; fxRender(l); if (l.length > before) toast("New file from your PC"); });
+    es.addEventListener("week", e => { let d = {}; try { d = JSON.parse(e.data); } catch {} toast("Your week: " + (d.body || "recap ready on your PC")); });
     es.onopen = () => { $("dot").classList.add("on"); $("offNote").classList.add("hide"); };
     es.onerror = () => {
       $("dot").classList.remove("on"); $("offNote").classList.remove("hide");
@@ -213,8 +235,19 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
   }
 
   const fmtT = ms => { const m = Math.floor(ms / 60000), h = Math.floor(m / 60); return h ? h + "h " + (m % 60) + "m" : m + "m"; };
+  const fxSize = n => n >= 1073741824 ? (n / 1073741824).toFixed(1) + " GB" : n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
+  function fxRender(list) {
+    list = Array.isArray(list) ? list.slice().reverse() : [];
+    $("fxH").hidden = !list.length;
+    $("fxList").replaceChildren(...list.map(f => {
+      const a = document.createElement("a"); a.href = "/api/dl/" + f.id + "?t=" + encodeURIComponent(tok); a.setAttribute("download", f.name); a.target = "_blank"; a.rel = "noopener";
+      const b = document.createElement("b"); b.textContent = f.name; const sp = document.createElement("span"); sp.textContent = fxSize(f.size);
+      a.append(b, sp); return a;
+    }));
+  }
   function render() {
     if (!st) return;
+    fxRender(st.files);
     { const r = st.rgb; $("rgbCard").hidden = !r;
       if (r) { const off = !r.on || r.mode === "off"; for (const b of $("rgbSw").children) b.classList.toggle("on", b.dataset.c === "off" ? off : !off && b.dataset.c === r.color);
         $("rgbFx").textContent = { static: "Solid", breathe: "Breathing", cycle: "Rainbow", off: "Off" }[r.mode] || "Solid"; } }
@@ -278,6 +311,28 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
     }
     $("rgbFx").onclick = () => { const r = (st && st.rgb) || {}; const i = FX.indexOf(r.mode); cmd("rgb", { mode: FX[(i + 1) % FX.length], on: true }); };
   }
+  $("fxPick").onchange = async () => {
+    const files = Array.from($("fxPick").files || []); $("fxPick").value = "";
+    if (!files.length) return;
+    const lab = $("fxSendT"), btn = lab.parentElement; btn.classList.add("busy"); $("fxBar").hidden = false;
+    let done = 0, okN = 0;
+    const total = files.reduce((a, f) => a + f.size, 0) || 1;
+    for (const f of files) {
+      lab.textContent = files.length > 1 ? "Sending " + (okN + 1) + " of " + files.length + "…" : "Sending…";
+      const ok = await new Promise(res => {
+        const x = new XMLHttpRequest();
+        x.open("POST", "/api/upload?name=" + encodeURIComponent(f.name || "photo"));
+        x.setRequestHeader("Authorization", "Bearer " + tok);
+        x.upload.onprogress = e => { $("fxBarI").style.width = Math.round((done + e.loaded) / total * 100) + "%"; };
+        x.onload = () => { let j = {}; try { j = JSON.parse(x.responseText); } catch {} if (x.status === 401) unpaired(); else if (!j.ok) toast(j.err || "Couldn't send " + f.name); res(!!j.ok); };
+        x.onerror = () => { toast("Can't reach your PC"); res(false); };
+        x.send(f);
+      });
+      done += f.size; if (ok) okN++;
+    }
+    btn.classList.remove("busy"); lab.textContent = "Send to PC"; $("fxBar").hidden = true; $("fxBarI").style.width = "0";
+    if (okN) toast(okN === 1 ? "Sent to your PC" : okN + " files sent to your PC");
+  };
   $("lock").onclick = async () => { if (!confirm("Lock your PC now?")) return; const r = await cmd("lock"); if (r && r.ok) toast("PC locked"); };
   $("unpair").onclick = () => { if (confirm("Unpair this phone? You'll need the code from Sothis again.")) unpaired(); };
 

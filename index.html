@@ -928,6 +928,45 @@ body.tb-narrow .titlebar .batt { cursor: grab; }
 .rt-card.done .gm-art img { filter: saturate(.75); }
 .rt-dups .rt-duplist { flex-basis: 100%; display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow: auto; }
 .rt-duph { font-size: .74rem; font-weight: 700; margin-top: 4px; }
+/* Your week + Phone files */
+.sx-ov { position: fixed; inset: 0; z-index: 60; display: grid; place-items: start center; padding: 48px 12px 24px; overflow: auto; background: rgba(6, 6, 10, .66); backdrop-filter: blur(8px); }
+.sx-card { width: min(640px, 100%); background: rgba(16, 17, 23, .94); border: 1px solid var(--line); border-radius: 20px; padding: 16px 18px 20px; box-shadow: 0 24px 60px rgba(0, 0, 0, .5); }
+.sx-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.sx-ttl { flex: 1; min-width: 0; }
+.sx-ttl h2 { margin: 0; font: 800 1.35rem/1.1 var(--f-display); }
+.sx-ttl span { color: var(--muted); font-size: .85rem; }
+.sx-card h3 { font: 700 .95rem/1.2 var(--f-display); margin: 16px 0 8px; display: flex; justify-content: space-between; align-items: center; }
+.wk-big { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.wk-big > div { padding: 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.wk-big b { display: block; font: 800 1.6rem/1.1 var(--f-display); }
+.wk-big span { color: var(--muted); font-size: .8rem; }
+.wk-big i { font-style: normal; font-size: .75rem; font-weight: 700; }
+.wk-up { color: var(--good); } .wk-down { color: var(--muted); }
+.wk-chart { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; align-items: end; height: 120px; margin-top: 4px; }
+.wk-col { display: flex; flex-direction: column; justify-content: flex-end; height: 100%; gap: 2px; position: relative; }
+.wk-col i { display: block; border-radius: 4px; min-height: 0; }
+.wk-col .m { background: var(--accent); } .wk-col .g { background: #5b8cff; }
+.wk-col span { text-align: center; font-size: .72rem; color: var(--muted); margin-top: 4px; }
+.wk-col.top span { color: var(--ink); font-weight: 700; }
+.wk-key { display: flex; gap: 14px; font-size: .78rem; color: var(--muted); margin-top: 6px; }
+.wk-key i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.wk-two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.wk-rank { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.wk-rank li { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; font-size: .88rem; }
+.wk-rank li em { font-style: normal; color: var(--muted); font-weight: 800; }
+.wk-rank li b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wk-rank li b small { display: block; color: var(--muted); font-weight: 400; font-size: .76rem; }
+.wk-rank li span { color: var(--muted); font-size: .78rem; }
+.wk-empty { color: var(--muted); font-size: .88rem; padding: 6px 0; }
+.fx-drop { display: grid; justify-items: center; gap: 4px; padding: 22px 14px; border: 2px dashed var(--line); border-radius: 16px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+.fx-drop svg { width: 28px; height: 28px; color: var(--muted); }
+.fx-drop span { color: var(--muted); font-size: .82rem; max-width: 380px; }
+.fx-drop.over { border-color: var(--accent); background: var(--glow); }
+.fx-list { display: grid; gap: 6px; margin-top: 8px; }
+.fx-row { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); font-size: .88rem; }
+.fx-row b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fx-row span { color: var(--muted); font-size: .78rem; }
+@media (max-width: 520px) { .wk-two { grid-template-columns: 1fr; } .wk-big b { font-size: 1.25rem; } }
 .rt-det { position: fixed; inset: 0; z-index: 45; display: grid; place-items: start center; padding: 56px 12px var(--dock, 82px); border-radius: 16px; overflow: auto; background: rgba(6, 6, 10, .62); backdrop-filter: blur(6px); }
 .rt-det[hidden] { display: none; }
 #gmRetro { position: relative; }
@@ -1573,7 +1612,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
             <div class="hx-wdst" id="hxWdSt" hidden></div>
             <div class="hx-pins" id="hxPins" hidden aria-label="Your pinned games"></div>
             </div>
-            <div class="hm-acts"><button class="hm-clip" id="hmClip" type="button" aria-label="Save a clip"><i></i><span>Clip it</span></button><button class="hm-clip hm-clipdir" id="hmClipDir" type="button" aria-label="Open your clips folder" title="Your clips"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button></div>
+            <div class="hm-acts"><button class="hm-clip" id="hmClip" type="button" aria-label="Save a clip"><i></i><span>Clip it</span></button><button class="hm-clip hm-clipdir" id="hmClipDir" type="button" aria-label="Open your clips folder" title="Your clips"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button><button class="hm-clip hm-clipdir" id="hmWeek" type="button" aria-label="Your week" title="Your week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></button><button class="hm-clip hm-clipdir" id="hmFiles" type="button" aria-label="Phone files" title="Phone files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 7v7M9 11l3 3 3-3M11 18h2"/></svg></button></div>
           </div>
         </div>
         <div class="hm-hero" data-cs="plate">
@@ -2514,6 +2553,35 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   <div class="grip" id="grip"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M16 7 7 16M16 12l-4 4"/></svg></div>
 </div>
 
+<div class="sx-ov" id="wkOv" hidden role="dialog" aria-modal="true" aria-labelledby="wkTitle">
+  <div class="sx-card wk">
+    <div class="sx-head">
+      <button class="ib" id="wkPrev" type="button" aria-label="Week before"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <div class="sx-ttl"><h2 id="wkTitle">Your week</h2><span id="wkRange"></span></div>
+      <button class="ib" id="wkNext" type="button" aria-label="Week after"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button class="ib sx-x" id="wkClose" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div id="wkBody"></div>
+  </div>
+</div>
+<div class="sx-ov" id="fxOv" hidden role="dialog" aria-modal="true" aria-labelledby="fxTitle">
+  <div class="sx-card fx">
+    <div class="sx-head">
+      <div class="sx-ttl"><h2 id="fxTitle">Phone files</h2><span>Your phone and PC, over your home Wi-Fi</span></div>
+      <button class="ib sx-x" id="fxClose" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <p class="hint" id="fxWarn" hidden></p>
+    <h3>Send to your phone</h3>
+    <div class="fx-drop" id="fxDrop" tabindex="0" role="button" aria-label="Choose files to send to your phone">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+      <b>Drop files here</b><span>or click to choose. They show up under "From your PC" in the Sothis app on your phone.</span>
+      <input type="file" id="fxPick" multiple hidden>
+    </div>
+    <div class="fx-list" id="fxOut"></div>
+    <h3>From your phone <button class="linkbtn" id="fxFolder" type="button">Open folder</button></h3>
+    <div class="fx-list" id="fxGot"></div>
+  </div>
+</div>
 <script src="sw-upscale.js"></script>
 <script src="qr.js"></script>
 <script>
@@ -5307,6 +5375,77 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     });
   }
   D.phoneGet().then(i => { phInfo = i; phRender(); }).catch(() => {});
+
+  /* ---------- Your week ---------- */
+  let wkOff = 0;
+  const wkH = s => { s = Math.round(s / 60); return s >= 60 ? Math.floor(s / 60) + "h " + String(s % 60).padStart(2, "0") + "m" : s + "m"; };
+  const wkDelta = (a, b, isTime) => { if (!b) return ""; const d = a - b; if (Math.abs(d) < (isTime ? 300 : 1)) return '<i class="wk-down">same as last week</i>'; return '<i class="' + (d > 0 ? "wk-up" : "wk-down") + '">' + (d > 0 ? "▲ " : "▼ ") + (isTime ? wkH(Math.abs(d)) : Math.abs(d)) + " vs last week</i>"; };
+  const wkEsc = t => String(t || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  async function wkShow() {
+    let r; try { r = await D.weekGet(wkOff); } catch { return; }
+    const a = new Date(r.start), b = new Date(r.start + 6 * 86400000);
+    const f = d => d.toLocaleDateString([], { month: "short", day: "numeric" });
+    $("wkTitle").textContent = wkOff === 0 ? "This week" : wkOff === 1 ? "Last week" : "Week of " + f(a);
+    $("wkRange").textContent = f(a) + " – " + f(b);
+    $("wkNext").disabled = wkOff === 0;
+    $("wkPrev").disabled = !r.since || new Date(r.since + "T00:00:00").getTime() >= r.start;
+    if (!r.hasAny) { $("wkBody").innerHTML = '<p class="wk-empty">Sothis starts keeping track now: the music you play and the games you\'re in. Check back in a few days for your first recap (it pings you Sunday evening).</p>'; return; }
+    const max = Math.max(1, ...r.days.map(d => d.music + d.game));
+    const cols = r.days.map(d => {
+      const dt = new Date(d.day + "T12:00:00");
+      return '<div class="wk-col' + (d.day === r.busiest ? " top" : "") + '" title="' + dt.toLocaleDateString([], { weekday: "long" }) + ": " + wkH(d.music) + " music, " + wkH(d.game) + ' games">'
+        + '<i class="g" style="height:' + (d.game / max * 100) + '%"></i><i class="m" style="height:' + (d.music / max * 100) + '%"></i>'
+        + '<span>' + dt.toLocaleDateString([], { weekday: "short" }) + '</span></div>';
+    }).join("");
+    const rank = (list, row) => list.length ? '<ol class="wk-rank">' + list.map((x, i) => '<li><em>' + (i + 1) + '</em>' + row(x) + '</li>').join("") + '</ol>' : '<p class="wk-empty">Nothing yet.</p>';
+    $("wkBody").innerHTML =
+      '<div class="wk-big">'
+      + '<div><b>' + wkH(r.music) + '</b><span>music · ' + r.plays + ' songs</span><br>' + wkDelta(r.music, r.musicPrev, true) + '</div>'
+      + '<div><b>' + wkH(r.game) + '</b><span>gaming</span><br>' + wkDelta(r.game, r.gamePrev, true) + '</div>'
+      + '<div><b>' + r.clips + '</b><span>clips saved</span><br>' + wkDelta(r.clips, r.clipsPrev, false) + '</div>'
+      + '</div>'
+      + '<h3>Day by day</h3><div class="wk-chart">' + cols + '</div>'
+      + '<div class="wk-key"><span><i style="background:var(--accent)"></i>Music</span><span><i style="background:#5b8cff"></i>Games</span>' + (r.busiest ? '<span>Busiest: ' + new Date(r.busiest + "T12:00:00").toLocaleDateString([], { weekday: "long" }) + '</span>' : '') + '</div>'
+      + '<div class="wk-two"><div><h3>Top songs</h3>' + rank(r.songs, x => '<b>' + wkEsc(x.title) + '<small>' + wkEsc(x.artist) + '</small></b><span>' + wkH(x.secs) + '</span>') + '</div>'
+      + '<div><h3>Top artists</h3>' + rank(r.artists, x => '<b>' + wkEsc(x.name) + '</b><span>' + wkH(x.secs) + '</span>') + '</div></div>'
+      + '<h3>Games</h3>' + rank(r.games, x => '<b>' + wkEsc(x.name) + '</b><span>' + wkH(x.secs) + '</span>');
+  }
+  function wkOpen() { wkOff = 0; $("wkOv").hidden = false; wkShow(); }
+  $("hmWeek").onclick = wkOpen;
+  D.onWeekOpen(wkOpen);
+  $("wkClose").onclick = () => { $("wkOv").hidden = true; };
+  $("wkPrev").onclick = () => { wkOff++; wkShow(); };
+  $("wkNext").onclick = () => { if (wkOff > 0) { wkOff--; wkShow(); } };
+
+  /* ---------- Phone files ---------- */
+  let fxI = null;
+  const fxSize = n => n >= 1073741824 ? (n / 1073741824).toFixed(1) + " GB" : n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
+  const fxAgo = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : new Date(t).toLocaleDateString([], { month: "short", day: "numeric" }); };
+  function fxRender() {
+    const i = fxI; if (!i) return;
+    const mkRow = (name, meta, btns) => { const r = mk("div", "fx-row"); const b = mk("b", "", name); b.title = name; r.append(b, mk("span", "", meta)); const w = mk("span", ""); for (const x of btns) w.append(x); r.append(w); return r; };
+    $("fxOut").replaceChildren(...i.out.slice().reverse().map(o => { const x = mk("button", "linkbtn", "Remove"); x.type = "button"; x.onclick = async () => { fxI = await D.shareRemove(o.id); fxRender(); }; return mkRow(o.name, fxSize(o.size), [x]); }));
+    if (!i.out.length) $("fxOut").replaceChildren(mk("p", "wk-empty", "Nothing waiting for your phone."));
+    $("fxGot").replaceChildren(...i.got.map(g => { const x = mk("button", "linkbtn", "Show"); x.type = "button"; x.onclick = () => D.shareShow(g.path); return mkRow(g.name, fxSize(g.size) + " · " + fxAgo(g.at), [x]); }));
+    if (!i.got.length) $("fxGot").replaceChildren(mk("p", "wk-empty", "Open Sothis on your phone and tap Send to PC. Files land in your Downloads, in a folder called From phone."));
+    const ph = typeof phInfo !== "undefined" ? phInfo : null;
+    $("fxWarn").hidden = !!(ph && ph.on && ph.phones && ph.phones.length);
+    $("fxWarn").textContent = "Pair your phone first: Settings → Phone.";
+  }
+  D.shareGet().then(i => { fxI = i; fxRender(); }).catch(() => {});
+  D.onShare(i => { fxI = i; if (!$("fxOv").hidden) fxRender(); });
+  $("hmFiles").onclick = async () => { try { fxI = await D.shareGet(); } catch {} $("fxOv").hidden = false; fxRender(); };
+  $("fxClose").onclick = () => { $("fxOv").hidden = true; };
+  $("fxFolder").onclick = () => D.shareShow("");
+  $("fxDrop").onclick = () => $("fxPick").click();
+  $("fxDrop").onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("fxPick").click(); } };
+  $("fxPick").onchange = async () => { const fl = $("fxPick").files; if (fl && fl.length) { fxI = await D.shareAddFiles(fl); fxRender(); toast(fl.length === 1 ? "Ready on your phone" : fl.length + " files ready on your phone"); } $("fxPick").value = ""; };
+  { const z = $("fxDrop");
+    z.addEventListener("dragover", e => { e.preventDefault(); e.stopPropagation(); z.classList.add("over"); });
+    z.addEventListener("dragleave", () => z.classList.remove("over"));
+    z.addEventListener("drop", async e => { e.preventDefault(); e.stopPropagation(); z.classList.remove("over"); const fl = e.dataTransfer && e.dataTransfer.files; if (fl && fl.length) { fxI = await D.shareAddFiles(fl); fxRender(); toast(fl.length === 1 ? "Ready on your phone" : fl.length + " files ready on your phone"); } }); }
+  for (const id of ["wkOv", "fxOv"]) $(id).addEventListener("mousedown", e => { if (e.target.id === id) $(id).hidden = true; });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { $("wkOv").hidden = true; $("fxOv").hidden = true; } });
   /* ---------- Lighting (ASUS Aura through Sothis) ---------- */
   const RGB_SW = ["ff0000", "ff5a00", "ffc400", "00ff40", "00e5ff", "0050ff", "8a2be2", "ff00b4", "ffffff"];
   let rgbI = null, rgbDragB = false;
@@ -7027,5 +7166,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   setTimeout(ensureYTM, 3800);  // load YouTube Music in the background once the splash is done
 })();
 </script>
+
 </body>
 </html>
