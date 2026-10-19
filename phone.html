@@ -58,6 +58,17 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
 .clip i { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--glow); }
 .clip:active { transform: scale(.96); }
 .clip.off { opacity: .5; }
+.cfab { position: fixed; right: 18px; bottom: calc(22px + env(safe-area-inset-bottom)); z-index: 30; width: 78px; height: 78px; border-radius: 50%; display: grid; place-items: center; align-content: center; gap: 2px;
+  background: var(--accent); color: #fff; font-weight: 800; font-size: .78rem; box-shadow: 0 10px 30px var(--glow), 0 4px 14px rgba(0,0,0,.5); transition: transform .12s, opacity .2s; }
+.cfab svg { width: 30px; height: 30px; }
+.cfab i { position: absolute; top: 10px; right: 12px; width: 9px; height: 9px; border-radius: 50%; background: #fff; opacity: 0; }
+.cfab.rec i { opacity: 1; animation: cfp 1.4s ease-in-out infinite; }
+@keyframes cfp { 50% { opacity: .25; } }
+.cfab:active { transform: scale(.92); }
+.cfab.off { opacity: .55; }
+.cfab.busy { pointer-events: none; opacity: .7; }
+.cfab.done { background: var(--good); }
+main { padding-bottom: 110px; }
 
 /* discord */
 .dch { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
@@ -137,6 +148,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
 </section>
 
 <main id="mainView" class="hide">
+  <button class="cfab" id="cfab" type="button" aria-label="Clip the last moments"><i></i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/></svg><span>Clip</span></button>
   <div class="off-note hide" id="offNote">Can't reach your PC. Is Sothis open and are you on the same Wi-Fi?</div>
 
   <section class="card">
@@ -262,6 +274,8 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
     $("game").textContent = g ? g.name.replace(/^Retro: /, "") : "Not in a game";
     $("gameT").textContent = g && g.start ? "Playing for " + fmtT(Date.now() - g.start) : g ? "Retro" : "";
     $("clip").classList.toggle("off", !(st.clip && st.clip.recording) && !g);
+    $("cfab").classList.toggle("off", !(st.clip && st.clip.recording) && !g);
+    $("cfab").classList.toggle("rec", !!(st.clip && st.clip.recording));
     const d = st.dc || {}, body = $("dcBody"); body.replaceChildren();
     if (!d.ok) body.innerHTML = '<p class="none">Discord isn\'t connected in Sothis.</p>';
     else if (!d.channel) body.innerHTML = '<p class="none">You\'re not in a call.</p>';
@@ -297,7 +311,15 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
   $("prev").onclick = () => cmd("prev");
   $("mute").onclick = () => cmd("mute");
   $("deaf").onclick = () => cmd("deaf");
-  $("clip").onclick = async () => { const r = await cmd("clip"); if (r && r.ok) toast("Clip saved"); };
+  async function doClip() {
+    const b = $("cfab"); if (b.classList.contains("busy")) return;
+    b.classList.add("busy");
+    const r = await cmd("clip");
+    b.classList.remove("busy");
+    if (r && r.ok) { toast("Clip saved"); b.classList.add("done"); setTimeout(() => b.classList.remove("done"), 1200); }
+  }
+  $("clip").onclick = doClip;
+  $("cfab").onclick = doClip;
   const vol = $("vol");
   vol.addEventListener("touchstart", () => { volDrag = true; }, { passive: true });
   vol.addEventListener("touchend", () => { setTimeout(() => { volDrag = false; }, 1500); });

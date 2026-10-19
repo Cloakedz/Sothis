@@ -1,7 +1,7 @@
 {
   "name": "sothis",
   "productName": "Sothis",
-  "version": "1.6.6",
+  "version": "1.6.7",
   "description": "Sothis: a gaming companion for Windows - music, game stats, Discord, clips and retro games.",
   "main": "main.js",
   "scripts": {
