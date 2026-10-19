@@ -6732,7 +6732,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       $("hxT").textContent = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
       $("hxS").textContent = d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
       $("hxLogo").hidden = true;
-      hxSetImg(hxIdleArt && hxIdleArt.art ? hxIdleArt.art : []);   // between games: the last game's banner
+      hxSetImg([]);   // between games: the plain red banner
     }
   }
   // Overwatch: tell Sothis which hero you're on (it learns your skin's picture for next time); heroes grouped by role
@@ -6870,8 +6870,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   { let icT = null; new MutationObserver(() => { clearTimeout(icT); icT = setTimeout(() => icDecorate(), 120); }).observe(document.body, { childList: true, subtree: true }); }
   async function hxPoll() {
     try { hxLive = await D.sessionLive(); } catch { hxLive = null; }
-    if (!hxLive && !hxIdleArt) { try { hxIdleArt = await D.sessionArt(); } catch {} }
-    if (hxLive) hxIdleArt = null;
     hxRender();
   }
   hxPoll();
