@@ -1994,6 +1994,7 @@ function launchers() {
   return settings.launchers;
 }
 // Proton VPN is connected when its network adapter is up
+ipcMain.handle("vpn:status", () => vpnUp());
 function vpnUp() {
   try { return Object.keys(require("os").networkInterfaces()).some(n => /proton/i.test(n)); } catch { return false; }
 }
@@ -2030,6 +2031,7 @@ ipcMain.handle("launch:presets", () => {
 ipcMain.handle("launch:open", async (_e, i) => {
   const l = launchers()[i];
   if (!l) return false;
+  if ((l.vpn || /protonvpn/i.test(l.path || "")) && win && !win.isDestroyed()) { showWindow(); win.webContents.send("vpn:open"); return true; }   // opens inside Sothis
   if (/obs64\.exe$/i.test(l.proc || l.path)) {          // OBS button: open the OBS controls pop-out, start OBS if needed
     const running = (await runningSet()).has("obs64.exe");
     if (running) { toggleObsWin(); return true; }
@@ -2081,8 +2083,11 @@ function discordExe() {
 const DOCK_CFG = {
   opera: { name: "Opera GX", exe: () => operaPath(), args: "--new-window", proc: "opera", any: false },
   // Discord keeps its own window (never re-parented), so closing Sothis just hands it back and your call carries on
-  discord: { name: "Discord", exe: () => discordExe(), args: "--processStart Discord.exe", proc: "Discord", any: true, overlay: true }
+  discord: { name: "Discord", exe: () => discordExe(), args: "--processStart Discord.exe", proc: "Discord", any: true, overlay: true },
+  // Proton VPN keeps its own window too, laid over Sothis's VPN page
+  vpn: { name: "Proton VPN", exe: () => protonExe(), args: "", proc: "ProtonVPN.Client", any: true, overlay: true }
 };
+function protonExe() { const f = path.join(process.env.ProgramFiles || "C:\\Program Files", "Proton", "VPN", "ProtonVPN.Launcher.exe"); return fs.existsSync(f) ? f : ""; }
 const docks = {};
 function dk(key) {
   if (!DOCK_CFG[key]) return null;
@@ -2124,7 +2129,7 @@ function dockStart(d) {
   const hwnd = hb.length >= 8 ? hb.readBigUInt64LE(0).toString() : String(hb.readUInt32LE(0));
   try {
     d.helper = require("child_process").spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path.join(__dirname, "dock-window.ps1"),
-      "-Parent", hwnd, "-Exe", exe, "-AppArgs", cfg.args, "-Proc", cfg.proc, ...(cfg.any ? ["-AnyWindow"] : []), ...(cfg.overlay ? ["-Overlay"] : [])], { windowsHide: true });
+      "-Parent", hwnd, "-Exe", exe, ...(cfg.args ? ["-AppArgs", cfg.args] : []), "-Proc", cfg.proc, ...(cfg.any ? ["-AnyWindow"] : []), ...(cfg.overlay ? ["-Overlay"] : [])], { windowsHide: true });
   } catch { dockTell(d, "failed"); return; }
   dockTell(d, "starting");
   let buf = "";

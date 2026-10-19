@@ -437,6 +437,8 @@ select { font: 500 .88rem/1.2 var(--f-body); padding: 9px 10px; border-radius: 1
 #tab-opera.off { display: none; }
 #tab-dcapp { display: flex; flex-direction: column; gap: 6px; padding: 0 10px var(--dock, 82px); }
 #tab-dcapp.off { display: none; }
+#tab-vpn { display: flex; flex-direction: column; gap: 6px; padding: 0 10px var(--dock, 82px); }
+#tab-vpn.off { display: none; }
 .dk-area { border-color: rgba(88, 101, 242, .35); background: #1e1f22; }
 .op-bar { display: flex; align-items: center; gap: 8px; flex: none; padding: 2px 4px; }
 .op-bar .glogo { width: 20px; height: 20px; }
@@ -1932,6 +1934,11 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       <div class="op-area dk-area" id="dkArea"><div class="op-msg"><span id="dkMsgT">Opening Discord…</span><button class="btn" type="button" id="dkAgain" hidden>Show Discord here</button></div></div>
     </section>
 
+    <section class="panel off dock-tab" id="tab-vpn" aria-label="Proton VPN">
+      <div class="op-bar"><button class="wbtn" id="vpBack" type="button" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button><b>Proton VPN</b><span class="op-st" id="vpSt"></span><span class="sp"></span><button class="btn ghost" type="button" id="vpOut" title="Give Proton VPN its own window again">Pop out</button></div>
+      <div class="op-area" id="vpArea"><div class="op-msg"><span id="vpMsgT">Opening Proton VPN…</span><button class="btn" type="button" id="vpAgain" hidden>Show Proton VPN here</button></div></div>
+    </section>
+
     <section class="panel off" id="tab-opera" aria-label="Opera GX">
       <div class="op-bar"><span class="glogo" data-logo="opera"></span><b>Opera GX</b><span class="op-st" id="opSt">in Sothis</span><span class="sp"></span><button class="btn ghost" type="button" id="opOut" title="Give Opera its own window again">Pop out</button></div>
       <div class="op-area" id="opArea"><div class="op-msg" id="opMsg"><span id="opMsgT">Opening Opera GX…</span><button class="btn" type="button" id="opAgain" hidden>Open Opera here</button></div></div>
@@ -2619,18 +2626,19 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   function showTab(t) {
     if (t === "discord") t = "ytm";
     if (TABS.includes(t)) { mainTab = t; store.set("cr.tab", t); }
-    tab = t === "settings" || t === "clips" ? t : mainTab;
+    tab = t === "settings" || t === "clips" || t === "vpn" ? t : mainTab;
     document.body.classList.toggle("on-home", tab === "home");
     try { $("tbVol").hidden = tab !== "ytm"; document.body.classList.toggle("on-music", tab === "ytm"); } catch {}
     try { dockRow(); setTimeout(() => { dockRow(); updateDock(); }, 320); } catch {}
     try { if (bellOpen) bellShow(false); } catch {}
-    ["home", "ytm", "games", "stats", "switch", "dcapp", "web", "opera", "claude", "discord", "settings", "clips"].forEach(k => $("tab-" + k).classList.toggle("off", k !== tab));
+    ["home", "ytm", "games", "stats", "switch", "dcapp", "vpn", "web", "opera", "claude", "discord", "settings", "clips"].forEach(k => $("tab-" + k).classList.toggle("off", k !== tab));
     try { if (tab === "opera") opShow(); else D.operaHide(); } catch {}
     try { if (tab === "dcapp") dkShow(); else D.dockHide("discord"); } catch {}
+    try { if (tab === "vpn") vpShow(); else D.dockHide("vpn"); } catch {}
     // replay the page's entrance animation
     try { const pn = $("tab-" + tab); pn.classList.remove("enter"); void pn.offsetWidth; pn.classList.add("enter"); clearTimeout(showTab.enterT); showTab.enterT = setTimeout(() => pn.classList.remove("enter"), 900); } catch {}
     if (tab === "clips") loadClips(); else { try { $("clVid").pause(); } catch {} }
-    D.setLayout(tab === "discord" || tab === "claude" || tab === "web" || tab === "opera" || tab === "dcapp" || tab === "switch" || tab === "clips" || (tab === "games" && window.__rtPlaying) ? "wide" : "main");
+    D.setLayout(tab === "discord" || tab === "claude" || tab === "web" || tab === "opera" || tab === "dcapp" || tab === "vpn" || tab === "switch" || tab === "clips" || (tab === "games" && window.__rtPlaying) ? "wide" : "main");
     try { if (window.__rtPlaying) rtHostMute(tab !== "games"); } catch {}
     try { swActive(tab === "switch"); } catch {}
     if (tab === "claude") ensureClaude();
@@ -5584,6 +5592,30 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   try { new ResizeObserver(() => { if (tab === "dcapp") D.dockMove("discord", dkRect()); }).observe($("dkArea")); } catch {}
   document.addEventListener("visibilitychange", () => { if (!document.hidden && tab === "dcapp") setTimeout(dkShow, 200); });
 
+
+  /* ---------- Proton VPN inside Sothis: the real Proton VPN app, laid over its own page ---------- */
+  const vpRect = () => { const r = $("vpArea").getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
+  let vpSt = "";
+  async function vpPaint() {
+    const m = { starting: "Opening Proton VPN…", embedded: "", noapp: "Couldn't find Proton VPN on this PC.", failed: "Proton VPN didn't open inside Sothis. Try again.",
+      closed: "Proton VPN was closed.", released: "Proton VPN is in its own window now.", hidden: "Proton VPN went to the tray." }[vpSt];
+    $("vpMsgT").textContent = m == null ? "Opening Proton VPN…" : m;
+    $("vpAgain").hidden = !["failed", "closed", "released", "hidden"].includes(vpSt);
+    $("vpOut").hidden = vpSt !== "embedded";
+    let up = false; try { up = await D.vpnStatus(); } catch {}
+    $("vpSt").textContent = up ? "● Connected" : "Not connected";
+    $("vpSt").style.color = up ? "var(--good)" : "";
+  }
+  async function vpShow() { try { vpSt = await D.dockShow("vpn", vpRect()) || vpSt; } catch {} vpPaint(); }
+  D.onDockState(d => { if (!d || d.key !== "vpn") return; vpSt = d.state; vpPaint(); if (d.state === "embedded" && tab === "vpn") D.dockMove("vpn", vpRect()); });
+  D.onVpnOpen(() => showTab("vpn"));
+  $("vpAgain").onclick = async () => { vpSt = "starting"; vpPaint(); await D.dockRestart("vpn"); if (tab === "vpn") vpShow(); };
+  $("vpOut").onclick = () => D.dockRelease("vpn");
+  $("vpBack").onclick = () => showTab(mainTab);
+  try { new ResizeObserver(() => { if (tab === "vpn") D.dockMove("vpn", vpRect()); }).observe($("vpArea")); } catch {}
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && tab === "vpn") setTimeout(vpShow, 200); });
+  setInterval(() => { if (tab === "vpn") vpPaint(); }, 3000);
+
   /* ---------- Launcher buttons (right corner column) ---------- */
   let lnList = [];
   const lnBell = mk("button", "cl-fab ln-bell bell-btn"); lnBell.type = "button"; lnBell.id = "bellBtnHome";
@@ -6322,7 +6354,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   // On Switch and Music, line Discord + sound up beside the Claude button and slide the tab bar over to make room
   function dockRow() {
     // every wide (landscape) page, plus Music
-    const row = (tab === "switch" || tab === "ytm" || tab === "claude" || tab === "web" || tab === "opera" || tab === "dcapp" || tab === "discord" || window.innerWidth > window.innerHeight) && !document.body.classList.contains("is-mini");
+    const row = (tab === "switch" || tab === "ytm" || tab === "claude" || tab === "web" || tab === "opera" || tab === "dcapp" || tab === "vpn" || tab === "discord" || window.innerWidth > window.innerHeight) && !document.body.classList.contains("is-mini");
     document.body.classList.toggle("dock-row", row);
     const nav = document.querySelector(".tabs"); if (!nav) return;
     nav.style.left = ""; nav.classList.remove("compact", "tiny");
