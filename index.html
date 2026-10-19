@@ -1017,7 +1017,7 @@ body.tb-narrow .titlebar .batt { cursor: grab; }
 
 /* Home banner: the game you're in (map picture behind it), or the time when you're not playing */
 .hm { margin: 0 !important; padding-top: 12px; gap: 12px; }
-.hx { position: relative; min-height: 178px; border-radius: 22px; overflow: hidden; border: 1px solid rgba(255, 77, 115, .35); flex: none;
+.hx { position: relative; min-height: 178px; display: flex; flex-direction: column; justify-content: flex-end; border-radius: 22px; overflow: hidden; border: 1px solid rgba(255, 77, 115, .35); flex: none;
   background: radial-gradient(circle at 85% 15%, rgba(255, 77, 115, .32), transparent 60%), linear-gradient(135deg, #3a1420, #120b14 62%); box-shadow: 0 10px 30px rgba(0, 0, 0, .35); }
 .hx::before { content: ""; position: absolute; inset: 0; z-index: 1; background: repeating-linear-gradient(135deg, rgba(255, 255, 255, .03) 0 2px, transparent 2px 14px); pointer-events: none; }
 .hx-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .5s ease, transform 8s ease; transform: scale(1.04); }
@@ -1026,7 +1026,7 @@ body.tb-narrow .titlebar .batt { cursor: grab; }
 .hx.has-bg::before { display: none; }
 .hx-lg { position: absolute; z-index: 2; right: 16px; top: 14px; width: 34px; height: 34px; color: #fff; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .6)); }
 .hx-lg[data-logo="ow"] { color: #ff9c28; } .hx-lg[data-logo="cs"] { color: #f2b33d; }
-.hx-in { position: absolute; z-index: 2; left: 16px; right: 16px; bottom: 14px; }
+.hx-in { position: relative; z-index: 2; padding: 18px 16px 14px; }
 .hx-k { display: inline-flex; align-items: center; gap: 6px; font: 700 .62rem/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: rgba(255, 255, 255, .7); }
 .hx-k i { width: 7px; height: 7px; border-radius: 50%; display: none; }
 .hx[data-state="live"] .hx-k { color: #3ccf8e; }
@@ -1272,6 +1272,7 @@ body.is-mini .bell { display: none; }
 .sw-bar .ib.hd[aria-pressed="true"] { color: #3ccf8e; }
 .sw-msg { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: #b9bdc8; font-size: .86rem; line-height: 1.45; }
 .sw-msg[hidden] { display: none; }
+.sw-nosig { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 10px 16px; border-radius: 12px; background: rgba(20, 20, 26, .8); border: 1px solid rgba(255, 255, 255, .12); color: #b9bdc8; font-size: .86rem; pointer-events: none; }
 .sw-obs { display: flex; gap: 8px; margin: 14px auto 0; max-width: 340px; }
 .sw-obs[hidden] { display: none; }
 .sw-obs input { flex: 1; min-width: 0; padding: 7px 10px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .18); background: rgba(0, 0, 0, .35); color: #fff; font: inherit; }
@@ -1540,7 +1541,7 @@ body.is-compact .rail { position: absolute; inset: 0; display: flex; flex-direct
 .set-nav .chip { background: color-mix(in srgb, var(--surface) 70%, rgba(12, 12, 16, .55)); backdrop-filter: blur(10px); }
 .set-nav::-webkit-scrollbar { display: none; }
 .set-nav .chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.set-nav { flex-wrap: wrap; overflow: visible; }
+.set-nav { flex-wrap: wrap; overflow: visible; padding: 8px 8px; border-radius: 0 0 16px 16px; background: rgba(10, 10, 14, .88); backdrop-filter: blur(14px); box-shadow: 0 8px 18px rgba(0, 0, 0, .35); }
 #tab-settings .group.set-off { display: none; }
 #tab-settings .group:not(.set-off) { animation: setIn .18s ease-out; }
 @keyframes setIn { from { opacity: 0; transform: translateY(4px); } }
@@ -1914,6 +1915,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
         <video id="swVid" autoplay playsinline muted></video>
         <canvas id="swCan" hidden></canvas>
         <div class="sw-msg" id="swMsg"><div><span class="glogo" data-logo="switch"></span><div id="swMsgT">Starting your Switch…</div><button class="btn ghost" id="swBack" type="button" hidden style="margin-top:12px">Bring it back here</button><form class="sw-obs" id="swObs" hidden><input type="password" id="swObsPass" placeholder="Paste the OBS server password" autocomplete="off" spellcheck="false"><button class="btn" type="submit">Connect</button></form></div></div>
+        <div class="sw-nosig" id="swNoSig" hidden>No picture yet. Is your Switch on and in its dock?</div>
         <div class="sw-bar">
           <select id="swSrc" aria-label="Video source"></select>
           <button class="ib" id="swSnd" type="button" aria-label="Switch sound" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg></button>
@@ -2633,6 +2635,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     if (tab === "claude") ensureClaude();
     if (tab === "web") wbEnsure(); else if (document.body.classList.contains("wb-full")) wbFull(false);
     if (tab === "games") loadGames();
+    if (tab === "home") { try { hxRender(); } catch {} }
     if (tab === "ytm") { ensureYTM(); showYtView(ytView); }
     TABS.forEach(k => {
       const b = $("tabbtn-" + k); if (!b) return;
@@ -5767,7 +5770,20 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   };
   const isObsCam = d => /obs/i.test(d.label);
   const isCard = d => /fifine|capture|cam link|elgato|hdmi|usb video|av\.?mmio|ezcap/i.test(d.label) && !isObsCam(d);
+  let swSigT = null;
+  function swSigWatch(on) {
+    clearInterval(swSigT); swSigT = null; $("swNoSig").hidden = true;
+    if (!on) return;
+    const c = document.createElement("canvas"); c.width = 32; c.height = 18; const x = c.getContext("2d", { willReadFrequently: true });
+    let dark = 0;
+    swSigT = setInterval(() => {
+      const v = $("swVid"); if (!v.videoWidth || !$("swMsg").hidden) { $("swNoSig").hidden = true; return; }
+      try { x.drawImage(v, 0, 0, 32, 18); const d = x.getImageData(0, 0, 32, 18).data; let sum = 0; for (let i = 0; i < d.length; i += 4) sum += d[i] + d[i + 1] + d[i + 2]; dark = sum / (d.length / 4 * 3) < 4 ? dark + 1 : 0; } catch { dark = 0; }
+      $("swNoSig").hidden = dark < 2;
+    }, 1500);
+  }
   function swStop() {
+    swSigWatch(false);
     if (swStream) swStream.getTracks().forEach(t => t.stop());
     swStream = null; $("swVid").srcObject = null;
     try { D.presenceSwitch(false); } catch {}
@@ -5871,6 +5887,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       const v = $("swVid"); v.srcObject = stream; v.muted = !swSound || isObsCam(used);
       v.play().catch(() => {});
       swMsg("");
+      swSigWatch(true);
       if (swSound && isObsCam(used)) toast("Sound comes from OBS when using the Virtual Camera");
     } finally { swStarting = false; }
   }

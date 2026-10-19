@@ -1799,7 +1799,7 @@ async function steamGames() {
     for (const f of files) {
       try {
         const acf = fs.readFileSync(path.join(lib, f), "utf8");
-        const id = (acf.match(/"appid"\s+"(\d+)"/) || [])[1], name = (acf.match(/"name"\s+"([^"]+)"/) || [])[1];
+        const id = (acf.match(/"appid"\s+"(\d+)"/) || [])[1], name = ((acf.match(/"name"\s+"([^"]+)"/) || [])[1] || "").replace(/[®™©]/g, "").trim();
         const flags = +((acf.match(/"StateFlags"\s+"(\d+)"/) || [])[1] || 4);
         if (!id || !name || STEAM_SKIP.test(name) || !(flags & 4)) continue;
         const played = +((acf.match(/"LastPlayed"\s+"(\d+)"/) || [])[1] || 0);
@@ -3391,7 +3391,7 @@ async function trkPoll() {
   let name = null, exe = null;
   for (const [e, n] of Object.entries(GAME_EXES)) if (run.has(e)) { name = n; exe = e; break; }
   // any other Steam game that's running (e.g. Wardogs) counts too
-  if (!name && dcGame && dcGame.sid && dcGame.name && dcGame.name !== "a Steam game") { name = dcGame.name; exe = "steam:" + dcGame.sid; }
+  if (!name && dcGame && dcGame.sid && dcGame.name && dcGame.name !== "a Steam game") { name = dcGame.name.replace(/[®™©]/g, "").trim(); exe = "steam:" + dcGame.sid; }
   const now = Date.now();
   if (name) {
     trkMiss = 0; trkLast = now;
