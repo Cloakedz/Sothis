@@ -12,20 +12,28 @@ try {
 } catch { [Console]::Out.WriteLine("err nosdk " + $_.Exception.Message); [Console]::Out.Flush(); exit 2 }
 if (-not $devs.Count) { [Console]::Out.WriteLine("err nodevices"); [Console]::Out.Flush(); exit 3 }
 $names = ($devs | ForEach-Object { try { $_.Name } catch { "?" } }) -join ","
+# a short note of what was found, for fixing problems (Roaming\Sothis\rgb-log.txt)
+$logf = Join-Path $env:APPDATA "Sothis\rgb-log.txt"
+function Log($t) { try { Add-Content -Path $logf -Value ((Get-Date -Format "yyyy-MM-dd HH:mm:ss") + "  " + $t) } catch {} }
+try { Set-Content -Path $logf -Value "" } catch {}
+Log ("powershell " + [IntPtr]::Size * 8 + "-bit, " + $devs.Count + " devices")
+foreach ($d in $devs) { $n = "?"; $ty = "?"; $lc = "?"; try { $n = $d.Name } catch {}; try { $ty = "0x{0:X}" -f $d.Type } catch {}; try { $lc = $d.Lights.Count } catch {}; Log ("device " + $n + " type " + $ty + " lights " + $lc) }
+$script:errSeen = @{}
 [Console]::Out.WriteLine("ready " + $devs.Count + "|" + $names); [Console]::Out.Flush()
 
 # Aura wants 0x00BBGGRR
 function Paint([double]$r, [double]$g, [double]$b) {
   $c = ([uint32][math]::Round($b) -shl 16) -bor ([uint32][math]::Round($g) -shl 8) -bor [uint32][math]::Round($r)
   foreach ($d in $devs) {
-    try { foreach ($l in $d.Lights) { $l.Color = $c }; $d.Apply() } catch {}
+    try { foreach ($l in $d.Lights) { $l.Color = $c }; $d.Apply() }
+    catch { $k = "" + $d.Name; if (-not $script:errSeen[$k]) { $script:errSeen[$k] = 1; Log ("could not set " + $k + ": " + $_.Exception.Message) } }
   }
 }
 function Hex($h) { $h = "$h".TrimStart("#"); if ($h -notmatch '^[0-9a-fA-F]{6}$') { $h = "ff0000" }; return @([Convert]::ToInt32($h.Substring(0,2),16), [Convert]::ToInt32($h.Substring(2,2),16), [Convert]::ToInt32($h.Substring(4,2),16)) }
 function Hsv([double]$h) { $h = $h % 360; $x = 1 - [math]::Abs((($h / 60) % 2) - 1); switch ([math]::Floor($h / 60)) { 0 { ,@(1,$x,0) } 1 { ,@($x,1,0) } 2 { ,@(0,1,$x) } 3 { ,@(0,$x,1) } 4 { ,@($x,0,1) } default { ,@(1,0,$x) } } }
 
 $mode = "static"; $rgb = @(255,0,0); $bri = 1.0; $speed = 5
-$flash = $null; $t0 = [DateTime]::UtcNow; $lastStatic = ""
+$flash = $null; $t0 = [DateTime]::UtcNow; $lastStatic = ""; $script:lastPaint = [DateTime]::MinValue
 $in = New-Object System.IO.StreamReader([Console]::OpenStandardInput()); $pending = $in.ReadLineAsync()
 while ($true) {
   if ($pending.IsCompleted) {
@@ -47,7 +55,7 @@ while ($true) {
   }
   $sec = ($now - $t0).TotalSeconds
   switch ($mode) {
-    "off" { if ($lastStatic -ne "off") { Paint 0 0 0; $lastStatic = "off" }; Start-Sleep -Milliseconds 100 }
+    "off" { if ($lastStatic -ne "off" -or ([DateTime]::UtcNow - $script:lastPaint).TotalSeconds -ge 2) { Paint 0 0 0; $lastStatic = "off"; $script:lastPaint = [DateTime]::UtcNow }; Start-Sleep -Milliseconds 100 }
     "breathe" {
       $k = (1 - [math]::Cos($sec * $speed * 0.45)) / 2
       $k = 0.05 + 0.95 * $k
@@ -59,7 +67,7 @@ while ($true) {
     }
     default {
       $key = "$($rgb -join ',')|$bri"
-      if ($lastStatic -ne $key) { Paint ($rgb[0] * $bri) ($rgb[1] * $bri) ($rgb[2] * $bri); $lastStatic = $key }
+      if ($lastStatic -ne $key -or ([DateTime]::UtcNow - $script:lastPaint).TotalSeconds -ge 2) { Paint ($rgb[0] * $bri) ($rgb[1] * $bri) ($rgb[2] * $bri); $lastStatic = $key; $script:lastPaint = [DateTime]::UtcNow }
       Start-Sleep -Milliseconds 100
     }
   }
