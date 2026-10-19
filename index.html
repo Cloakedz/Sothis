@@ -569,7 +569,7 @@ input::selection, textarea::selection { background: rgba(255, 77, 115, .4); }
 
 /* Home now shows only the Discord call */
 .hm-hero, .hm-now { display: none !important; }
-.hm-empty { position: absolute; left: 0; right: 0; bottom: 92px; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 8px; color: var(--muted); opacity: .55; font-size: .78rem; }
+.hm-empty { position: static; order: 99; margin-top: -6px; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 8px; color: var(--muted); opacity: .55; font-size: .78rem; }
 .hm-empty[hidden] { display: none; }
 .hm-empty .glogo { width: 14px; height: 14px; color: currentColor; }
 .hm-empty b { font-weight: 600; }
@@ -5103,7 +5103,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     gmPins.forEach(p => {
       const b = mk("button", "hx-pin"); b.type = "button"; b.title = "Launch " + p.name;
       if (p.art) { const im = mk("img"); im.alt = ""; im.referrerPolicy = "no-referrer"; im.src = p.art; im.onerror = () => im.remove(); b.append(im); }
-      b.append(mk("span", "", p.name));
+      b.append(mk("span", "", String(p.name || "").replace(/[®™©]/g, "").trim()));
       b.onclick = async () => { const ok = await D.gameLaunch(p.launch); toast(ok ? "Launching " + p.name : "Couldn't launch " + p.name); };
       box.append(b);
     });
