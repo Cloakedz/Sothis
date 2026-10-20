@@ -127,24 +127,6 @@ main { padding-bottom: 110px; }
 .fxlist a { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 14px; background: var(--card2); color: var(--ink); text-decoration: none; }
 .fxlist a b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fxlist a span { color: var(--muted); font-size: .8rem; }
-.rtv { position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; gap: 10px; padding: calc(14px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom)); background: var(--bg); }
-.rtv[hidden] { display: none; }
-.rth { display: flex; align-items: center; gap: 12px; }
-.rth button { width: 40px; height: 40px; border-radius: 50%; background: var(--card2); font-size: 1.6rem; line-height: 1; }
-.rth b { font: 800 1.3rem/1.2 "Nunito", sans-serif; flex: 1; }
-.rth span { color: var(--muted); font-size: .82rem; }
-#rtQ { width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-size: 1rem; outline: none; -webkit-user-select: text; user-select: text; }
-.rtsys { display: flex; gap: 6px; overflow-x: auto; flex: none; scrollbar-width: none; }
-.rtsys::-webkit-scrollbar { display: none; }
-.rtsys button { flex: none; padding: 7px 13px; border-radius: 999px; background: var(--card2); font-weight: 700; font-size: .82rem; color: var(--muted); }
-.rtsys button.on { background: var(--accent); color: #fff; }
-.rtlist { flex: 1; overflow-y: auto; display: grid; gap: 8px; align-content: start; -webkit-overflow-scrolling: touch; }
-.rtg { display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); text-align: left; color: var(--ink); }
-.rtg i { width: 52px; height: 52px; border-radius: 12px; display: grid; place-items: center; background: var(--card2); font-style: normal; font-weight: 800; font-size: .7rem; color: var(--muted); }
-.rtg b { display: block; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rtg span { color: var(--muted); font-size: .78rem; }
-.rtg:active { transform: scale(.98); }
-.rtnone { color: var(--muted); text-align: center; padding: 30px 10px; }
 .lock { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 15px; border-radius: 16px; background: var(--card2); font-weight: 700; }
 .lock svg { width: 21px; height: 21px; }
 .lock:active { transform: scale(.97); background: rgba(232, 52, 91, .2); }
@@ -204,11 +186,6 @@ main { padding-bottom: 110px; }
     <div class="fxlist" id="fxList"></div>
   </section>
 
-  <section class="card">
-    <div class="rgbh"><b>Retro</b><span class="fxnote">Saves sync with your PC</span></div>
-    <button class="fxsend" id="rtOpen" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6.5" width="19" height="11" rx="4"/><path d="M7 10v4M5 12h4"/><circle cx="16" cy="11" r="1" fill="currentColor"/><circle cx="18" cy="13" r="1" fill="currentColor"/></svg><span>Play a game</span></button>
-  </section>
-
   <section class="card" id="rgbCard" hidden>
     <div class="rgbh"><b>Lights</b><button class="rgbfx" id="rgbFx" type="button">Solid</button></div>
     <div class="rgbsw" id="rgbSw"></div>
@@ -222,12 +199,6 @@ main { padding-bottom: 110px; }
 </main>
 
 <div class="match hide" id="match"><div><b>Match found</b><span id="matchG"></span><small>Tap to dismiss</small></div></div>
-<div class="rtv" id="rtView" hidden>
-  <div class="rth"><button id="rtClose" type="button" aria-label="Back">‹</button><b>Retro</b><span id="rtN"></span></div>
-  <input id="rtQ" type="search" placeholder="Find a game" autocomplete="off">
-  <div class="rtsys" id="rtSys"></div>
-  <div class="rtlist" id="rtList"><p class="rtnone">Loading your games…</p></div>
-</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -384,41 +355,6 @@ main { padding-bottom: 110px; }
     btn.classList.remove("busy"); lab.textContent = "Send to PC"; $("fxBar").hidden = true; $("fxBarI").style.width = "0";
     if (okN) toast(okN === 1 ? "Sent to your PC" : okN + " files sent to your PC");
   };
-  /* Retro: your PC's games, played here; saves go back to the PC as you play */
-  let rtAll = [], rtSysOn = "";
-  const rtAgo = t => { if (!t) return ""; const m = Math.round((Date.now() - t) / 60000); return m < 60 ? Math.max(1, m) + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " d ago"; };
-  function rtRender() {
-    const qy = $("rtQ").value.trim().toLowerCase();
-    const list = rtAll.filter(g => (!rtSysOn || g.sys === rtSysOn) && (!qy || g.name.toLowerCase().includes(qy)));
-    $("rtN").textContent = rtAll.length ? rtAll.length + " games" : "";
-    if (!list.length) { $("rtList").innerHTML = '<p class="rtnone">' + (rtAll.length ? "No games match." : "No retro games found on your PC. Add your game folder in Sothis → Games → Retro.") + "</p>"; return; }
-    $("rtList").replaceChildren(...list.map(g => {
-      const b = document.createElement("button"); b.type = "button"; b.className = "rtg";
-      const i = document.createElement("i"); i.textContent = g.sys;
-      const d = document.createElement("div"); const t = document.createElement("b"); t.textContent = g.name;
-      const m = document.createElement("span"); m.textContent = g.saved ? "Saved " + rtAgo(g.saved) + (g.by === "phone" ? " on your phone" : " on your PC") : g.sys;
-      d.append(t, m); b.append(i, d);
-      b.onclick = () => {
-        const qs = new URLSearchParams({ core: g.core, name: g.name, sys: g.sys, phone: "1", t: tok, rom: "/api/rom/" + g.id + "/" + tok + "/" + encodeURIComponent(g.file) });
-        location.href = "/emu/emu.html?" + qs.toString();
-      };
-      return b;
-    }));
-  }
-  async function rtLoad() {
-    try {
-      const r = await fetch("/api/games", { headers: { Authorization: "Bearer " + tok } });
-      if (r.status === 401) return unpaired();
-      rtAll = await r.json();
-      rtAll.sort((a, b) => (Math.max(b.saved || 0, b.last || 0) - Math.max(a.saved || 0, a.last || 0)) || a.name.localeCompare(b.name));
-      const systems = [...new Set(rtAll.map(g => g.sys))];
-      $("rtSys").replaceChildren(...["", ...systems].map(x => { const b = document.createElement("button"); b.type = "button"; b.textContent = x || "All"; b.className = x === rtSysOn ? "on" : ""; b.onclick = () => { rtSysOn = x; for (const c of $("rtSys").children) c.className = c === b ? "on" : ""; rtRender(); }; return b; }));
-      rtRender();
-    } catch { $("rtList").innerHTML = '<p class="rtnone">Can\'t reach your PC.</p>'; }
-  }
-  $("rtOpen").onclick = () => { $("rtView").hidden = false; rtLoad(); };
-  $("rtClose").onclick = () => { $("rtView").hidden = true; };
-  $("rtQ").addEventListener("input", rtRender);
   $("lock").onclick = async () => { if (!confirm("Lock your PC now?")) return; const r = await cmd("lock"); if (r && r.ok) toast("PC locked"); };
   $("unpair").onclick = () => { if (confirm("Unpair this phone? You'll need the code from Sothis again.")) unpaired(); };
 

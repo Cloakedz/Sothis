@@ -3973,43 +3973,11 @@ function rsEmuContents() {
   return require("electron").webContents.getAllWebContents().filter(w => { try { return !w.isDestroyed() && w.session === ses && /^sothisemu:\/\/app\/emu\.html/i.test(w.getURL()); } catch { return false; } });
 }
 function rsWrite(f, buf) { fs.mkdirSync(path.dirname(f), { recursive: true }); const t = f + ".tmp"; fs.writeFileSync(t, buf); fs.renameSync(t, f); }
-/* Cross-saves: the save folder is the meeting point for the PC and your phone. Each game's .json notes when and where it
-   was last written ("pc" or "phone"); whoever opens the game next takes the newer copy. */
-const rsAtGet = key => ((settings.rsAt || {})[key] || 0);
-const rsAtSet = (key, at) => { settings.rsAt = settings.rsAt || {}; settings.rsAt[key] = at; saveSettings(); };
-function rsMeta(core, name) { try { return JSON.parse(fs.readFileSync(path.join(rsDir(), rsSafe(core), rsSafe(name) + ".json"), "utf8")); } catch { return null; } }
-function rsRead(core, name) {
-  const dir = path.join(rsDir(), rsSafe(core)), base = rsSafe(name), m = rsMeta(core, name) || {};
-  let save = null, state = null;
-  try { save = fs.readFileSync(path.join(dir, base + ".srm")).toString("base64"); } catch {}
-  try { state = fs.readFileSync(path.join(dir, base + ".resume.state")).toString("base64"); } catch {}
-  return { at: m.at || 0, by: m.by || "pc", save, state };
-}
-// a save sent from the phone
-function rsWriteFrom(by, d) {
-  const dir = path.join(rsDir(), rsSafe(d.core)), base = rsSafe(d.name), at = Date.now();
-  if (d.save) {
-    const b = Buffer.from(d.save, "base64"), f = path.join(dir, base + ".srm");
-    try { if (fs.existsSync(f) && rsHash(fs.readFileSync(f)) !== rsHash(b)) {
-      const vd = path.join(dir, "older", base), st = new Date().toISOString().replace(/[:T]/g, "-").slice(0, 19);
-      fs.mkdirSync(vd, { recursive: true }); fs.copyFileSync(f, path.join(vd, st + ".srm"));
-      fs.readdirSync(vd).filter(x => x.endsWith(".srm")).sort().reverse().slice(5).forEach(x => { try { fs.unlinkSync(path.join(vd, x)); } catch {} });
-    } } catch {}
-    rsWrite(f, b);
-  }
-  if (d.state) rsWrite(path.join(dir, base + ".resume.state"), Buffer.from(d.state, "base64"));
-  rsWrite(path.join(dir, base + ".json"), Buffer.from(JSON.stringify({ name: d.name, core: d.core, sys: d.sys || "", at, by, stateAt: d.state ? at : null }, null, 1)));
-  rsSeen.delete(d.core + "|" + d.name);
-  return at;
-}
 async function rsBackupOne(wc) {
   let d = null;
   try { d = await Promise.race([wc.executeJavaScript("window.sothisExport ? window.sothisExport() : null"), new Promise(r => setTimeout(() => r(null), 6000))]); } catch { return false; }
   if (!d || !d.core || !d.name) return false;
   const dir = path.join(rsDir(), rsSafe(d.core)), base = rsSafe(d.name), key = d.core + "|" + d.name;
-  // the phone saved this game after the PC last did: take the phone's progress instead of writing over it
-  const m0 = rsMeta(d.core, d.name);
-  if (m0 && m0.by === "phone" && (m0.at || 0) > rsAtGet(key)) { await rsPull(wc, d.core, d.name, true); return true; }
   const seen = rsSeen.get(key) || {};
   let wrote = false;
   if (d.save) {
@@ -4028,7 +3996,7 @@ async function rsBackupOne(wc) {
     const b = Buffer.from(d.state.data, "base64"), h = rsHash(b);
     if (h !== seen.state) { rsWrite(path.join(dir, base + ".resume.state"), b); seen.state = h; wrote = true; }
   }
-  if (wrote) { const at = Date.now(); try { rsWrite(path.join(dir, base + ".json"), Buffer.from(JSON.stringify({ name: d.name, core: d.core, sys: d.sys || "", at, by: "pc", stateAt: d.state ? d.state.at : null }, null, 1))); rsAtSet(key, at); } catch {} }
+  if (wrote) { try { rsWrite(path.join(dir, base + ".json"), Buffer.from(JSON.stringify({ name: d.name, core: d.core, sys: d.sys || "", at: Date.now(), stateAt: d.state ? d.state.at : null }, null, 1))); } catch {} }
   rsSeen.set(key, seen);
   return true;
 }
@@ -4039,23 +4007,12 @@ async function rsBackupAll() {
   catch (e) { rsErr = "Couldn't write to the backup folder."; }
   return { ok: !rsErr, games: n, err: rsErr };
 }
-// load the save folder's copy into a game that's open on the PC
-async function rsPull(wc, core, name, note) {
-  const r = rsRead(core, name);
-  if (!r.save && !r.state) return false;
-  try { await wc.executeJavaScript("window.sothisImport && window.sothisImport(" + JSON.stringify({ save: r.save, state: r.state, from: note ? "phone" : "" }) + ")"); } catch { return false; }
-  rsAtSet(core + "|" + name, r.at || Date.now());
-  rsSeen.delete(core + "|" + name);
-  return true;
-}
-// a game just started: take your phone's newer progress, or bring back a save this PC lost
+// a game just started: if this PC has no save for it but the backup folder does, bring it back
 async function rsRestore(wc) {
   if (!rsOn() || !wc || wc.isDestroyed()) return;
   let info = null;
   try { info = await wc.executeJavaScript("window.sothisLocal ? window.sothisLocal() : null"); } catch { return; }
   if (!info || !info.core || !info.name) return;
-  const m0 = rsMeta(info.core, info.name);
-  if (m0 && m0.by === "phone" && (m0.at || 0) > rsAtGet(info.core + "|" + info.name)) { await rsPull(wc, info.core, info.name, true); return; }
   const dir = path.join(rsDir(), rsSafe(info.core)), base = rsSafe(info.name);
   const sf = path.join(dir, base + ".srm"), stf = path.join(dir, base + ".resume.state");
   const pay = {};
@@ -4157,28 +4114,6 @@ async function phCmd(cmd, value) {
   if (cmd === "lock") { return new Promise(res => execFile("rundll32.exe", ["user32.dll,LockWorkStation"], { windowsHide: true }, e => res(e ? { ok: false, err: "Couldn't lock the PC." } : { ok: true }))); }
   return { ok: false, err: "Unknown command" };
 }
-const EMU_TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".json": "application/json", ".wasm": "application/wasm", ".data": "application/octet-stream", ".png": "image/png", ".svg": "image/svg+xml", ".txt": "text/plain" };
-function emuServe(req, res, rel) {
-  const root = path.join(__dirname, "emu");
-  let f = ""; try { f = path.normalize(path.join(root, decodeURIComponent(rel))); } catch {}
-  if (!f || !f.startsWith(root + path.sep)) { res.writeHead(403); return res.end(); }
-  return fileServe(req, res, f, EMU_TYPES[path.extname(f).toLowerCase()] || "application/octet-stream", true);
-}
-function fileServe(req, res, f, type, cache) {
-  let st; try { st = f && fs.statSync(f); } catch {}
-  if (!st || !st.isFile()) { res.writeHead(404); return res.end(); }
-  const h = { "Content-Type": type, "Accept-Ranges": "bytes" };
-  if (cache) h["Cache-Control"] = "public, max-age=86400";
-  const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || "");
-  if (m) {
-    let a = m[1] === "" ? Math.max(0, st.size - (+m[2] || 0)) : +m[1], b = m[1] !== "" && m[2] !== "" ? Math.min(+m[2], st.size - 1) : st.size - 1;
-    if (a > b) { res.writeHead(416, { "Content-Range": `bytes */${st.size}` }); return res.end(); }
-    res.writeHead(206, Object.assign(h, { "Content-Length": b - a + 1, "Content-Range": `bytes ${a}-${b}/${st.size}` }));
-    return fs.createReadStream(f, { start: a, end: b }).pipe(res);
-  }
-  res.writeHead(200, Object.assign(h, { "Content-Length": st.size }));
-  fs.createReadStream(f).pipe(res);
-}
 function phStart() {
   if (phSrv || !phCfg().on) return;
   const http = require("http");
@@ -4199,38 +4134,6 @@ function phStart() {
       const ka = setInterval(() => { try { res.write(": hi\n\n"); } catch {} }, 20000);
       req.on("close", () => { clearInterval(ka); phClients.delete(res); });
       return;
-    }
-    // Retro on the phone: the same emulator files Sothis uses, your game files, and the shared saves
-    if (req.method === "GET" && u.pathname.startsWith("/emu/")) return emuServe(req, res, u.pathname.slice(5));
-    if (u.pathname === "/api/games" && req.method === "GET") {
-      if (!phOk(phTok(req))) { res.writeHead(401); return res.end(); }
-      let items = []; try { items = romScan().items.filter(x => x.core && !x.azahar); } catch {}
-      const st = settings.retroStats || {};
-      const list = items.map(x => { const m = rsMeta(x.core, x.name); const k = libKeyOf && libKeyOf.get ? libKeyOf.get(x.token) : ""; const s = (k && st[k]) || {};
-        return { id: x.token, name: x.name, sys: x.sys, core: x.core, file: x.file, size: x.size, saved: m ? m.at : 0, by: m ? m.by || "pc" : "", last: s.last || 0 }; });
-      res.writeHead(200, { "Content-Type": "application/json" }); return res.end(JSON.stringify(list));
-    }
-    const rm = /^\/api\/rom\/([0-9a-f]{20})\/([0-9a-f]{48})\/[^/]+$/.exec(u.pathname);
-    if (rm && req.method === "GET") {
-      if (!phOk(rm[2])) { res.writeHead(401); return res.end(); }
-      if (!romTokens.size) { try { romScan(); } catch {} }
-      const f = romTokens.get(rm[1]);
-      return fileServe(req, res, f, "application/octet-stream");
-    }
-    if (u.pathname === "/api/save") {
-      if (!phOk(phTok(req))) { req.resume(); res.writeHead(401); return res.end(); }
-      const send = (code, o) => { res.writeHead(code, { "Content-Type": "application/json" }); res.end(JSON.stringify(o)); };
-      if (req.method === "GET") { const core = u.searchParams.get("core") || "", name = u.searchParams.get("name") || ""; if (!core || !name) return send(400, {}); return send(200, rsRead(core, name)); }
-      if (req.method === "POST") {
-        const parts = []; let n = 0;
-        req.on("data", c => { n += c.length; if (n > 96 * 1024 * 1024) { req.destroy(); return; } parts.push(c); });
-        req.on("end", () => {
-          let d = null; try { d = JSON.parse(Buffer.concat(parts).toString("utf8")); } catch {}
-          if (!d || !d.core || !d.name || (!d.save && !d.state)) return send(400, { ok: false });
-          try { const at = rsWriteFrom("phone", d); return send(200, { ok: true, at }); } catch { return send(500, { ok: false, err: "Couldn't write the save on your PC." }); }
-        });
-        return;
-      }
     }
     if (u.pathname === "/api/upload" && req.method === "POST") {
       if (!phOk(phTok(req))) { req.resume(); res.writeHead(401); return res.end(); }
