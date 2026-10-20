@@ -3240,7 +3240,7 @@ ipcMain.on("win:move-by", (_e, delta = {}) => {
   const b = win.getBounds(), d = screen.getDisplayMatching(b).workArea;
   const x = Math.max(d.x - b.width + 48, Math.min(d.x + d.width - 48, b.x + Math.round(Number(delta.dx) || 0)));
   const y = Math.max(d.y, Math.min(d.y + d.height - 24, b.y + Math.round(Number(delta.dy) || 0)));
-  win.setPosition(x, y, false);
+  win.setBounds({ x, y, width: b.width, height: b.height }, false);
 });
 // Title bar drag: the window follows the mouse pointer itself (read here in screen coordinates), so it moves the same on
 // every monitor and across monitors with different scaling; the size is held so Windows can't grow/shrink it on the way
@@ -3256,7 +3256,8 @@ function winDragTick() {
   let x = winDrag.x + c.x - winDrag.c.x, y = winDrag.y + c.y - winDrag.c.y;
   const wa = screen.getDisplayNearestPoint(c).workArea;   // keep the title bar reachable on the monitor the pointer is on
   y = Math.max(wa.y, Math.min(wa.y + wa.height - 24, y));
-  win.setPosition(Math.round(x), Math.round(y), false);
+  // setPosition alone lets Windows round the size up a pixel at a time on scaled screens; give it the exact size every step
+  win.setBounds({ x: Math.round(x), y: Math.round(y), width: winDrag.w, height: winDrag.h }, false);
 }
 ipcMain.on("win:drag", (_e, phase) => {
   if (!win || win.isDestroyed()) return;
