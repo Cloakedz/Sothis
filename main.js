@@ -88,6 +88,18 @@ function createWindow() {
   win.loadFile("index.html");
   // Opera docked in Sothis follows the window around
   for (const ev of ["move", "moved", "resize", "resized", "hide", "show", "minimize", "restore"]) win.on(ev, () => { try { dockFollowAll(); } catch {} });
+  // Windows with display scaling grows a see-through window a little on every step of a drag: hold its size while you drag it
+  let dragSize = null, dragT = null;
+  win.on("will-move", () => {
+    if (!dragSize) dragSize = win.getSize();
+    clearTimeout(dragT); dragT = setTimeout(() => { dragSize = null; }, 600);
+  });
+  win.on("move", () => {
+    if (!dragSize || win.isDestroyed()) return;
+    const [w, h] = win.getSize();
+    if (w !== dragSize[0] || h !== dragSize[1]) { const [x, y] = win.getPosition(); win.setBounds({ x, y, width: dragSize[0], height: dragSize[1] }); }
+  });
+  win.on("moved", () => { clearTimeout(dragT); dragSize = null; });
   // clicking Sothis brings it in front: put the docked app back on top of its page right after
   win.on("focus", () => setTimeout(() => { try { dockFollowAll(); } catch {} }, 60));
   // double-click the top bar: fullscreen on/off (Windows sends this as a double-click on the title area)
