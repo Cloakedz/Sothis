@@ -3214,7 +3214,7 @@ function setCompact(on) {
 ipcMain.handle("win:compact", (_e, on) => { setCompact(on === undefined ? !settings.compact : !!on); return !!settings.compact; });
 ipcMain.handle("win:startup", (_e, on) => { setStartup(on); return isStartup(); });
 ipcMain.on("win:layout", (_e, key) => {
-  currentKey = key === "wide" ? "wide" : "main";
+  currentKey = "main";   // every tab keeps the Home window size (pages no longer stretch the window wide)
   if (!settings.mini && !preFull && !settings.compact) applySize(sizeFor(currentKey));   // stay fullscreen when switching tabs
 });
 ipcMain.on("win:resize", (_e, { w, h }) => {
