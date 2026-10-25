@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 contextBridge.exposeInMainWorld("desktop", {
   personal: (() => { try { return ipcRenderer.sendSync("personal:get"); } catch { return {}; } })(),
+  has: (() => { try { return ipcRenderer.sendSync("app:has"); } catch { return {}; } })(),
   getWindow: () => ipcRenderer.invoke("win:get"),
   setPinned: on => ipcRenderer.invoke("win:pin", on),
   setMini: on => ipcRenderer.invoke("win:mini", on),

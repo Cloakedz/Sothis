@@ -5452,6 +5452,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   for (const id of ["wkOv", "fxOv"]) $(id).addEventListener("mousedown", e => { if (e.target.id === id) $(id).hidden = true; });
   document.addEventListener("keydown", e => { if (e.key === "Escape") { $("wkOv").hidden = true; $("fxOv").hidden = true; } });
   /* ---------- Lighting (ASUS Aura through Sothis) ---------- */
+  // only on PCs that have the lighting helper / the chime
+  if (D.has && D.has.rgb === false) { const g = $("rgbGroup"); if (g) { const hold = document.createElement("div"); hold.hidden = true; document.body.append(hold); hold.append(g); } }   // out of Settings (and its section buttons)
+  if (D.has && D.has.chime === false) { const qd = $("setQp") && $("setQp").parentElement.querySelector(".desc"); if (qd) qd.textContent = "When your game finds a match while you're tabbed out, Sothis shows a banner with a button that takes you back to the game."; }
   const RGB_SW = ["ff0000", "ff5a00", "ffc400", "00ff40", "00e5ff", "0050ff", "8a2be2", "ff00b4", "ffffff"];
   let rgbI = null, rgbDragB = false;
   { const w = $("rgbSw");

@@ -1,3 +1,5 @@
 node_modules/
 *.log
 dist/
+rgb.ps1
+queue-chime.wav

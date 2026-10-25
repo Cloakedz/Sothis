@@ -4091,7 +4091,7 @@ function phState() {
       channel: ch ? { name: ch.name, guild: ch.guild || "", members: [...ch.members.values()].slice(0, 12).map(m => ({ id: m.id, name: m.name || "", avatar: m.avatar || "", speaking: dc.speaking.has(m.id), mute: !!m.muted, deaf: !!m.deaf, me: !!m.me })) } : null },
     clip: { recording: clipRec },
     files: (() => { try { return shInfo().out; } catch { return []; } })(),
-    rgb: (() => { try { const c = rgbCfg(); return { on: c.on, mode: c.mode, color: c.color, ok: rgb.status === "ready" }; } catch { return null; } })()
+    rgb: (() => { try { if (!hasFile("rgb.ps1")) return null; const c = rgbCfg(); return { on: c.on, mode: c.mode, color: c.color, ok: rgb.status === "ready" }; } catch { return null; } })()
   };
 }
 function phSend(res, ev, data) { try { res.write(`event: ${ev}\ndata: ${JSON.stringify(data)}\n\n`); } catch {} }
@@ -4180,6 +4180,7 @@ function phStop() { clearInterval(phTick); phTick = null; for (const c of phClie
 function phInfo() { const c = phCfg(); return { on: !!c.on, running: !!phSrv, code: c.code, port: PH_PORT, addrs: phAddrs().map(a => a.ip), phones: c.phones.map(p => ({ id: p.id, name: p.name, at: p.at })) }; }
 function phSettingsPush() { try { if (win && !win.isDestroyed()) win.webContents.send("phone:info", phInfo()); } catch {} }
 ipcMain.handle("phone:get", () => phInfo());
+ipcMain.on("app:has", e => { e.returnValue = { rgb: hasFile("rgb.ps1"), chime: hasFile("queue-chime.wav") }; });
 ipcMain.on("personal:get", e => { e.returnValue = { dcServers: Array.isArray(personal.dcServers) ? personal.dcServers.map(String).slice(0, 10) : [], mcAddr: typeof personal.mcAddr === "string" ? personal.mcAddr : "" }; });
 ipcMain.handle("phone:set", (_e, on) => { phCfg().on = !!on; saveSettings(); if (on) phStart(); else phStop(); return phInfo(); });
 ipcMain.handle("phone:newCode", () => { phCfg().code = ""; saveSettings(); phCfg(); return phInfo(); });
@@ -4601,9 +4602,11 @@ function rgbApply() {
   if (t) rgbLine(`set ${c.mode === "breathe" ? "breathe" : "static"} ${t} ${Math.max(c.bri, 20)} ${c.speed}`);
   else rgbLine(`set ${c.mode} ${c.color} ${c.bri} ${c.speed}`);
 }
+// Lighting and the queue chime are only on your own PC (they're not in the copy on GitHub)
+const hasFile = f => { try { return fs.existsSync(path.join(__dirname, f)); } catch { return false; } };
 function rgbStart() {
   clearTimeout(rgb.timer);
-  if (rgb.proc || !rgbCfg().on || process.platform !== "win32") return;
+  if (rgb.proc || !rgbCfg().on || process.platform !== "win32" || !hasFile("rgb.ps1")) return;
   const root = process.env.SystemRoot || "C:\\Windows";
   // the Aura SDK is sometimes only registered for 32-bit programs, so fall back to 32-bit PowerShell
   const ps = rgb.x86 ? path.join(root, "SysWOW64", "WindowsPowerShell", "v1.0", "powershell.exe") : "powershell.exe";
