@@ -255,6 +255,25 @@ input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
 .seg { display: flex; padding: 3px; gap: 3px; background: var(--surface); border: 1px solid var(--line); border-radius: 11px; }
 .seg button { flex: 1; padding: 6px; border-radius: 8px; font-size: .82rem; font-weight: 600; color: var(--muted); }
 .seg button[aria-checked="true"] { background: var(--ink); color: var(--bg); }
+/* Releases (Games tab) */
+.rel[hidden] { display: none; }
+.rel { display: flex; flex-direction: column; gap: 10px; }
+.rel-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+.rel-bar .seg { flex: 1 1 180px; }
+.rel-list { display: flex; flex-direction: column; gap: 6px; }
+.rel-h { position: sticky; top: 0; z-index: 1; margin-top: 8px; padding: 6px 2px; font: 700 .78rem/1.2 var(--f-display); letter-spacing: .02em; color: var(--ink); background: linear-gradient(var(--bg) 70%, transparent); display: flex; justify-content: space-between; }
+.rel-h span { color: var(--muted); font-weight: 600; }
+.rel-it { all: unset; cursor: pointer; display: grid; grid-template-columns: 72px 1fr auto; gap: 10px; align-items: center; padding: 7px 10px 7px 7px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); }
+.rel-it:hover { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.rel-it:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rel-art { width: 72px; height: 40px; border-radius: 7px; overflow: hidden; background: rgba(255, 255, 255, .06); display: grid; place-items: center; }
+.rel-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rel-tx { min-width: 0; }
+.rel-tx b { display: block; font-size: .86rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rel-tx span { font-size: .72rem; color: var(--muted); }
+.rel-tag { font: 700 .62rem/1 var(--f-mono); text-transform: uppercase; letter-spacing: .08em; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); }
+.rel-tag.anime { color: #b9a4ff; border-color: rgba(185, 164, 255, .35); }
+.rel-tag.game { color: #7fd1ff; border-color: rgba(127, 209, 255, .35); }
 .owmsg { margin: 0; font-size: .86rem; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
 .owmsg.bad { color: var(--ink); border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
 .sect { font: 600 .68rem/1 var(--f-mono); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 2px 0 -6px; }
@@ -2005,6 +2024,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
         <div class="seg gm-mode" id="gmMode" role="radiogroup" aria-label="Which games">
           <button type="button" role="radio" data-m="pc" aria-checked="true">PC games</button>
           <button type="button" role="radio" data-m="retro" aria-checked="false">Retro</button>
+          <button type="button" role="radio" data-m="rel" aria-checked="false">Releases</button>
         </div>
         <section class="gm-news" id="gmNews" hidden aria-label="Game news"><div class="gm-news-h" id="gmNewsH"><b>Game news</b></div><div class="gm-news-list" id="gmNewsList"></div></section>
         <div class="gm-top">
@@ -2014,6 +2034,22 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
         <p class="yts-msg" id="gmMsg">Looking for your games…</p>
         <div class="gm-grid" id="gmGrid"></div>
         <button class="linkbtn gm-hidden" id="gmShowHidden" type="button" hidden></button>
+        <div class="rel" id="gmRel" hidden>
+          <div class="rel-bar">
+            <div class="seg rel-kind" id="relKind" role="radiogroup" aria-label="What to show">
+              <button type="button" role="radio" data-k="all" aria-checked="true">All</button>
+              <button type="button" role="radio" data-k="anime" aria-checked="false">Anime</button>
+              <button type="button" role="radio" data-k="game" aria-checked="false">Games</button>
+            </div>
+            <div class="seg rel-by" id="relBy" role="radiogroup" aria-label="Group by">
+              <button type="button" role="radio" data-b="day" aria-checked="true">Day</button>
+              <button type="button" role="radio" data-b="month" aria-checked="false">Month</button>
+              <button type="button" role="radio" data-b="year" aria-checked="false">Year</button>
+            </div>
+          </div>
+          <p class="yts-msg" id="relMsg">Loading releases…</p>
+          <div class="rel-list" id="relList"></div>
+        </div>
         <div class="rt" id="gmRetro" hidden>
           <div class="rt-bar" id="rtBar"></div>
           <div class="rt-dirs" id="rtDirs" hidden></div>
@@ -5420,6 +5456,76 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   }
   D.phoneGet().then(i => { phInfo = i; phRender(); }).catch(() => {});
 
+
+  /* ---------- Releases: new anime and upcoming games, grouped by day, month or year ---------- */
+  let relData = null, relBusy = false, relKind = store.get("rel.kind") || "all", relBy = store.get("rel.by") || "day";
+  const MON = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  function relSeg() {
+    document.querySelectorAll("#relKind button").forEach(b => b.setAttribute("aria-checked", b.dataset.k === relKind));
+    document.querySelectorAll("#relBy button").forEach(b => b.setAttribute("aria-checked", b.dataset.b === relBy));
+  }
+  document.querySelectorAll("#relKind button").forEach(b => b.onclick = () => { relKind = b.dataset.k; store.set("rel.kind", relKind); relSeg(); relRender(); });
+  document.querySelectorAll("#relBy button").forEach(b => b.onclick = () => { relBy = b.dataset.b; store.set("rel.by", relBy); relSeg(); relRender(); });
+  async function relLoad(force) {
+    relSeg();
+    if (relBusy) return;
+    if (relData && !force) return relRender();
+    relBusy = true; $("gmRef").classList.add("spin"); if (!relData) $("relMsg").textContent = "Loading releases…";
+    try { relData = await D.releasesGet(!!force); } catch { relData = null; }
+    relBusy = false; $("gmRef").classList.remove("spin");
+    relRender();
+  }
+  // where an item sorts, and which group it falls in for the chosen grouping
+  const relSortKey = d => d.tba ? 99999999 : d.y * 10000 + (d.m || (d.q ? d.q * 3 : 12)) * 100 + (d.d || 99);
+  function relGroup(d) {
+    if (d.tba) return { k: "z", t: "No date yet" };
+    if (relBy === "year") return { k: "y" + d.y, t: String(d.y) };
+    if (relBy === "month" || !d.d) {
+      if (d.m) return { k: "m" + d.y + "-" + String(d.m).padStart(2, "0") + (relBy === "day" ? "~" : ""), t: MON[d.m - 1] + " " + d.y + (relBy === "day" ? " · day not set yet" : "") };
+      if (d.q) return { k: "q" + d.y + d.q, t: "Q" + d.q + " " + d.y };
+      return { k: "y" + d.y + "~", t: d.y + " · month not set yet" };
+    }
+    const dt = new Date(d.y, d.m - 1, d.d), today = new Date(); today.setHours(0, 0, 0, 0);
+    const diff = Math.round((dt - today) / 86400000);
+    const nice = dt.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", year: dt.getFullYear() !== today.getFullYear() ? "numeric" : undefined });
+    return { k: "d" + d.y + String(d.m).padStart(2, "0") + String(d.d).padStart(2, "0"), t: diff === 0 ? "Today · " + nice : diff === 1 ? "Tomorrow · " + nice : nice };
+  }
+  function relWhen(it) {
+    const d = it.date;
+    if (d.tba) return d.text || "No date yet";
+    if (d.d) return new Date(d.y, d.m - 1, d.d).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+    if (d.m) return MON[d.m - 1] + " " + d.y;
+    if (d.q) return "Q" + d.q + " " + d.y;
+    return String(d.y);
+  }
+  function relRender() {
+    if (gmMode !== "rel") return;
+    const list = $("relList");
+    if (!relData) { list.replaceChildren(); $("relMsg").hidden = false; $("relMsg").textContent = relBusy ? "Loading releases…" : "Couldn't load releases. Check your internet and press refresh."; return; }
+    const now = new Date(), ty = now.getFullYear(), tm = now.getMonth() + 1, td = now.getDate(), q = $("gmQ").value.trim().toLowerCase();
+    const upcoming = d => d.tba || d.y > ty || (d.y === ty && (!d.m || d.m > tm || (d.m === tm && (!d.d || d.d >= td))));
+    const items = relData.items.filter(it => (relKind === "all" || it.kind === relKind) && upcoming(it.date) && (!q || it.title.toLowerCase().includes(q)))
+      .sort((a, b) => relSortKey(a.date) - relSortKey(b.date) || (b.pop || 0) - (a.pop || 0));
+    const missing = [relData.animeOk ? "" : "anime", relData.gamesOk ? "" : "games"].filter(Boolean);
+    $("relMsg").hidden = !!items.length && !missing.length;
+    $("relMsg").textContent = !items.length ? "Nothing coming up that matches." : "Couldn't load " + missing.join(" or ") + " right now.";
+    const groups = new Map();
+    for (const it of items.slice(0, 600)) { const g = relGroup(it.date); if (!groups.has(g.k)) groups.set(g.k, { t: g.t, items: [] }); groups.get(g.k).items.push(it); }
+    const out = [];
+    for (const [, g] of [...groups.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1)) {
+      const h = mk("div", "rel-h"); h.append(mk("b", "", g.t), mk("span", "", g.items.length + (g.items.length === 1 ? " release" : " releases"))); out.push(h);
+      for (const it of g.items) {
+        const b = mk("button", "rel-it"); b.type = "button"; b.title = "Open " + it.title;
+        const art = mk("div", "rel-art"); if (it.img) { const im = mk("img"); im.loading = "lazy"; im.alt = ""; im.referrerPolicy = "no-referrer"; im.src = it.img; im.onerror = () => im.remove(); art.append(im); }
+        const tx = mk("div", "rel-tx"); tx.append(mk("b", "", it.title), mk("span", "", [relWhen(it), it.sub].filter(Boolean).join(" · ")));
+        b.append(art, tx, mk("span", "rel-tag " + it.kind, it.kind === "anime" ? "Anime" : "Game"));
+        b.onclick = () => { if (it.url) D.openExternal(it.url); };
+        out.push(b);
+      }
+    }
+    list.replaceChildren(...out);
+  }
+
   /* ---------- Your week ---------- */
   let wkOff = 0;
   const wkH = s => { s = Math.round(s / 60); return s >= 60 ? Math.floor(s / 60) + "h " + String(s % 60).padStart(2, "0") + "m" : s + "m"; };
@@ -6515,9 +6621,12 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   $("duckLvl").addEventListener("change", () => D.duckSet({ level: +$("duckLvl").value / 100 }).then(c => { duckC = c; duckPaint(); }));
 
   /* ---------- Games tab: Retro (your own game files) ---------- */
-  let gmMode = store.get("gm.mode") === "retro" ? "retro" : "pc", rtData = null, rtSys = "All", rtDirsOpen = false, rtBusy = false;
+  let gmMode = ["retro", "rel"].includes(store.get("gm.mode")) ? store.get("gm.mode") : "pc", rtData = null, rtSys = "All", rtDirsOpen = false, rtBusy = false;
   function gmModeShow() {
     document.querySelectorAll("#gmMode button").forEach(b => b.setAttribute("aria-checked", b.dataset.m === gmMode));
+    const rel = gmMode === "rel";
+    $("gmRel").hidden = !rel;
+    if (rel) { $("gmRetro").hidden = true; $("gmGrid").hidden = true; $("gmMsg").hidden = true; $("gmNews").hidden = true; $("gmShowHidden").hidden = true; $("gmQ").placeholder = "Find a release"; relLoad(); return; }
     const retro = gmMode === "retro";
     $("gmRetro").hidden = !retro;
     $("gmGrid").hidden = retro; $("gmMsg").hidden = retro; if (retro) $("gmNews").hidden = true; else { gmNewsKey = ""; gmNewsFill(); }
@@ -6732,8 +6841,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   }
   async function rtPickAzahar() { if (await D.emuPickAzahar()) loadRetro(true); }
   $("rtAdd").onclick = rtAddDir;
-  $("gmQ").addEventListener("input", () => { if (gmMode === "retro") renderRetro(); });
-  $("gmRef").onclick = () => gmMode === "retro" ? loadRetro(true) : loadGames(true);
+  $("gmQ").addEventListener("input", () => { if (gmMode === "retro") renderRetro(); else if (gmMode === "rel") relRender(); });
+  $("gmRef").onclick = () => gmMode === "retro" ? loadRetro(true) : gmMode === "rel" ? relLoad(true) : loadGames(true);
   gmModeShow();
 
 

@@ -185,6 +185,7 @@ contextBridge.exposeInMainWorld("desktop", {
   retroSyncOpen: () => ipcRenderer.invoke("retro:syncOpen"),
   retroBackupNow: () => ipcRenderer.invoke("retro:backupNow"),
   phoneGet: () => ipcRenderer.invoke("phone:get"),
+  releasesGet: force => ipcRenderer.invoke("releases:get", force),
   weekGet: offset => ipcRenderer.invoke("week:get", offset),
   onWeekOpen: cb => ipcRenderer.on("week:open", () => cb()),
   shareGet: () => ipcRenderer.invoke("share:get"),

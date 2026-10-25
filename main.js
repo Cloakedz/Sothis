@@ -4608,6 +4608,72 @@ ipcMain.handle("share:remove", (_e, id) => { const c = shCfg(); c.out = c.out.fi
 ipcMain.handle("share:clearGot", () => { shCfg().got = []; saveSettings(); shPush(); return shInfo(); });
 ipcMain.handle("share:show", (_e, p) => { const c = shCfg(); const ok = c.got.some(g => g.path === p); if (ok && fs.existsSync(p)) shell.showItemInFolder(p); else { try { fs.mkdirSync(SH_IN(), { recursive: true }); } catch {} shell.openPath(SH_IN()); } return true; });
 
+/* ---------- Releases: new anime (AniList) and upcoming games (Steam), for the Games tab's Releases page ---------- */
+let relCache = null;
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+// Steam's release text ("Nov 6, 2026", "6 Nov, 2026", "November 2026", "Q1 2027", "2027", "Coming soon") → { y, m, d } (as much as is known)
+function relSteamDate(t) {
+  t = String(t || "").trim();
+  let m = /^([A-Za-z]{3,})\.? (\d{1,2}), (\d{4})$/.exec(t) || null;
+  if (m) { const mo = MONTHS.indexOf(m[1].slice(0, 3).toLowerCase()); if (mo >= 0) return { y: +m[3], m: mo + 1, d: +m[2] }; }
+  m = /^(\d{1,2}) ([A-Za-z]{3,})\.?,? (\d{4})$/.exec(t);
+  if (m) { const mo = MONTHS.indexOf(m[2].slice(0, 3).toLowerCase()); if (mo >= 0) return { y: +m[3], m: mo + 1, d: +m[1] }; }
+  m = /^([A-Za-z]{3,}) (\d{4})$/.exec(t);
+  if (m) { const mo = MONTHS.indexOf(m[1].slice(0, 3).toLowerCase()); if (mo >= 0) return { y: +m[2], m: mo + 1, d: 0 }; }
+  m = /^Q([1-4]) (\d{4})$/i.exec(t); if (m) return { y: +m[2], m: 0, d: 0, q: +m[1] };
+  m = /^(\d{4})$/.exec(t); if (m) return { y: +m[1], m: 0, d: 0 };
+  return { y: 0, m: 0, d: 0, tba: true, text: t || "To be announced" };
+}
+const relDec = h => String(h || "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&reg;|®|&trade;|™/g, "").trim();
+async function relGames() {
+  const out = [], seen = new Set();
+  for (const filter of ["popularcomingsoon", "comingsoon"]) {
+    for (let start = 0; start < (filter === "popularcomingsoon" ? 300 : 100); start += 100) {
+      let j = null;
+      try {
+        const r = await fetch(`https://store.steampowered.com/search/results/?filter=${filter}&infinite=1&start=${start}&count=100&cc=us&l=english&category1=998`, { signal: AbortSignal.timeout(12000) });
+        j = await r.json();
+      } catch { break; }
+      const html = (j && j.results_html) || ""; if (!html) break;
+      for (const a of html.split(/<a\s+href="/).slice(1)) {
+        const id = (/store\.steampowered\.com\/app\/(\d+)/.exec(a) || [])[1]; if (!id || seen.has(id)) continue;
+        const title = relDec((/<span class="title">([\s\S]*?)<\/span>/.exec(a) || [])[1]); if (!title) continue;
+        const rel = relDec(((/search_released[^"]*">([\s\S]*?)<\/div>/.exec(a) || [])[1] || "").replace(/<[^>]+>/g, ""));
+        seen.add(id);
+        out.push({ kind: "game", id: "s" + id, title, date: relSteamDate(rel), sub: "Steam", img: `https://cdn.cloudflare.steamstatic.com/steam/apps/${id}/capsule_231x87.jpg`, url: `https://store.steampowered.com/app/${id}/` });
+      }
+    }
+  }
+  return out;
+}
+async function relAnime() {
+  const now = new Date(), from = (now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + 1) - 100;   // from the start of last month
+  const q = `query($p:Int,$from:FuzzyDateInt){Page(page:$p,perPage:50){pageInfo{hasNextPage}media(type:ANIME,isAdult:false,startDate_greater:$from,sort:START_DATE,format_in:[TV,TV_SHORT,MOVIE,ONA,OVA,SPECIAL]){id title{english romaji} startDate{year month day} format episodes coverImage{medium} siteUrl popularity}}}`;
+  const out = [];
+  for (let p = 1; p <= 6; p++) {
+    let j = null;
+    try {
+      const r = await fetch("https://graphql.anilist.co", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ query: q, variables: { p, from } }), signal: AbortSignal.timeout(12000) });
+      j = await r.json();
+    } catch { break; }
+    const pg = j && j.data && j.data.Page; if (!pg) break;
+    for (const m of pg.media || []) {
+      const sd = m.startDate || {};
+      if (!sd.year) continue;
+      const fmt = { TV: "TV", TV_SHORT: "TV short", MOVIE: "Movie", ONA: "Online", OVA: "OVA", SPECIAL: "Special" }[m.format] || "";
+      out.push({ kind: "anime", id: "a" + m.id, title: (m.title && (m.title.english || m.title.romaji)) || "", date: { y: sd.year || 0, m: sd.month || 0, d: sd.day || 0 }, sub: fmt + (m.episodes ? " · " + m.episodes + " eps" : ""), img: (m.coverImage && m.coverImage.medium) || "", url: m.siteUrl || "", pop: m.popularity || 0 });
+    }
+    if (!pg.pageInfo || !pg.pageInfo.hasNextPage) break;
+  }
+  return out.filter(x => x.title);
+}
+ipcMain.handle("releases:get", async (_e, force) => {
+  if (!force && relCache && Date.now() - relCache.at < 3 * 3600000) return relCache;
+  const [games, anime] = await Promise.all([relGames().catch(() => []), relAnime().catch(() => [])]);
+  relCache = { at: Date.now(), items: [...anime, ...games], gamesOk: games.length > 0, animeOk: anime.length > 0 };
+  return relCache;
+});
+
 /* ---------- RGB: Sothis drives the ASUS Aura lights (board, RAM, LED strip) itself, through the Aura SDK Armoury Crate installs ---------- */
 const rgb = { proc: null, status: "off", devices: "", err: "", fails: 0, timer: null, x86: false };
 function rgbCfg() {
