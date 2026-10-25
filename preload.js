@@ -1,6 +1,10 @@
 const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 contextBridge.exposeInMainWorld("desktop", {
+  brandGet: () => ipcRenderer.invoke("brand:get"),
+  brandPickLogo: () => ipcRenderer.invoke("brand:pickLogo"),
+  brandResetLogo: () => ipcRenderer.invoke("brand:resetLogo"),
+  onBrand: cb => ipcRenderer.on("brand:changed", (_e, i) => cb(i)),
   personal: (() => { try { return ipcRenderer.sendSync("personal:get"); } catch { return {}; } })(),
   has: (() => { try { return ipcRenderer.sendSync("app:has"); } catch { return {}; } })(),
   getWindow: () => ipcRenderer.invoke("win:get"),

@@ -51,7 +51,7 @@ button:disabled { opacity: .35; cursor: default; }
 /* The window itself is transparent; this shell is the visible, rounded window. */
 .shell { position: relative; isolation: isolate; height: 100%; background: rgba(0, 0, 0, var(--shell-a, .7)); border: 1px solid var(--line); border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; box-shadow: none; }
 /* Background art: slightly blurred, with a veil on top so text stays readable */
-.shell::before { content: ""; position: absolute; inset: 0; z-index: -2; transition: opacity .7s ease; background: url("crest-bg.png") center 50% / min(58vw, 48vh) auto no-repeat; opacity: .95; transform: scale(var(--beat, 1)); will-change: transform; }
+.shell::before { content: ""; position: absolute; inset: 0; z-index: -2; transition: opacity .7s ease; background: var(--crest, url("crest-bg.png")) center 50% / min(58vw, 48vh) auto no-repeat; opacity: .95; transform: scale(var(--beat, 1)); will-change: transform; }
 .shell::after { content: ""; position: absolute; inset: 0; z-index: -1; background: transparent; }
 .titlebar h1, .title, .artist, .owname, .sethead h2 { text-shadow: 0 1px 8px var(--bg); }
 /* Frosted-glass panels over the art */
@@ -2117,6 +2117,14 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
         <nav class="set-nav" id="setNav" aria-label="Settings sections"></nav>
         <div class="group">
           <h2>Window</h2>
+          <div class="setting">
+            <div class="txt"><div class="name">Accent color</div><div class="desc">The color of buttons, switches and highlights.</div></div>
+            <div class="ck-volc"><input type="color" id="setAccent" value="#ff4d73" aria-label="Accent color" style="width:38px;height:30px;border:0;padding:0;background:none;cursor:pointer"><button class="btn ghost" id="setAccentReset" type="button">Reset</button></div>
+          </div>
+          <div class="setting">
+            <div class="txt"><div class="name">Logo</div><div class="desc" id="setLogoDesc">Use your own PNG everywhere the Sothis logo shows: the top bar, the big background crest, the start-up screen, the taskbar and the tray.</div></div>
+            <div class="ck-volc"><img id="setLogoPrev" src="crest-bg.png" alt="" style="width:34px;height:34px;object-fit:contain"><button class="btn ghost" id="setLogoPick" type="button">Choose PNG…</button><button class="btn ghost" id="setLogoReset" type="button">Reset</button></div>
+          </div>
           <div class="setting">
             <div class="txt"><div class="name">Background</div><div class="desc">How dark Sothis's black background is. Lower lets more of your desktop show through.</div></div>
             <div class="ck-volc"><input type="range" id="setShellA" min="0" max="100" step="5" value="70" aria-label="Background darkness"><b id="setShellAV">70%</b></div>
@@ -5360,6 +5368,36 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   shellA(store.get("shell.a") ?? 70);
   $("setShellA").addEventListener("input", () => store.set("shell.a", String(shellA($("setShellA").value))));
 
+  /* ---------- Accent color and your own logo (Settings → Window) ---------- */
+  const DEF_ACCENT = "#ff4d73";
+  function hexRgb(h) { const m = /^#?([0-9a-f]{6})$/i.exec(h || ""); if (!m) return null; const n = parseInt(m[1], 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+  function setAccent(h) {
+    const rgb = hexRgb(h) || hexRgb(DEF_ACCENT), root = document.documentElement.style;
+    if (!hexRgb(h) || h.toLowerCase() === DEF_ACCENT) { ["--accent", "--glow", "--accent-ink"].forEach(k => root.removeProperty(k)); $("setAccent").value = DEF_ACCENT; return DEF_ACCENT; }
+    const lum = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+    root.setProperty("--accent", h); root.setProperty("--glow", `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, .22)`); root.setProperty("--accent-ink", lum > 0.6 ? "#14060a" : "#ffffff");
+    $("setAccent").value = h; return h;
+  }
+  setAccent(store.get("brand.accent") || DEF_ACCENT);
+  $("setAccent").addEventListener("input", () => store.set("brand.accent", setAccent($("setAccent").value)));
+  $("setAccentReset").onclick = () => { store.set("brand.accent", setAccent(DEF_ACCENT)); };
+  function brandApply(b) {
+    const logo = b && b.logo;
+    document.documentElement.style.setProperty("--crest", logo ? `url("${logo}")` : 'url("crest-bg.png")');
+    const crest = logo || "crest-bg.png";
+    document.querySelectorAll('img.logo').forEach(i => { i.src = logo || "logo.png"; });
+    document.querySelectorAll('#splash > img, img.cq-crest, #rlExpand img').forEach(i => { i.src = crest; });
+    $("setLogoPrev").src = crest;
+    $("setLogoReset").hidden = !logo;
+    window.__brandCrest = crest;
+    store.set("brand.logo", logo || "");
+  }
+  if (store.get("brand.logo")) brandApply({ logo: store.get("brand.logo") });   // straight away, so the start-up screen shows it too
+  D.brandGet().then(brandApply).catch(() => {});
+  D.onBrand(brandApply);
+  $("setLogoPick").onclick = async () => { const b = await D.brandPickLogo(); brandApply(b); if (b && b.err) toast(b.err); else if (b && b.logo) toast("Logo changed"); };
+  $("setLogoReset").onclick = async () => { brandApply(await D.brandResetLogo()); toast("Back to the Sothis logo"); };
+
   /* ---------- Phone remote (Settings → Phone) ---------- */
   let phInfo = null;
   function phRender() {
@@ -5544,7 +5582,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     const restart = !!u.restart;
     note("update", "Sothis update ready", restart ? "Restart to finish updating" : "Reload to see the changes");
     if (updCard) updCard.remove();
-    const c = mk("div", "dcn upd"), ic = mk("img"); ic.src = "crest-bg.png"; ic.alt = ""; ic.style.cssText = "border-radius:0;object-fit:contain;filter:drop-shadow(0 0 6px rgba(255,30,50,.7))";
+    const c = mk("div", "dcn upd"), ic = mk("img"); ic.src = window.__brandCrest || "crest-bg.png"; ic.alt = ""; ic.style.cssText = "border-radius:0;object-fit:contain;filter:drop-shadow(0 0 6px rgba(255,30,50,.7))";
     const tx = mk("div"); tx.append(mk("b", "", "Sothis update ready"), mk("span", "", restart ? "Restart Sothis to finish updating." : "Reload to see the changes."));
     const btn = mk("button", "btn upd-b", restart ? "Restart" : "Reload"); btn.type = "button";
     btn.onclick = e => { e.stopPropagation(); restart ? D.restartApp() : D.reloadApp(); };

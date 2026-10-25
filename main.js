@@ -49,6 +49,14 @@ let currentKey = "main";
 
 const isPinned = () => settings.pinned !== false;
 const isStartup = () => app.getLoginItemSettings().openAtLogin;
+// Your own logo (Settings → Window): a PNG kept in Roaming\Sothis, used for the window, tray and notifications
+const customLogoFile = () => path.join(DATA_DIR, "custom-logo.png");
+const hasCustomLogo = () => { try { return !!settings.customLogo && fs.existsSync(customLogoFile()); } catch { return false; } };
+const appIconPath = () => hasCustomLogo() ? customLogoFile() : path.join(__dirname, "icon.png");
+function trayBaseImage() {
+  if (hasCustomLogo()) { try { const im = nativeImage.createFromPath(customLogoFile()); if (!im.isEmpty()) return im.resize({ width: 32, height: 32, quality: "best" }); } catch {} }
+  return nativeImage.createFromPath(path.join(__dirname, "tray.png"));
+}
 const sizeFor = key => Object.assign({}, DEFAULT_SIZES[key], (settings.sizes || {})[key]);
 const winState = () => ({ pinned: isPinned(), mini: !!settings.mini, compact: !!settings.compact, compactSide: settings.compactSide === "left" ? "left" : "right", startup: isStartup(), lowAlert: settings.lowAlert !== false, songToast: settings.songToast !== false });
 
@@ -71,7 +79,7 @@ function createWindow() {
     show: false,                       // shown once the first frame is painted, so the splash starts clean
     alwaysOnTop: isPinned(),
     title: "Sothis",
-    icon: path.join(__dirname, "icon.png"),
+    icon: appIconPath(),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -945,7 +953,7 @@ function openSwPop() {
   const ok = typeof b.x === "number" && screen.getAllDisplays().some(d => b.x >= d.workArea.x - 50 && b.x < d.workArea.x + d.workArea.width && b.y >= d.workArea.y - 20 && b.y < d.workArea.y + d.workArea.height);
   swPopWin = new BrowserWindow(Object.assign({
     width: b.w || 960, height: b.h || 540, minWidth: 320, minHeight: 180, frame: false, backgroundColor: "#000000", title: "Switch",
-    icon: path.join(__dirname, "icon.png"), alwaysOnTop: !!settings.swPopTop, show: false,
+    icon: appIconPath(), alwaysOnTop: !!settings.swPopTop, show: false,
     webPreferences: { preload: path.join(__dirname, "sw-pop-preload.js"), contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false }
   }, ok ? { x: b.x, y: b.y } : {}));
   swPopWin.setAspectRatio(16 / 9);
@@ -1458,7 +1466,7 @@ function clipper() {
     }),
     notify: (name, file) => {
       if (win && !win.isDestroyed()) win.webContents.send("clip:saved", { name, file });
-      try { if (Notification.isSupported()) { const n = new Notification({ title: "Clip saved", body: name, icon: path.join(__dirname, "icon.png"), silent: true }); n.on("click", () => shell.showItemInFolder(file)); n.show(); } } catch {}
+      try { if (Notification.isSupported()) { const n = new Notification({ title: "Clip saved", body: name, icon: appIconPath(), silent: true }); n.on("click", () => shell.showItemInFolder(file)); n.show(); } } catch {}
     }
   });
   return clipperObj;
@@ -1573,7 +1581,7 @@ ipcMain.on("file:drag", (e, f) => {
   try {
     f = String(f || "");
     if (!DRAG_RE.test(f) || !path.isAbsolute(f) || !fs.existsSync(f) || !fs.statSync(f).isFile()) return;
-    if (!dragIcon) dragIcon = nativeImage.createFromPath(path.join(__dirname, "icon.png")).resize({ width: 48, height: 48 });
+    if (!dragIcon) dragIcon = nativeImage.createFromPath(appIconPath()).resize({ width: 48, height: 48 });
     e.sender.startDrag({ file: f, icon: dragIcon });
   } catch {}
 });
@@ -2289,7 +2297,7 @@ function refreshTray() {
 }
 
 function createTray() {
-  tray = new Tray(nativeImage.createFromPath(path.join(__dirname, "tray.png")));
+  tray = new Tray(trayBaseImage());
   tray.setToolTip("Sothis");
   tray.on("click", () => (win.isVisible() && win.isFocused()) ? win.hide() : showWindow());
   refreshTray();
@@ -2404,7 +2412,7 @@ function lowBatteryAlert(r) {
       new Notification({
         title: `Mouse battery at ${r.percent}%`,
         body: level === 10 ? "Plug in your mouse soon." : "Your mouse battery is getting low.",
-        icon: path.join(__dirname, "icon.png")
+        icon: appIconPath()
       }).show();
       break;
     }
@@ -2415,7 +2423,7 @@ const isPng = u => typeof u === "string" && u.startsWith("data:image/png;base64,
 ipcMain.on("tray:icon", (_e, imgs) => {
   if (!tray) return;
   if (!imgs || !isPng(imgs.x1) || !isPng(imgs.x2)) {
-    tray.setImage(nativeImage.createFromPath(path.join(__dirname, "tray.png")));
+    tray.setImage(trayBaseImage());
     return;
   }
   const img = nativeImage.createEmpty();
@@ -3805,7 +3813,7 @@ function openEmu(it) {
   const okPos = typeof b.x === "number" && screen.getAllDisplays().some(d => b.x >= d.workArea.x - 50 && b.x < d.workArea.x + d.workArea.width && b.y >= d.workArea.y - 20 && b.y < d.workArea.y + d.workArea.height);
   emuWin = new BrowserWindow(Object.assign({
     width: b.w || 960, height: b.h || 720, minWidth: 400, minHeight: 300, backgroundColor: "#0b0b0f", title: it.name + " · " + it.sys, show: false,
-    icon: path.join(__dirname, "icon.png"), autoHideMenuBar: true,
+    icon: appIconPath(), autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, "emu-preload.js"), partition: "persist:emu", contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false, autoplayPolicy: "no-user-gesture-required" }
   }, okPos ? { x: b.x, y: b.y } : {}));
   emuWin.setMenuBarVisibility(false);
@@ -3890,7 +3898,7 @@ function openAzahar(exe, file, name) {
   const okPos = typeof b.x === "number" && screen.getAllDisplays().some(d => b.x >= d.workArea.x - 50 && b.x < d.workArea.x + d.workArea.width && b.y >= d.workArea.y - 20 && b.y < d.workArea.y + d.workArea.height);
   const w = azaWin = new BrowserWindow(Object.assign({
     width: b.w || 1000, height: b.h || 720, minWidth: 480, minHeight: 360, frame: false, backgroundColor: "#0b0b0f", show: false, title: name + " · Sothis",
-    icon: path.join(__dirname, "icon.png"),
+    icon: appIconPath(),
     webPreferences: { preload: path.join(__dirname, "azahar-preload.js"), contextIsolation: true, nodeIntegration: false, sandbox: true }
   }, okPos ? { x: b.x, y: b.y } : {}));
   w.loadFile(path.join(__dirname, "azahar-host.html"), { query: { name } });
@@ -4180,6 +4188,25 @@ function phStop() { clearInterval(phTick); phTick = null; for (const c of phClie
 function phInfo() { const c = phCfg(); return { on: !!c.on, running: !!phSrv, code: c.code, port: PH_PORT, addrs: phAddrs().map(a => a.ip), phones: c.phones.map(p => ({ id: p.id, name: p.name, at: p.at })) }; }
 function phSettingsPush() { try { if (win && !win.isDestroyed()) win.webContents.send("phone:info", phInfo()); } catch {} }
 ipcMain.handle("phone:get", () => phInfo());
+const brandInfo = () => ({ logo: hasCustomLogo() ? require("url").pathToFileURL(customLogoFile()).href + "?v=" + settings.customLogo : "" });
+function brandApplyNative() {
+  try { if (win && !win.isDestroyed()) win.setIcon(nativeImage.createFromPath(appIconPath())); } catch {}
+  try { if (tray) tray.setImage(trayBaseImage()); } catch {}
+  try { if (win && !win.isDestroyed()) win.webContents.send("brand:changed", brandInfo()); } catch {}
+}
+ipcMain.handle("brand:get", () => brandInfo());
+ipcMain.handle("brand:pickLogo", async () => {
+  const r = await dialog.showOpenDialog(win, { title: "Pick a PNG to use as the Sothis logo", properties: ["openFile"], filters: [{ name: "PNG image", extensions: ["png"] }] });
+  if (r.canceled || !r.filePaths || !r.filePaths[0]) return brandInfo();
+  const im = nativeImage.createFromPath(r.filePaths[0]);
+  if (im.isEmpty()) return Object.assign(brandInfo(), { err: "That file isn't a PNG Sothis can read." });
+  const sz = im.getSize(), big = Math.max(sz.width, sz.height);
+  const out = big > 1024 ? im.resize(sz.width >= sz.height ? { width: 1024 } : { height: 1024 }) : im;
+  try { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(customLogoFile(), out.toPNG()); } catch { return Object.assign(brandInfo(), { err: "Couldn't save the logo." }); }
+  settings.customLogo = Date.now(); saveSettings(); brandApplyNative();
+  return brandInfo();
+});
+ipcMain.handle("brand:resetLogo", () => { delete settings.customLogo; saveSettings(); try { fs.rmSync(customLogoFile(), { force: true }); } catch {} brandApplyNative(); return brandInfo(); });
 ipcMain.on("app:has", e => { e.returnValue = { rgb: hasFile("rgb.ps1"), chime: hasFile("queue-chime.wav"), sw: hasFile("sw-pop.html") }; });
 ipcMain.on("personal:get", e => { e.returnValue = { dcServers: Array.isArray(personal.dcServers) ? personal.dcServers.map(String).slice(0, 10) : [], mcAddr: typeof personal.mcAddr === "string" ? personal.mcAddr : "" }; });
 ipcMain.handle("phone:set", (_e, on) => { phCfg().on = !!on; saveSettings(); if (on) phStart(); else phStop(); return phInfo(); });
@@ -4507,7 +4534,7 @@ function wkNudge() {
   settings.wkNudged = key; saveSettings();
   const h = s => s >= 3600 ? Math.round(s / 360) / 10 + " h" : Math.round(s / 60) + " min";
   const body = [r.music ? h(r.music) + " of music" : "", r.game ? h(r.game) + " of games" : "", r.clips ? r.clips + " clips" : ""].filter(Boolean).join(" · ");
-  try { if (Notification.isSupported()) { const n = new Notification({ title: "Your week in Sothis", body, icon: path.join(__dirname, "icon.png"), silent: true }); n.on("click", () => { try { showWindow(); win.webContents.send("week:open"); } catch {} }); n.show(); } } catch {}
+  try { if (Notification.isSupported()) { const n = new Notification({ title: "Your week in Sothis", body, icon: appIconPath(), silent: true }); n.on("click", () => { try { showWindow(); win.webContents.send("week:open"); } catch {} }); n.show(); } } catch {}
   try { phEvent("week", { body }); } catch {}
 }
 
@@ -4570,7 +4597,7 @@ function shReceive(req, res, rawName) {
     if (failed) return;
     try { fs.renameSync(part, dest); } catch { return fail("Couldn't save it on your PC."); }
     const c = shCfg(); c.got = c.got.concat({ name: path.basename(dest), path: dest, size: got, at: Date.now() }).slice(-30); saveSettings(); shPush();
-    try { if (Notification.isSupported()) { const n = new Notification({ title: "From your phone", body: path.basename(dest), icon: path.join(__dirname, "icon.png"), silent: true }); n.on("click", () => shell.showItemInFolder(dest)); n.show(); } } catch {}
+    try { if (Notification.isSupported()) { const n = new Notification({ title: "From your phone", body: path.basename(dest), icon: appIconPath(), silent: true }); n.on("click", () => shell.showItemInFolder(dest)); n.show(); } } catch {}
     send(200, { ok: true, name: path.basename(dest) });
   });
   req.pipe(out);
@@ -4717,7 +4744,7 @@ function watchOpenSothis(key, w) {
   const okPos = typeof b.x === "number" && screen.getAllDisplays().some(d => b.x >= d.workArea.x - 50 && b.x < d.workArea.x + d.workArea.width && b.y >= d.workArea.y - 20 && b.y < d.workArea.y + d.workArea.height);
   const bw = new BrowserWindow(Object.assign({
     width: b.w || 1100, height: b.h || 680, minWidth: 360, minHeight: 220, backgroundColor: "#0b0b0f", title: w.name, autoHideMenuBar: true,
-    icon: path.join(__dirname, "icon.png"), alwaysOnTop: watchTop(),
+    icon: appIconPath(), alwaysOnTop: watchTop(),
     webPreferences: { partition: w.partition, contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false }
   }, okPos ? { x: b.x, y: b.y } : {}));
   if (watchTop()) bw.setAlwaysOnTop(true, "floating");
