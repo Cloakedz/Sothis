@@ -1725,12 +1725,12 @@ ipcMain.handle("clips:export", async (e, { file, segs, quick, gameVol, micVol, v
   parts.forEach((x, i) => {
     const tr = `trim=start=${x.a.toFixed(3)}:end=${x.b.toFixed(3)}`;
     fc += `[0:v:0]${tr},setpts=PTS-STARTPTS[v${i}];`;
-    if (!split && nA) fc += `[0:a:0]a${tr},asetpts=PTS-STARTPTS,volume=${gv.toFixed(2)}[a${i}x0];`;
+    if (!split && nA) fc += `[0:a:0]a${tr},asetpts=PTS-STARTPTS,volume=${gv.toFixed(2)},alimiter=limit=0.89:attack=2:release=80:level=0[a${i}x0];`;
     if (split) {
       srcs.forEach((s2, k) => {
         fc += `[0:a:${s2.idx}]a${tr},asetpts=PTS-STARTPTS,asplit=2[s${i}_${k}][a${i}x${k + 1}];[s${i}_${k}]volume=${vOf(s2.t).toFixed(2)}${s2.t === "Mic" ? ",pan=stereo|c0=c0|c1=c0" : ""}[w${i}_${k}];`;
       });
-      fc += srcs.map((_, k) => `[w${i}_${k}]`).join("") + (srcs.length > 1 ? `amix=inputs=${srcs.length}:normalize=0:duration=first` : "anull") + `[a${i}x0];`;
+      fc += srcs.map((_, k) => `[w${i}_${k}]`).join("") + (srcs.length > 1 ? `amix=inputs=${srcs.length}:normalize=0:duration=first,` : "") + `alimiter=limit=0.89:attack=2:release=80:level=0[a${i}x0];`;   // never past full volume
     }
   });
   fc += parts.map((_, i) => `[v${i}]` + Array.from({ length: nOut }, (_, k) => `[a${i}x${k}]`).join("")).join("") + `concat=n=${parts.length}:v=1:a=${nOut}[v]` + Array.from({ length: nOut }, (_, k) => `[ao${k}]`).join("");

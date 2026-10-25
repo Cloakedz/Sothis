@@ -93,15 +93,24 @@ namespace SothisAudio {
       done.Op.GetActivateResult(out hr, out o);
       if (hr != 0 || o == null) return "activation failed 0x" + hr.ToString("X8");
       var client = (IAudioClient)o;
-      // 48 kHz, stereo, 16-bit
+      // 48 kHz stereo, as 32-bit float first (so loud moments can be rounded off smoothly here instead of chopped flat by Windows),
+      // falling back to 16-bit if the float format isn't accepted
+      bool isFloat = true;
       IntPtr fmt = Marshal.AllocHGlobal(18);
       byte[] wf = new byte[18];
-      BitConverter.GetBytes((ushort)1).CopyTo(wf, 0); BitConverter.GetBytes((ushort)2).CopyTo(wf, 2);
-      BitConverter.GetBytes((uint)48000).CopyTo(wf, 4); BitConverter.GetBytes((uint)192000).CopyTo(wf, 8);
-      BitConverter.GetBytes((ushort)4).CopyTo(wf, 12); BitConverter.GetBytes((ushort)16).CopyTo(wf, 14); BitConverter.GetBytes((ushort)0).CopyTo(wf, 16);
+      BitConverter.GetBytes((ushort)3).CopyTo(wf, 0); BitConverter.GetBytes((ushort)2).CopyTo(wf, 2);
+      BitConverter.GetBytes((uint)48000).CopyTo(wf, 4); BitConverter.GetBytes((uint)384000).CopyTo(wf, 8);
+      BitConverter.GetBytes((ushort)8).CopyTo(wf, 12); BitConverter.GetBytes((ushort)32).CopyTo(wf, 14); BitConverter.GetBytes((ushort)0).CopyTo(wf, 16);
       Marshal.Copy(wf, 0, fmt, 18);
       // shared, loopback, wakes us when there's sound, convert to our format; 1 s of room so a slow moment loses nothing
       hr = client.Initialize(0, 0x00020000u | 0x00040000u | 0x80000000u | 0x08000000u, 10000000, 0, fmt, IntPtr.Zero);
+      if (hr != 0) {
+        isFloat = false;
+        BitConverter.GetBytes((ushort)1).CopyTo(wf, 0); BitConverter.GetBytes((uint)192000).CopyTo(wf, 8);
+        BitConverter.GetBytes((ushort)4).CopyTo(wf, 12); BitConverter.GetBytes((ushort)16).CopyTo(wf, 14);
+        Marshal.Copy(wf, 0, fmt, 18);
+        hr = client.Initialize(0, 0x00020000u | 0x00040000u | 0x80000000u | 0x08000000u, 10000000, 0, fmt, IntPtr.Zero);
+      }
       if (hr != 0) return "initialize failed 0x" + hr.ToString("X8");
       var wake = new AutoResetEvent(false);
       hr = client.SetEventHandle(wake.SafeWaitHandle.DangerousGetHandle());
@@ -120,6 +129,7 @@ namespace SothisAudio {
       hr = client.Start();
       if (hr != 0) return "start failed 0x" + hr.ToString("X8");
       byte[] buf = new byte[48000 * 4];
+      float[] fbuf = new float[48000 * 2];
       while (!stop()) {
         wake.WaitOne(100);
         uint next;
@@ -128,7 +138,19 @@ namespace SothisAudio {
           if (cap.GetBuffer(out data, out frames, out flags, out dpos, out qpos) != 0) break;
           int bytes = (int)frames * 4;
           if (bytes > buf.Length) buf = new byte[bytes];
-          if ((flags & 2) != 0 || data == IntPtr.Zero) Array.Clear(buf, 0, bytes); else Marshal.Copy(data, buf, 0, bytes);
+          if ((flags & 2) != 0 || data == IntPtr.Zero) Array.Clear(buf, 0, bytes);
+          else if (!isFloat) Marshal.Copy(data, buf, 0, bytes);
+          else {
+            int n = (int)frames * 2;
+            if (n > fbuf.Length) fbuf = new float[n];
+            Marshal.Copy(data, fbuf, 0, n);
+            for (int k = 0; k < n; k++) {
+              double v = fbuf[k], a = Math.Abs(v);
+              if (a > 0.8) { a = 0.8 + 0.2 * Math.Tanh((a - 0.8) / 0.2); v = v < 0 ? -a : a; }   // soft knee instead of a hard cut
+              short sv = (short)Math.Round(v * 32767.0);
+              buf[k * 2] = (byte)(sv & 0xff); buf[k * 2 + 1] = (byte)((sv >> 8) & 0xff);
+            }
+          }
           cap.ReleaseBuffer(frames);
           BitConverter.GetBytes((long)qpos).CopyTo(hdr, 0); BitConverter.GetBytes((int)frames).CopyTo(hdr, 8);
           outp.Write(hdr, 0, 12); outp.Write(buf, 0, bytes);

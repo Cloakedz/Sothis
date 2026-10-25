@@ -6295,7 +6295,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     const ctx = CA.ctx; if (!ctx) return;
     try { const t = ctx.getOutputTimestamp(); if (t && t.performanceTime > 0 && t.contextTime > 0) { const lat = ((ctx.baseLatency || 0) + (ctx.outputLatency || 0)) * 1000, w = performance.timeOrigin + t.performanceTime - t.contextTime * 1000 - lat; CA.wall0 = CA.wall0 == null ? w : CA.wall0 * 0.9 + w * 0.1; } } catch {}
   }
-  const s16 = v => Math.max(-32768, Math.min(32767, v * 32767));
+  // to 16-bit with a soft knee above 80%: loud moments round off smoothly instead of being chopped flat (that chopping was the harsh, crackly clip sound)
+  const soft = v => { const a = Math.abs(v); if (a <= 0.8) return v; const y = 0.8 + 0.2 * Math.tanh((a - 0.8) / 0.2); return v < 0 ? -y : y; };
+  const s16 = v => Math.round(soft(v) * 32767);
   async function caOn(o) {
     caOff(); CA.on = true; CA.mic = !!o.mic;
     try {

@@ -222,7 +222,8 @@ module.exports = function makeClipper(ctx) {
   // mic clean-up: "strong" is RNNoise (an AI model, noise-model.rnnn next to Sothis), "standard" is ffmpeg's own noise filter
   function nsFilter(mode, tmp) {
     if (mode === "off") return "";
-    if (mode !== "standard") { try { fs.copyFileSync(path.join(__dirname, "noise-model.rnnn"), path.join(tmp, "nn.rnnn")); return "highpass=f=80,arnndn=m=nn.rnnn:mix=0.95,"; } catch {} }
+    // strong: the AI model at full strength, then a soft gate that quiets what's left between words (keys, fans), like Medal's noise suppression
+    if (mode !== "standard") { try { fs.copyFileSync(path.join(__dirname, "noise-model.rnnn"), path.join(tmp, "nn.rnnn")); return "highpass=f=80,arnndn=m=nn.rnnn:mix=1,agate=threshold=0.012:ratio=4:attack=4:release=150:range=0.05,"; } catch {} }
     return "highpass=f=80,afftdn=nr=15:nf=-40:tn=1,";
   }
   async function save() {
@@ -292,10 +293,12 @@ module.exports = function makeClipper(ctx) {
       // inputs: 1 = game, then Discord (if split), then mic
       const parts2 = [], titles = [];
       if (haveAudio) {
-        let i = 1, body = `[1:a]asplit=2[g1][g2];[g1]volume=${sv.toFixed(2)}[gv]`; parts2.push("[gv]"); titles.push(["[g2]", "Game"]);
-        if (haveVoice) { i++; body += `;[${i}:a]asplit=2[d1][d2];[d1]volume=${dv.toFixed(2)}[dv]`; parts2.push("[dv]"); titles.push(["[d2]", "Discord"]); }
-        if (haveMic) { i++; body += `;[${i}:a]${ns}asplit=2[m1][m2];[m1]volume=${mv.toFixed(2)},pan=stereo|c0=c0|c1=c0[mv]`; parts2.push("[mv]"); titles.push(["[m2]", "Mic"]); }
-        body += `;${parts2.join("")}` + (parts2.length > 1 ? `amix=inputs=${parts2.length}:normalize=0:duration=first` : "anull") + "[mix]";
+        // every track goes through a limiter so it never goes past full volume (no crackle on loud moments), and the mix gets its own
+        const LIM = "alimiter=limit=0.95:attack=2:release=60:level=0", LIMX = "alimiter=limit=0.89:attack=2:release=80:level=0";
+        let i = 1, body = `[1:a]asplit=2[g1][g2r];[g1]volume=${sv.toFixed(2)}[gv];[g2r]${LIM}[g2]`; parts2.push("[gv]"); titles.push(["[g2]", "Game"]);
+        if (haveVoice) { i++; body += `;[${i}:a]asplit=2[d1][d2r];[d1]volume=${dv.toFixed(2)}[dv];[d2r]${LIM}[d2]`; parts2.push("[dv]"); titles.push(["[d2]", "Discord"]); }
+        if (haveMic) { i++; body += `;[${i}:a]${ns}asplit=2[m1][m2r];[m1]volume=${mv.toFixed(2)},pan=stereo|c0=c0|c1=c0[mv];[m2r]${LIM}[m2]`; parts2.push("[mv]"); titles.push(["[m2]", "Mic"]); }
+        body += `;${parts2.join("")}` + (parts2.length > 1 ? `amix=inputs=${parts2.length}:normalize=0:duration=first,` : "") + LIMX + "[mix]";
         fc += sep + body;
         amap.push("-map", "[mix]", "-metadata:s:a:0", "handler_name=Mix", "-disposition:a:0", "default");
         titles.forEach(([lab, t], k) => amap.push("-map", lab, `-metadata:s:a:${k + 1}`, "handler_name=" + t, `-disposition:a:${k + 1}`, "0"));
