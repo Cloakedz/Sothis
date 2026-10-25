@@ -1896,7 +1896,7 @@ function updScan(dir = "") {
     if (e.isDirectory()) updScan(rel); else updBase.set(rel, updHash(rel));
   }
 }
-function updCheck() {
+function updWatchCheck() {   // (its own name: the GitHub updater further down has an updCheck too, which used to replace this one)
   for (const f of updSeen) {
     const h = updHash(f);
     if (h === (updBase.has(f) ? updBase.get(f) : "gone")) updDirty.delete(f); else updDirty.add(f);
@@ -1913,7 +1913,7 @@ function startUpdateWatch() {
       if (!file || /node_modules|\.tmp$|~$/i.test(file)) return;
       updSeen.add(path.normalize(file));
       clearTimeout(updT);
-      updT = setTimeout(updCheck, 900);
+      updT = setTimeout(updWatchCheck, 900);
     });
   } catch {}
 }
