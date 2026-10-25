@@ -2639,7 +2639,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     // replay the page's entrance animation
     try { const pn = $("tab-" + tab); pn.classList.remove("enter"); void pn.offsetWidth; pn.classList.add("enter"); clearTimeout(showTab.enterT); showTab.enterT = setTimeout(() => pn.classList.remove("enter"), 900); } catch {}
     if (tab === "clips") loadClips(); else { try { $("clVid").pause(); } catch {} }
-    D.setLayout(tab === "discord" || tab === "claude" || tab === "web" || tab === "opera" || tab === "dcapp" || tab === "switch" || tab === "clips" || (tab === "games" && window.__rtPlaying) ? "wide" : "main");
+    D.setLayout(tab === "claude" || tab === "switch" ? "wide" : "main");   // Claude and Switch open wide like before; the rest stay Home size
     try { if (window.__rtPlaying) rtHostMute(tab !== "games"); } catch {}
     try { swActive(tab === "switch"); } catch {}
     if (tab === "claude") ensureClaude();
