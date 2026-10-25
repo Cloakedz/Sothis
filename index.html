@@ -2618,6 +2618,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   let tab = mainTab;
   function showTab(t) {
     if (t === "discord") t = "ytm";
+    if (t === "switch" && D.has && D.has.sw === false) t = "home";   // the Switch tab is only on PCs that have it
     if (TABS.includes(t)) { mainTab = t; store.set("cr.tab", t); }
     tab = t === "settings" || t === "clips" ? t : mainTab;
     document.body.classList.toggle("on-home", tab === "home");
@@ -5452,6 +5453,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   for (const id of ["wkOv", "fxOv"]) $(id).addEventListener("mousedown", e => { if (e.target.id === id) $(id).hidden = true; });
   document.addEventListener("keydown", e => { if (e.key === "Escape") { $("wkOv").hidden = true; $("fxOv").hidden = true; } });
   /* ---------- Lighting (ASUS Aura through Sothis) ---------- */
+  if (D.has && D.has.sw === false) { const b = $("tabbtn-switch"); if (b) b.remove(); }
   // only on PCs that have the lighting helper / the chime
   if (D.has && D.has.rgb === false) { const g = $("rgbGroup"); if (g) { const hold = document.createElement("div"); hold.hidden = true; document.body.append(hold); hold.append(g); } }   // out of Settings (and its section buttons)
   if (D.has && D.has.chime === false) { const qd = $("setQp") && $("setQp").parentElement.querySelector(".desc"); if (qd) qd.textContent = "When your game finds a match while you're tabbed out, Sothis shows a banner with a button that takes you back to the game."; }

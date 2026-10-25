@@ -3,3 +3,6 @@ node_modules/
 dist/
 rgb.ps1
 queue-chime.wav
+sw-pop.html
+sw-pop-preload.js
+sw-upscale.js

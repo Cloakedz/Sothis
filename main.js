@@ -4180,7 +4180,7 @@ function phStop() { clearInterval(phTick); phTick = null; for (const c of phClie
 function phInfo() { const c = phCfg(); return { on: !!c.on, running: !!phSrv, code: c.code, port: PH_PORT, addrs: phAddrs().map(a => a.ip), phones: c.phones.map(p => ({ id: p.id, name: p.name, at: p.at })) }; }
 function phSettingsPush() { try { if (win && !win.isDestroyed()) win.webContents.send("phone:info", phInfo()); } catch {} }
 ipcMain.handle("phone:get", () => phInfo());
-ipcMain.on("app:has", e => { e.returnValue = { rgb: hasFile("rgb.ps1"), chime: hasFile("queue-chime.wav") }; });
+ipcMain.on("app:has", e => { e.returnValue = { rgb: hasFile("rgb.ps1"), chime: hasFile("queue-chime.wav"), sw: hasFile("sw-pop.html") }; });
 ipcMain.on("personal:get", e => { e.returnValue = { dcServers: Array.isArray(personal.dcServers) ? personal.dcServers.map(String).slice(0, 10) : [], mcAddr: typeof personal.mcAddr === "string" ? personal.mcAddr : "" }; });
 ipcMain.handle("phone:set", (_e, on) => { phCfg().on = !!on; saveSettings(); if (on) phStart(); else phStop(); return phInfo(); });
 ipcMain.handle("phone:newCode", () => { phCfg().code = ""; saveSettings(); phCfg(); return phInfo(); });
