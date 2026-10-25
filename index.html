@@ -7104,7 +7104,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     chtFoundList = []; chtPack = null; $("chtPacks").replaceChildren(); $("chtFound").replaceChildren();
     wv.addEventListener("did-finish-load", () => setTimeout(() => { try { chtRender(); } catch {} }, 4000));
     $("gmView").hidden = true; $("rtPlay").hidden = false; $("rtMuted").hidden = true; $("tab-games").classList.add("playing");
-    if (tab !== "games") showTab("games"); else D.setLayout("wide");
+    if (tab !== "games") showTab("games");   // retro games play at the Home size too
     D.emuInline(g.name + " (" + g.sys + ")");
     D.libPlaying(g.token);
   }
