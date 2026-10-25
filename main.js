@@ -4627,20 +4627,20 @@ function relSteamDate(t) {
 const relDec = h => String(h || "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&reg;|®|&trade;|™/g, "").trim();
 async function relGames() {
   const out = [], seen = new Set();
-  for (const filter of ["popularcomingsoon", "comingsoon"]) {
-    for (let start = 0; start < (filter === "popularcomingsoon" ? 300 : 100); start += 100) {
-      let j = null;
-      try {
-        const r = await fetch(`https://store.steampowered.com/search/results/?filter=${filter}&infinite=1&start=${start}&count=100&cc=us&l=english&category1=998`, { signal: AbortSignal.timeout(12000) });
-        j = await r.json();
-      } catch { break; }
-      const html = (j && j.results_html) || ""; if (!html) break;
+  // all the pages at once (faster than one after another)
+  const pages = [["popularcomingsoon", 0], ["popularcomingsoon", 100], ["popularcomingsoon", 200], ["comingsoon", 0]];
+  const got = await Promise.all(pages.map(([filter, start]) => fetch(`https://store.steampowered.com/search/results/?filter=${filter}&infinite=1&start=${start}&count=100&cc=us&l=english&category1=998`, { signal: AbortSignal.timeout(12000) }).then(r => r.json()).catch(() => null)));
+  for (const j of got) {
+    {
+      const html = (j && j.results_html) || ""; if (!html) continue;
       for (const a of html.split(/<a\s+href="/).slice(1)) {
         const id = (/store\.steampowered\.com\/app\/(\d+)/.exec(a) || [])[1]; if (!id || seen.has(id)) continue;
         const title = relDec((/<span class="title">([\s\S]*?)<\/span>/.exec(a) || [])[1]); if (!title) continue;
         const rel = relDec(((/search_released[^"]*">([\s\S]*?)<\/div>/.exec(a) || [])[1] || "").replace(/<[^>]+>/g, ""));
         seen.add(id);
-        out.push({ kind: "game", id: "s" + id, title, date: relSteamDate(rel), sub: "Steam", img: `https://cdn.cloudflare.steamstatic.com/steam/apps/${id}/capsule_231x87.jpg`, url: `https://store.steampowered.com/app/${id}/` });
+        // the small picture Steam's own list uses: tiny, already on Steam's fast servers, and the right address even for new games
+        const img = relDec((/<img[^>]+src="([^"]+)"/.exec(a) || [])[1] || "") || `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${id}/capsule_sm_120.jpg`;
+        out.push({ kind: "game", id: "s" + id, title, date: relSteamDate(rel), sub: "Steam", img, url: `https://store.steampowered.com/app/${id}/` });
       }
     }
   }
@@ -4650,22 +4650,19 @@ async function relAnime() {
   const now = new Date(), from = (now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + 1) - 100;   // from the start of last month
   const q = `query($p:Int,$from:FuzzyDateInt){Page(page:$p,perPage:50){pageInfo{hasNextPage}media(type:ANIME,isAdult:false,startDate_greater:$from,sort:START_DATE,format_in:[TV,TV_SHORT,MOVIE,ONA,OVA,SPECIAL]){id title{english romaji} startDate{year month day} format episodes coverImage{medium} siteUrl popularity}}}`;
   const out = [];
-  for (let p = 1; p <= 6; p++) {
-    let j = null;
-    try {
-      const r = await fetch("https://graphql.anilist.co", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ query: q, variables: { p, from } }), signal: AbortSignal.timeout(12000) });
-      j = await r.json();
-    } catch { break; }
-    const pg = j && j.data && j.data.Page; if (!pg) break;
+  // several pages at once (faster than one after another)
+  const got = await Promise.all([1, 2, 3, 4, 5].map(p => fetch("https://graphql.anilist.co", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ query: q, variables: { p, from } }), signal: AbortSignal.timeout(12000) }).then(r => r.json()).catch(() => null)));
+  for (const j of got) {
+    const pg = j && j.data && j.data.Page; if (!pg) continue;
     for (const m of pg.media || []) {
       const sd = m.startDate || {};
       if (!sd.year) continue;
       const fmt = { TV: "TV", TV_SHORT: "TV short", MOVIE: "Movie", ONA: "Online", OVA: "OVA", SPECIAL: "Special" }[m.format] || "";
       out.push({ kind: "anime", id: "a" + m.id, title: (m.title && (m.title.english || m.title.romaji)) || "", date: { y: sd.year || 0, m: sd.month || 0, d: sd.day || 0 }, sub: fmt + (m.episodes ? " · " + m.episodes + " eps" : ""), img: (m.coverImage && m.coverImage.medium) || "", url: m.siteUrl || "", pop: m.popularity || 0 });
     }
-    if (!pg.pageInfo || !pg.pageInfo.hasNextPage) break;
   }
-  return out.filter(x => x.title);
+  const seenA = new Set();
+  return out.filter(x => x.title && !seenA.has(x.id) && seenA.add(x.id));
 }
 ipcMain.handle("releases:get", async (_e, force) => {
   if (!force && relCache && Date.now() - relCache.at < 3 * 3600000) return relCache;

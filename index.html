@@ -5516,10 +5516,10 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       const h = mk("div", "rel-h"); h.append(mk("b", "", g.t), mk("span", "", g.items.length + (g.items.length === 1 ? " release" : " releases"))); out.push(h);
       for (const it of g.items) {
         const b = mk("button", "rel-it"); b.type = "button"; b.title = "Open " + it.title;
-        const art = mk("div", "rel-art"); if (it.img) { const im = mk("img"); im.loading = "lazy"; im.alt = ""; im.referrerPolicy = "no-referrer"; im.src = it.img; im.onerror = () => im.remove(); art.append(im); }
+        const art = mk("div", "rel-art"); if (it.img) { const im = mk("img"); im.loading = "lazy"; im.decoding = "async"; im.alt = ""; im.referrerPolicy = "no-referrer"; im.src = it.img; im.onerror = () => im.remove(); art.append(im); }
         const tx = mk("div", "rel-tx"); tx.append(mk("b", "", it.title), mk("span", "", [relWhen(it), it.sub].filter(Boolean).join(" · ")));
         b.append(art, tx, mk("span", "rel-tag " + it.kind, it.kind === "anime" ? "Anime" : "Game"));
-        b.onclick = () => { if (it.url) D.openExternal(it.url); };
+        b.onclick = () => { if (!it.url) return; showTab("web"); wbNewTab(it.url); };   // opens in Sothis's own browser
         out.push(b);
       }
     }
