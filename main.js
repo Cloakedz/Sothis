@@ -8,7 +8,7 @@ const dnsp = require("dns").promises;
 require("electron").protocol.registerSchemesAsPrivileged([{ scheme: "sothisemu", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }]);
 
 const MINI = { w: 400, h: 112 };
-const DEFAULT_SIZES = { main: { w: 500, h: 820 }, wide: { w: 1080, h: 820 } };
+const DEFAULT_SIZES = { main: { w: 560, h: 840 }, wide: { w: 1080, h: 840 } };   // wide enough that Music's bottom row has room for the corner buttons
 const MIN = { main: { w: 420, h: 640 }, wide: { w: 680, h: 560 } };
 
 app.setAppUserModelId("Sothis");
@@ -3371,7 +3371,7 @@ app.whenReady().then(() => {
   try { session.defaultSession.setDisplayMediaRequestHandler((_req, cb) => { desktopCapturer.getSources({ types: ["screen"] }).then(src => cb(src[0] ? { video: src[0], audio: "loopback" } : {})).catch(() => cb({})); }); } catch {}
   delete settings.compact;   // always open as the full window
   delete settings.ciderAuto; delete settings.ciderQuit;   // old Cider options
-  if (!settings.bigger || settings.bigger < 3) { if (settings.sizes) { delete settings.sizes.main; delete settings.sizes.wide; } settings.bigger = 3; saveSettings(); }   // one-time: back to the full default sizes (the shared copy saved smaller ones)
+  if (!settings.bigger || settings.bigger < 4) { if (settings.sizes) { delete settings.sizes.main; delete settings.sizes.wide; } settings.bigger = 4; saveSettings(); }   // one-time: back to the full default sizes (the shared copy saved smaller ones)
   createWindow();
   createTray();
   setTimeout(r6RegisterKey, 1500);
