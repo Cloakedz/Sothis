@@ -4208,7 +4208,7 @@ ipcMain.handle("brand:pickLogo", async () => {
 });
 ipcMain.handle("brand:resetLogo", () => { delete settings.customLogo; saveSettings(); try { fs.rmSync(customLogoFile(), { force: true }); } catch {} brandApplyNative(); return brandInfo(); });
 ipcMain.on("app:has", e => { e.returnValue = { rgb: hasFile("rgb.ps1"), chime: hasFile("queue-chime.wav"), sw: hasFile("sw-pop.html") }; });
-ipcMain.on("personal:get", e => { e.returnValue = { dcServers: Array.isArray(personal.dcServers) ? personal.dcServers.map(String).slice(0, 10) : [], mcAddr: typeof personal.mcAddr === "string" ? personal.mcAddr : "" }; });
+ipcMain.on("personal:get", e => { e.returnValue = { dcServers: Array.isArray(personal.dcServers) ? personal.dcServers.map(String).slice(0, 10) : [], mcAddr: typeof personal.mcAddr === "string" ? personal.mcAddr : "", owReminder: personal.owReminder === true }; });
 ipcMain.handle("phone:set", (_e, on) => { phCfg().on = !!on; saveSettings(); if (on) phStart(); else phStop(); return phInfo(); });
 ipcMain.handle("phone:newCode", () => { phCfg().code = ""; saveSettings(); phCfg(); return phInfo(); });
 ipcMain.handle("phone:forget", (_e, id) => {

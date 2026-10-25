@@ -5554,6 +5554,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   const today = () => new Date().toLocaleDateString("en-CA");
   let rmdNudged = "";
   function renderRmd() {
+    // only on your own PC (turned on in Roaming\Sothis\personal.json), never in the copy friends get
+    if (!(D.personal && D.personal.owReminder)) { $("rmdOw").hidden = true; return; }
     const due = store.get("rmd.ow") !== today();
     $("rmdOw").hidden = !due;
     // one in-app nudge per day, the first time Sothis is on screen
