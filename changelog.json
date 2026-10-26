@@ -1,5 +1,12 @@
 [
  {
+  "v": "1.14.2",
+  "d": "2026-10-26",
+  "notes": [
+   "Mods: setups for games that aren't installed on this PC still get the game's icon"
+  ]
+ },
+ {
   "v": "1.14.1",
   "d": "2026-10-26",
   "notes": [

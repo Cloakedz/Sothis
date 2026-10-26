@@ -4849,6 +4849,8 @@ const MO2_BIN = {
   // The Witcher 3 (the next-gen update keeps its game in bin\x64_dx12)
   "The Witcher 3: Wild Hunt": ["bin\\x64_dx12\\witcher3.exe", "bin\\x64\\witcher3.exe"], "The Witcher 3": ["bin\\x64_dx12\\witcher3.exe", "bin\\x64\\witcher3.exe"], "Witcher 3": ["bin\\x64_dx12\\witcher3.exe", "bin\\x64\\witcher3.exe"]
 };
+const MO2_STEAM = { "Skyrim Special Edition": "489830", "Skyrim": "72850", "Fallout 4": "377160", "New Vegas": "22380", "Fallout New Vegas": "22380", "Fallout 3": "22300", "Oblivion": "22330", "Morrowind": "22320", "Starfield": "1716740",
+  "Cyberpunk 2077": "1091500", "The Witcher 3: Wild Hunt": "292030", "The Witcher 3": "292030", "Witcher 3": "292030", "Baldur's Gate 3": "1086940" };
 const mo2Val = (ini, key) => { const m = new RegExp("^" + key + "=(.*)$", "m").exec(ini); if (!m) return ""; let v = m[1].trim(); const b = /^@ByteArray\((.*)\)$/.exec(v); if (b) v = b[1]; return v.replace(/\\\\/g, "\\").replace(/\//g, "\\"); };
 function mo2Exes() {
   // where Mod Organizer itself is installed (MO2 remembers every copy in nxmhandler.ini), for its own instances
@@ -4873,10 +4875,18 @@ async function mo2Read(dir, kind, exe) {
   const profile = mo2Val(ini, "selected_profile");
   const name = kind === "global" ? path.basename(dir) : path.basename(dir);
   let gExe = mo2GameExe(game, gamePath);
-  // a Witcher 3 setup (or one named "W3…") whose game folder isn't filled in: use the Steam copy's icon
-  if (!gExe && /witcher\s*3|^w3\b/i.test(game + " " + name) || (!gExe && /^w3\b/i.test(name))) { try { gExe = mo2GameExe("The Witcher 3", await steamInstallDir(292030)); } catch {} }
+  // the game isn't installed where the setup says (e.g. a list copied from another PC): its official icon from the
+  // game list Discord publishes (the same pictures Sothis uses for your Discord status)
+  let icon = gExe ? await mo2Icon(gExe) : "";
+  if (!icon && game) {
+    try {
+      await gameIconsLoad();
+      const bin = [].concat(MO2_BIN[game] || [])[0] || "";
+      icon = gameLogo({ name: game.replace(/:.*$/, ""), exe: bin ? bin.split("\\").pop() : "", sid: MO2_STEAM[game] || "" }) || "";
+    } catch {}
+  }
   let at = 0; try { at = fs.statSync(path.join(dir, "ModOrganizer.ini")).mtimeMs; } catch {}
-  return { id: Buffer.from(dir).toString("base64url"), kind, dir, exe, name, game: game || "Not set up yet", gamePath, profile, mods: mo2Count(modsDir), icon: await mo2Icon(gExe || exe), at };
+  return { id: Buffer.from(dir).toString("base64url"), kind, dir, exe, name, game: game || "Not set up yet", gamePath, profile, mods: mo2Count(modsDir), icon: icon || await mo2Icon(exe), at };
 }
 let mo2Cache = null;
 async function mo2List(force) {
