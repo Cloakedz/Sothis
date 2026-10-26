@@ -4863,8 +4863,9 @@ function mo2Exes() {
   // where Mod Organizer itself is installed (MO2 remembers every copy in nxmhandler.ini), for its own instances
   const out = [];
   try { const t = fs.readFileSync(path.join(process.env.LOCALAPPDATA || "", "ModOrganizer", "nxmhandler.ini"), "utf8"); for (const m of t.matchAll(/executable=(.+)/g)) { const e = m[1].trim().replace(/\\\\/g, "\\").replace(/\//g, "\\"); if (/ModOrganizer\.exe$/i.test(e) && fs.existsSync(e)) out.push(e); } } catch {}
-  for (const e of ["C:\\Modding\\MO2\\ModOrganizer.exe", path.join(process.env.ProgramFiles || "C:\\Program Files", "Mod Organizer", "ModOrganizer.exe")]) if (fs.existsSync(e)) out.push(e);
-  return [...new Set(out)];
+  for (const e of ["C:\\Modding\\MO2\\ModOrganizer.exe", path.join(process.env.ProgramFiles || "C:\\Program Files", "Mod Organizer", "ModOrganizer.exe")]) if (fs.existsSync(e)) out.unshift(e);
+  // a portable copy (a Wabbajack list etc.) always opens its own setup and ignores which instance you ask for, so it can't open MO2's own instances
+  return [...new Set(out)].filter(e => !fs.existsSync(path.join(path.dirname(e), "portable.txt")));
 }
 async function mo2Icon(file) { try { if (!file || !fs.existsSync(file)) return ""; return (await app.getFileIcon(file, { size: "large" })).toDataURL(); } catch { return ""; } }
 function mo2GameExe(game, gamePath) {

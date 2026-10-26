@@ -1,5 +1,12 @@
 [
  {
+  "v": "1.15.1",
+  "d": "2026-10-26",
+  "notes": [
+   "Mods: Mod Organizer's own instances (like Cyberpunk 2077) open in the right Mod Organizer instead of a Wabbajack list's copy"
+  ]
+ },
+ {
   "v": "1.15.0",
   "d": "2026-10-26",
   "notes": [
