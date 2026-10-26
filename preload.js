@@ -190,6 +190,7 @@ contextBridge.exposeInMainWorld("desktop", {
   weekGet: offset => ipcRenderer.invoke("week:get", offset),
   dayYesterday: () => ipcRenderer.invoke("day:yesterday"),
   crExt: () => ipcRenderer.invoke("cr:ext"),
+  battBrand: b => ipcRenderer.invoke("battery:brand", b),
   mo2List: force => ipcRenderer.invoke("mo2:list", force),
   mo2Open: id => ipcRenderer.invoke("mo2:open", id),
   mo2Folder: id => ipcRenderer.invoke("mo2:folder", id),

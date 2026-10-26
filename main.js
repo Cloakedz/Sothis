@@ -2449,7 +2449,7 @@ function readBattery() {
       finishRead({ state: "error", message: "The mouse took too long to answer. Wake it and refresh." });
     }, BATTERY_TIMEOUT)
   };
-  worker.postMessage("read");
+  worker.postMessage({ cmd: "read", brand: battBrand() });
   return promise;
 }
 
@@ -2538,6 +2538,13 @@ ipcMain.on("tray:icon", (_e, imgs) => {
   tray.setImage(img);
 });
 ipcMain.handle("battery:get", () => battery);
+// which mouse to read: auto (try them all), gwolves, logitech, razer, bluetooth, or off
+const BATT_BRANDS = ["auto", "gwolves", "logitech", "razer", "bluetooth", "off"];
+const battBrand = () => BATT_BRANDS.includes(settings.battBrand) ? settings.battBrand : "auto";
+ipcMain.handle("battery:brand", (_e, b) => {
+  if (BATT_BRANDS.includes(b) && b !== battBrand()) { settings.battBrand = b; saveSettings(); battery = { state: b === "off" ? "off" : "checking" }; sendBattery(); refreshBattery(); }
+  return battBrand();
+});
 ipcMain.handle("battery:refresh", () => refreshBattery());
 ipcMain.handle("battery:alert", (_e, on) => { settings.lowAlert = !!on; saveSettings(); broadcast(); return settings.lowAlert; });
 

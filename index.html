@@ -1725,6 +1725,8 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
 .mo2-tx { min-width: 0; } .mo2-tx b { display: block; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .mo2-tx span { display: block; font-size: .76rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mo2-f svg { width: 17px; height: 17px; }
 .mo2-go { font: 700 .78rem var(--f-body); padding: 7px 12px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); }
+
+.bb-sel { flex: none; padding: 7px 10px; border-radius: 10px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); font: 600 .82rem var(--f-body); }
 </style>
 </head>
 <body class="splashing">
@@ -2618,6 +2620,17 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
         <div class="group">
           <h2>Mouse battery</h2>
           <div class="setting">
+            <div class="txt"><div class="name">Mouse</div><div class="desc" id="setBattDesc">Which mouse to read the battery from. Auto tries them all.</div></div>
+            <select id="setBattBrand" class="bb-sel" aria-label="Mouse brand">
+              <option value="auto">Auto</option>
+              <option value="gwolves">G-Wolves</option>
+              <option value="logitech">Logitech</option>
+              <option value="razer">Razer</option>
+              <option value="bluetooth">Bluetooth (any brand)</option>
+              <option value="off">None (hide the battery)</option>
+            </select>
+          </div>
+          <div class="setting">
             <div class="txt"><div class="name">Low battery alerts</div><div class="desc">Notify me at 20% and 10% while the mouse isn't charging.</div></div>
             <button class="switch" id="setLowAlert" role="switch" aria-checked="true" aria-label="Low battery alerts"></button>
           </div>
@@ -2921,6 +2934,8 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
   $("setPin").onclick = $("pinBtn").onclick = $("mPin").onclick = togglePin;
   $("setStartup").onclick = () => D.setStartup(!startup);
   $("setLowAlert").onclick = () => D.setLowAlert(!lowAlert);
+  D.battBrand().then(b => { $("setBattBrand").value = b; }).catch(() => {});
+  $("setBattBrand").onchange = async () => { const b = await D.battBrand($("setBattBrand").value).catch(() => null); if (b) $("setBattBrand").value = b; toast(b === "off" ? "Mouse battery hidden" : "Checking your mouse…"); };
   $("setSongToast").onclick = () => D.setSongToast(!songToast);
   $("testSongToast").onclick = () => D.testSongToast();
   $("setMini").onclick = $("miniBtn").onclick = () => D.setMini(true);
@@ -3047,8 +3062,9 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
   const STATES = {
     checking: ["Checking your mouse…", ""],
     asleep: ["Not responding", "Your mouse is asleep, disconnected, or not responding. Move it, then refresh."],
-    none: ["No mouse found", "Plug in your G-Wolves receiver or cable, then refresh."],
-    unsupported: ["Not supported", "A G-Wolves device is connected, but it doesn't report its battery this way."],
+    none: ["No mouse found", "Plug in your mouse's receiver or cable (or pick your brand in Settings → Mouse battery), then refresh."],
+    unsupported: ["Not supported", "Your mouse is connected, but it doesn't share its battery level this way."],
+    off: ["Off", "Turned off in Settings → Mouse battery."],
     error: ["Couldn't read", "Couldn't read the mouse. Wake it and refresh."]
   };
 
@@ -3065,7 +3081,7 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
     if (ok) {
       const how = batt.stale ? "asleep, last reading" : batt.charging ? (p >= 100 ? "fully charged" : "charging") : "on battery";
       tip = `Mouse battery ${p}% (${how})`;
-      tip += "\n" + (batt.product || "G-Wolves mouse") + (batt.connection ? " · " + batt.connection : "");
+      tip += "\n" + (batt.product || "Mouse") + (batt.connection ? " · " + batt.connection : "");
     } else {
       const [label, note] = STATES[batt.state] || STATES.error;
       tip = "Mouse battery: " + label + (note || batt.message ? "\n" + (batt.state === "error" && batt.message ? batt.message : note) : "");
@@ -3079,6 +3095,8 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
       $(t).textContent = ok ? p + "%" : "--%";
     });
     $("battBadgeBolt").hidden = !(ok && batt.charging);
+    // no battery chip when the mouse reading is turned off
+    $("battBadge").hidden = batt.state === "off"; $("mBatt").hidden = batt.state === "off";
 
     drawTray();
   }
