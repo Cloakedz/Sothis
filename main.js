@@ -373,6 +373,7 @@ async function dcAuth() {
     try {
       const au = await dcCmd("AUTHENTICATE", { access_token: tok });
       if (au && Array.isArray(au.scopes) && !DC_BASE.every(s => au.scopes.includes(s))) { tok = ""; break; }   // missing core permissions
+      dc.scopes = (au && Array.isArray(au.scopes)) ? au.scopes : [];
       return dcReady();
     }
     catch { tok = attempt === 0 ? await dcRefresh().catch(() => "") : ""; }
@@ -387,7 +388,7 @@ async function dcAuth() {
   }
   dcSet("auth");
   tok = await dcToken({ grant_type: "authorization_code", code: a.code, redirect_uri: "http://localhost" });
-  await dcCmd("AUTHENTICATE", { access_token: tok });
+  { const au = await dcCmd("AUTHENTICATE", { access_token: tok }); dc.scopes = (au && Array.isArray(au.scopes)) ? au.scopes : []; }
   return dcReady();
 }
 async function dcReady() {
@@ -398,7 +399,61 @@ async function dcReady() {
   dcCmd("GET_VOICE_SETTINGS", {}).then(v => { dc.vs = { mute: !!v.mute, deaf: !!v.deaf }; dcPush(); }).catch(() => {});
   dcApplyChannel(await dcCmd("GET_SELECTED_VOICE_CHANNEL", {}).catch(() => null));
   dcPresKey = ""; dcPresence();
+  frStart();
 }
+/* ---------- Friends playing now (Games tab): your Discord friends who are in a game, read through the same Discord link.
+   Needs Discord's "see your friends" permission, asked once when you turn it on. ---------- */
+const FR_SCOPE = "relationships.read";
+const fr = { list: new Map(), err: "" };
+function frAvatar(u) {
+  if (u.avatar) return `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=64`;
+  let n = 0; try { n = Number((BigInt(u.id) >> 22n) % 6n); } catch {} return `https://cdn.discordapp.com/embed/avatars/${n}.png`;
+}
+function frPut(r) {
+  if (!r || !r.user || (r.type !== 1 && r.type !== "FRIEND")) return;
+  const u = r.user, pr = r.presence || {}, acts = Array.isArray(pr.activities) ? pr.activities : (pr.activity ? [pr.activity] : []);
+  const a = acts.find(x => x && (x.type === 0 || x.type === undefined) && x.name);
+  if (!a || pr.status === "offline") { fr.list.delete(u.id); return; }
+  let icon = "";
+  if (a.application_id && a.assets && a.assets.large_image && !/^(mp:|spotify:)/.test(a.assets.large_image)) icon = `https://cdn.discordapp.com/app-assets/${a.application_id}/${a.assets.large_image}.png?size=64`;
+  fr.list.set(u.id, { id: u.id, name: u.global_name || u.username || "Friend", avatar: frAvatar(u), game: a.name, details: [a.details, a.state].filter(Boolean).join(" · "), since: (a.timestamps && +a.timestamps.start) || 0, icon, status: pr.status || "online" });
+}
+function frPush() { if (win && !win.isDestroyed()) win.webContents.send("dc:friends", frState()); }
+function frState() {
+  return { on: !!(settings.discord && settings.discord.friends), linked: dc.status === "ok", allowed: (dc.scopes || []).includes(FR_SCOPE), err: fr.err,
+    list: [...fr.list.values()].sort((a, b) => (a.since || 9e15) - (b.since || 9e15)) };
+}
+async function frStart() {
+  fr.list.clear();
+  if (!(settings.discord && settings.discord.friends) || !(dc.scopes || []).includes(FR_SCOPE)) return frPush();
+  try {
+    const r = await dcCmd("GET_RELATIONSHIPS", {});
+    for (const x of (r && r.relationships) || []) frPut(x);
+    fr.err = "";
+    await dcCmd("SUBSCRIBE", {}, "RELATIONSHIP_UPDATE").catch(() => {});
+  } catch (e) { fr.err = "Discord didn't share your friends list (" + (e.message || "error") + ")."; }
+  frPush();
+}
+ipcMain.handle("friends:get", () => frState());
+ipcMain.handle("friends:set", async (_e, on) => {
+  settings.discord = settings.discord || {}; settings.discord.friends = !!on; saveSettings();
+  if (!on) { fr.list.clear(); fr.err = ""; frPush(); return frState(); }
+  if (dc.status !== "ok") { fr.err = "Link Discord first (Settings → Discord)."; frPush(); return frState(); }
+  if (!(dc.scopes || []).includes(FR_SCOPE)) {
+    // ask Discord for the extra permission; if it says no, everything else keeps working as before
+    try {
+      const a = await dcCmd("AUTHORIZE", { client_id: dcCfg().clientId, scopes: [...DC_SCOPES, FR_SCOPE] });
+      const tok = await dcToken({ grant_type: "authorization_code", code: a.code, redirect_uri: "http://localhost" });
+      const au = await dcCmd("AUTHENTICATE", { access_token: tok });
+      dc.scopes = (au && Array.isArray(au.scopes)) ? au.scopes : dc.scopes;
+    } catch (e) {
+      fr.err = e.code === 5000 ? "You chose not to share your friends list." : "Discord didn't allow Sothis to see your friends (" + (e.message || "error") + ").";
+      frPush(); return frState();
+    }
+  }
+  await frStart();
+  return frState();
+});
 function dcUpsert(v) {
   if (!dc.channel || !v || !v.user) return;
   const u = v.user, s = v.voice_state || {};
@@ -439,6 +494,7 @@ function dcEvent(evt, d) {
   }
   if (evt === "VOICE_STATE_CREATE" || evt === "VOICE_STATE_UPDATE") { dcUpsert(d); return dcPush(); }
   if (evt === "VOICE_STATE_DELETE") { if (dc.channel && d.user) { dc.channel.members.delete(d.user.id); dc.speaking.delete(d.user.id); } return dcPush(); }
+  if (evt === "RELATIONSHIP_UPDATE") { if (d && d.user) { fr.list.delete(d.user.id); frPut(d); frPush(); } return; }
   if (evt === "SPEAKING_START") { dc.speaking.add(d.user_id); return dcPush(); }
   if (evt === "SPEAKING_STOP") { dc.speaking.delete(d.user_id); return dcPush(); }
   if (evt === "VOICE_SETTINGS_UPDATE") { dc.vs = { mute: !!d.mute, deaf: !!d.deaf }; refreshTray(); setThumbar(); return dcPush(); }
@@ -4525,6 +4581,14 @@ function wkReport(offset) {
   };
 }
 ipcMain.handle("week:get", (_e, offset) => { wkSave(); return wkReport(offset); });
+// yesterday's totals, for the daily start screen
+ipcMain.handle("day:yesterday", () => {
+  wkSave();
+  const t = new Date(); t.setHours(0, 0, 0, 0); const end = t.getTime(), start = end - 86400000;
+  const d = wkSum(start, end), game = Object.values(d.games).reduce((a, b) => a + b, 0);
+  const topG = wkTop(d.games, 1)[0], topA = wkTop(d.artists, 1)[0];
+  return { music: d.music, plays: d.plays, game, clips: wkClipsBetween(start, end), topGame: topG ? topG[0] : "", topArtist: topA ? topA[0] : "" };
+});
 // Sunday evening: one heads-up that the week's recap is ready
 function wkNudge() {
   const d = new Date();
