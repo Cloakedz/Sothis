@@ -52,7 +52,10 @@ button:disabled { opacity: .35; cursor: default; }
 .shell { position: relative; isolation: isolate; height: 100%; background: rgba(0, 0, 0, var(--shell-a, .7)); border: 1px solid var(--line); border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; box-shadow: none; }
 /* Background art: slightly blurred, with a veil on top so text stays readable */
 .shell::before { content: ""; position: absolute; inset: 0; z-index: -2; transition: opacity .7s ease; background: var(--crest, url("crest-bg.png")) center 50% / min(58vw, 48vh) auto no-repeat; opacity: .95; transform: scale(var(--beat, 1)); will-change: transform; }
-.shell::after { content: ""; position: absolute; inset: 0; z-index: -1; background: transparent; }
+@property --song-glow { syntax: "<color>"; inherits: true; initial-value: rgba(0, 0, 0, 0); }
+.shell { transition: --song-glow 1.2s ease; }
+/* the current song's album color, as a soft glow behind everything (fades when the song changes) */
+.shell::after { content: ""; position: absolute; inset: 0; z-index: -1; background: radial-gradient(ellipse 80% 60% at 50% 30%, var(--song-glow), transparent 70%); pointer-events: none; }
 .titlebar h1, .title, .artist, .owname, .sethead h2 { text-shadow: 0 1px 8px var(--bg); }
 /* Frosted-glass panels over the art */
 .group, .tile, .rank, .heroes, .tabs, .seg, .owmsg, .batt, .chip, .mini, .glass { -webkit-backdrop-filter: blur(8px) saturate(1.15); backdrop-filter: blur(8px) saturate(1.15); }
@@ -799,7 +802,15 @@ body.is-mini .bh { display: none; }
 .dcn div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .dcn b { font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dcn span { font-size: .76rem; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-@keyframes dcnIn { from { opacity: 0; transform: translateX(20px); } }
+@keyframes dcnIn { 0% { opacity: 0; transform: translateX(60px); } 60% { opacity: 1; transform: translateX(-6px); } 100% { transform: none; } }
+/* older notices tuck back behind the newest; hover the stack to fan them out */
+.dcn-stack > .dcn { transition: margin .3s cubic-bezier(.3, 1.3, .5, 1), transform .3s, opacity .3s; }
+.dcn-stack > .dcn:nth-child(2) { margin-top: -30px; transform: scale(.96); opacity: .85; }
+.dcn-stack > .dcn:nth-child(3) { margin-top: -34px; transform: scale(.92); opacity: .6; }
+.dcn-stack > .dcn:nth-child(n+4) { margin-top: -40px; transform: scale(.88); opacity: 0; pointer-events: none; }
+.dcn-stack > .dcn:nth-child(1) { z-index: 5; } .dcn-stack > .dcn:nth-child(2) { z-index: 4; } .dcn-stack > .dcn:nth-child(3) { z-index: 3; }
+.dcn-stack:hover > .dcn { margin-top: 0; transform: none; opacity: 1; pointer-events: auto; }
+.dcn-stack > .dcn { position: relative; }
 body.is-mini .dcn-stack { display: none; }
 .dcn.upd { cursor: default; align-items: center; border-color: rgba(255, 77, 115, .5); }
 .upd-b { flex: none; padding: 6px 12px; font-size: .76rem; margin-left: auto; }
@@ -1547,6 +1558,38 @@ body.is-compact .rail { position: absolute; inset: 0; display: flex; flex-direct
 .btn:active, .chip:active, .wbtn:active, .ib:active, .hm-clip:active, .switch:active { transform: scale(.94); }
 .tab:active { transform: scale(.9); }
 .tab[aria-selected="true"] { animation: sx-pop .35s ease; }
+/* the highlight glides between tabs */
+.tab-pill { position: absolute; top: 0; left: 0; height: 46px; width: 54px; border-radius: 16px; background: var(--accent); box-shadow: 0 4px 14px var(--glow); transition: transform .42s cubic-bezier(.35, 1.25, .45, 1), width .3s, height .3s, opacity .2s; pointer-events: none; z-index: 0; opacity: 0; }
+.tabs.has-pill .tab { position: relative; z-index: 1; }
+.tabs.has-pill .tab[aria-selected="true"] { background: transparent; box-shadow: none; animation: none; }
+/* pages slide in from the side of the tab you came from */
+@keyframes sx-in-r { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
+@keyframes sx-in-l { from { opacity: 0; transform: translateX(-26px); } to { opacity: 1; transform: none; } }
+.panel.enter.from-r > .col > * { animation-name: sx-in-r; }
+.panel.enter.from-l > .col > * { animation-name: sx-in-l; }
+/* clip saved: rings burst out of the Clip button and a little copy of the moment flies into the clips folder */
+.hm-clip { position: relative; }
+.clip-ring { position: absolute; left: 11px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; border: 2px solid var(--accent); pointer-events: none; animation: clipRing .9s ease-out forwards; }
+@keyframes clipRing { 0% { opacity: .9; transform: scale(1); } 100% { opacity: 0; transform: scale(9); } }
+.clip-fly { position: fixed; z-index: 80; border-radius: 18px; background: center / cover no-repeat, linear-gradient(160deg, #57202f, #1d1018); box-shadow: 0 10px 30px rgba(0, 0, 0, .5); pointer-events: none; transform-origin: 0 0; transition: transform 1s cubic-bezier(.6, 0, .3, 1), opacity 1s ease-in; }
+@keyframes clipBump { 50% { transform: scale(1.25); color: #3ccf8e; border-color: #3ccf8e; } }
+.hm-clipdir.bump { animation: clipBump .4s ease; }
+/* new song: the cover slides in */
+@keyframes artIn { from { opacity: 0; transform: translateX(16px) rotate(4deg); } to { opacity: 1; transform: none; } }
+.ynp-art.swap { animation: artIn .55s cubic-bezier(.3, 1.2, .5, 1); }
+/* weekly recap: bars grow in one after another */
+@keyframes wkGrow { from { transform: scaleY(0); } to { transform: none; } }
+.wk-col i { transform-origin: bottom; animation: wkGrow .7s cubic-bezier(.3, 1.2, .5, 1) backwards; }
+/* idle screen */
+.idle { position: fixed; inset: 0; z-index: 95; display: grid; place-items: center; background: #050507; opacity: 0; pointer-events: none; transition: opacity 1.2s ease; overflow: hidden; border-radius: 20px; }
+.idle.on { opacity: 1; pointer-events: auto; cursor: none; }
+.idle-drift { position: absolute; inset: -40%; background: radial-gradient(circle at 30% 40%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 40%), radial-gradient(circle at 70% 60%, rgba(91, 140, 255, .16), transparent 42%); animation: idleDrift 16s ease-in-out infinite alternate; }
+.idle-crest { position: relative; width: min(220px, 42vw); max-height: 42vh; object-fit: contain; animation: idleBreathe 5s ease-in-out infinite; filter: drop-shadow(0 0 22px var(--glow)); }
+.idle-clock { position: absolute; left: 0; right: 0; bottom: 14%; text-align: center; font: 800 clamp(2rem, 9vw, 3.6rem)/1 var(--f-display); color: rgba(255, 255, 255, .88); font-variant-numeric: tabular-nums; }
+.idle-hint { position: absolute; left: 0; right: 0; bottom: calc(14% - 28px); text-align: center; font-size: .8rem; color: var(--muted); }
+@keyframes idleDrift { from { transform: translate(0, 0) rotate(0); } to { transform: translate(8%, -6%) rotate(12deg); } }
+@keyframes idleBreathe { 0%, 100% { transform: scale(.94); opacity: .8; } 50% { transform: scale(1.05); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .tab-pill, .clip-fly, .dcn-stack > .dcn { transition: none; } .clip-ring, .ynp-art.swap, .wk-col i, .idle-drift, .idle-crest { animation: none; } }
 .clc, .phc, .fr-card, .hxp-h, .wb-q, .rank, .tile, .fm-row, .hm-dc, .hx { transition: transform .2s cubic-bezier(.2, .8, .2, 1), box-shadow .2s, border-color .2s, background .2s; }
 .clc:hover, .phc:hover, .fr-card:hover, .tile:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0, 0, 0, .28); }
 .wb-q:hover, .hxp-h:hover { transform: translateY(-2px); }
@@ -2169,6 +2212,10 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
         <div class="group">
           <h2>Window</h2>
           <div class="setting">
+            <div class="txt"><div class="name">Idle screen</div><div class="desc">After 5 minutes without using Sothis, the background drifts slowly and the crest breathes, with the time on top. Move the mouse to wake it.</div></div>
+            <button class="switch" id="setIdle" role="switch" aria-checked="true" aria-label="Idle screen"></button>
+          </div>
+          <div class="setting">
             <div class="txt"><div class="name">Accent color</div><div class="desc">The color of buttons, switches and highlights.</div></div>
             <div class="ck-volc"><input type="color" id="setAccent" value="#ff4d73" aria-label="Accent color" style="width:38px;height:30px;border:0;padding:0;background:none;cursor:pointer"><button class="btn ghost" id="setAccentReset" type="button">Reset</button></div>
           </div>
@@ -2675,6 +2722,16 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   const TABS = ["home", "ytm", "games", "stats", "switch", "web", "opera", "claude"];
   let mainTab = "home";   // always open on Home
   let tab = mainTab;
+  // the pink highlight under the selected tab, moved (not jumped) when you switch
+  function tabPill() {
+    const nav = document.querySelector(".tabs"); if (!nav) return;
+    let pill = nav.querySelector(".tab-pill"); if (!pill) { pill = mk("span", "tab-pill"); pill.setAttribute("aria-hidden", "true"); nav.prepend(pill); nav.classList.add("has-pill"); }
+    const sel = nav.querySelector('.tab[aria-selected="true"]');
+    if (!sel || sel.offsetParent === null) { pill.style.opacity = "0"; return; }
+    pill.style.width = sel.offsetWidth + "px"; pill.style.height = sel.offsetHeight + "px";
+    pill.style.transform = `translate(${sel.offsetLeft}px, ${sel.offsetTop}px)`; pill.style.opacity = "1";
+  }
+  window.addEventListener("resize", () => { try { tabPill(); } catch {} });
   function showTab(t) {
     if (t === "discord") t = "ytm";
     if (t === "switch" && D.has && D.has.sw === false) t = "home";   // the Switch tab is only on PCs that have it
@@ -2684,11 +2741,14 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     try { $("tbVol").hidden = tab !== "ytm"; document.body.classList.toggle("on-music", tab === "ytm"); } catch {}
     try { dockRow(); setTimeout(() => { dockRow(); updateDock(); }, 320); } catch {}
     try { if (bellOpen) bellShow(false); } catch {}
+    const ORDER = ["home", "ytm", "games", "stats", "switch", "web", "opera", "claude"], fromI = ORDER.indexOf(showTab.prev || ""), toI = ORDER.indexOf(tab);
+    const slide = fromI >= 0 && toI >= 0 && fromI !== toI ? (toI > fromI ? "from-r" : "from-l") : "";
+    showTab.prev = tab;
     ["home", "ytm", "games", "stats", "switch", "dcapp", "web", "opera", "claude", "discord", "settings", "clips"].forEach(k => $("tab-" + k).classList.toggle("off", k !== tab));
     try { if (tab === "opera") opShow(); else D.operaHide(); } catch {}
     try { if (tab === "dcapp") dkShow(); else D.dockHide("discord"); } catch {}
     // replay the page's entrance animation
-    try { const pn = $("tab-" + tab); pn.classList.remove("enter"); void pn.offsetWidth; pn.classList.add("enter"); clearTimeout(showTab.enterT); showTab.enterT = setTimeout(() => pn.classList.remove("enter"), 900); } catch {}
+    try { const pn = $("tab-" + tab); pn.classList.remove("enter", "from-r", "from-l"); void pn.offsetWidth; pn.classList.add("enter"); if (slide) pn.classList.add(slide); clearTimeout(showTab.enterT); showTab.enterT = setTimeout(() => pn.classList.remove("enter"), 900); } catch {}
     if (tab === "clips") loadClips(); else { try { $("clVid").pause(); } catch {} }
     D.setLayout(tab === "claude" || tab === "switch" ? "wide" : "main");   // Claude and Switch open wide like before; the rest stay Home size
     try { if (window.__rtPlaying) rtHostMute(tab !== "games"); } catch {}
@@ -2703,6 +2763,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       b.setAttribute("aria-selected", k === tab);
       b.tabIndex = k === tab ? 0 : -1;
     });
+    try { tabPill(); setTimeout(tabPill, 330); } catch {}   // again after the bar has settled (it can change size per tab)
     document.body.classList.toggle("in-settings", tab === "settings");
     $("setBtn").setAttribute("aria-pressed", tab === "settings");
     if (tab === "stats") showGame(game);
@@ -4695,11 +4756,30 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   }
 
   // Now-playing bar under Library and Search
+  // the album's main color, read from a small copy of the cover, for the glow behind Sothis
+  let glowFor = "";
+  function songGlow(url) {
+    if (url === glowFor) return; glowFor = url;
+    const set = c => document.querySelector(".shell").style.setProperty("--song-glow", c);
+    if (!url) return set("rgba(0, 0, 0, 0)");
+    const im = new Image(); im.crossOrigin = "anonymous"; im.referrerPolicy = "no-referrer";
+    im.onload = () => {
+      if (glowFor !== url) return;
+      try {
+        const c = document.createElement("canvas"); c.width = c.height = 24; const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(im, 0, 0, 24, 24);
+        const d = x.getImageData(0, 0, 24, 24).data; let r = 0, g = 0, b = 0, w = 0;
+        for (let i = 0; i < d.length; i += 4) { const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]), sat = mx - mn, k = 1 + sat * sat / 900; r += d[i] * k; g += d[i + 1] * k; b += d[i + 2] * k; w += k; }
+        set(`rgba(${Math.round(r / w)}, ${Math.round(g / w)}, ${Math.round(b / w)}, .32)`);
+      } catch { set("rgba(0, 0, 0, 0)"); }
+    };
+    im.onerror = () => set("rgba(0, 0, 0, 0)");
+    im.src = url;
+  }
   function renderYnp() {
     const y = ytState && ytState.has ? ytState : null;
     $("ynpT").textContent = y ? y.title : "Nothing playing";
     $("ynpA").textContent = y ? y.artist : "Pick a song from your library or search";
-    if (y && y.art) { if ($("ynpArt").getAttribute("src") !== y.art) $("ynpArt").src = y.art; } else $("ynpArt").removeAttribute("src");
+    if (y && y.art) { if ($("ynpArt").getAttribute("src") !== y.art) { const im = $("ynpArt"); im.src = y.art; im.classList.remove("swap"); void im.offsetWidth; im.classList.add("swap"); songGlow(y.art); } } else { $("ynpArt").removeAttribute("src"); songGlow(""); }
     $("ynpFill").style.width = (y && y.dur ? Math.min(100, y.pos / y.dur * 100) : 0) + "%";
     $("ynpPlayI").innerHTML = y && y.playing ? PAUSE : PLAY;
     $("ynpPlay").setAttribute("aria-label", y && y.playing ? "Pause" : "Play");
@@ -5574,6 +5654,26 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     document.addEventListener("click", e => { if (e.target.closest && e.target.closest(".bell-btn")) { pop.classList.remove("on"); cur = null; } }, true);
   }
 
+  /* ---------- Idle screen: after 5 quiet minutes the background drifts and the crest breathes ---------- */
+  { const ov = mk("div", "idle"); ov.setAttribute("aria-hidden", "true");
+    ov.innerHTML = '<div class="idle-drift"></div><img class="idle-crest" alt=""><div class="idle-clock"></div><div class="idle-hint">Move the mouse to wake Sothis</div>';
+    document.body.append(ov);
+    let idleOn = store.get("idle.on") !== "0", last = Date.now(), shown = false;
+    const sw = $("setIdle"); sw.setAttribute("aria-checked", String(idleOn));
+    sw.onclick = () => { idleOn = !idleOn; store.set("idle.on", idleOn ? "1" : "0"); sw.setAttribute("aria-checked", String(idleOn)); };
+    const clock = () => { ov.querySelector(".idle-clock").textContent = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); };
+    const wake = () => { last = Date.now(); if (shown) { shown = false; ov.classList.remove("on"); } };
+    ["mousemove", "mousedown", "keydown", "wheel", "touchstart"].forEach(ev => window.addEventListener(ev, wake, { passive: true, capture: true }));
+    setInterval(() => {
+      if (shown) { clock(); return; }
+      // not over things you're watching or using: videos, the Switch, Claude, the browser, a retro game
+      const busy = ["switch", "claude", "web", "clips", "opera", "dcapp"].includes(tab) || window.__rtPlaying || document.hidden || document.body.classList.contains("is-mini") || document.body.classList.contains("is-compact");
+      if (!idleOn || busy || Date.now() - last < 5 * 60000) return;
+      ov.querySelector(".idle-crest").src = window.__brandCrest || "crest-bg.png"; clock();
+      shown = true; ov.classList.add("on");
+    }, 10000);
+  }
+
   /* ---------- Your week ---------- */
   let wkOff = 0;
   const wkH = s => { s = Math.round(s / 60); return s >= 60 ? Math.floor(s / 60) + "h " + String(s % 60).padStart(2, "0") + "m" : s + "m"; };
@@ -5589,24 +5689,34 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     $("wkPrev").disabled = !r.since || new Date(r.since + "T00:00:00").getTime() >= r.start;
     if (!r.hasAny) { $("wkBody").innerHTML = '<p class="wk-empty">Sothis starts keeping track now: the music you play and the games you\'re in. Check back in a few days for your first recap (it pings you Sunday evening).</p>'; return; }
     const max = Math.max(1, ...r.days.map(d => d.music + d.game));
-    const cols = r.days.map(d => {
+    const cols = r.days.map((d, ci) => {
       const dt = new Date(d.day + "T12:00:00");
       return '<div class="wk-col' + (d.day === r.busiest ? " top" : "") + '" title="' + dt.toLocaleDateString([], { weekday: "long" }) + ": " + wkH(d.music) + " music, " + wkH(d.game) + ' games">'
-        + '<i class="g" style="height:' + (d.game / max * 100) + '%"></i><i class="m" style="height:' + (d.music / max * 100) + '%"></i>'
+        + '<i class="g" style="height:' + (d.game / max * 100) + '%;animation-delay:' + (ci * 90) + 'ms"></i><i class="m" style="height:' + (d.music / max * 100) + '%;animation-delay:' + (ci * 90 + 40) + 'ms"></i>'
         + '<span>' + dt.toLocaleDateString([], { weekday: "short" }) + '</span></div>';
     }).join("");
     const rank = (list, row) => list.length ? '<ol class="wk-rank">' + list.map((x, i) => '<li><em>' + (i + 1) + '</em>' + row(x) + '</li>').join("") + '</ol>' : '<p class="wk-empty">Nothing yet.</p>';
     $("wkBody").innerHTML =
       '<div class="wk-big">'
-      + '<div><b>' + wkH(r.music) + '</b><span>music · ' + r.plays + ' songs</span><br>' + wkDelta(r.music, r.musicPrev, true) + '</div>'
-      + '<div><b>' + wkH(r.game) + '</b><span>gaming</span><br>' + wkDelta(r.game, r.gamePrev, true) + '</div>'
-      + '<div><b>' + r.clips + '</b><span>clips saved</span><br>' + wkDelta(r.clips, r.clipsPrev, false) + '</div>'
+      + '<div><b data-sec="' + r.music + '">' + wkH(r.music) + '</b><span>music · ' + r.plays + ' songs</span><br>' + wkDelta(r.music, r.musicPrev, true) + '</div>'
+      + '<div><b data-sec="' + r.game + '">' + wkH(r.game) + '</b><span>gaming</span><br>' + wkDelta(r.game, r.gamePrev, true) + '</div>'
+      + '<div><b data-n="' + r.clips + '">' + r.clips + '</b><span>clips saved</span><br>' + wkDelta(r.clips, r.clipsPrev, false) + '</div>'
       + '</div>'
       + '<h3>Day by day</h3><div class="wk-chart">' + cols + '</div>'
       + '<div class="wk-key"><span><i style="background:var(--accent)"></i>Music</span><span><i style="background:#5b8cff"></i>Games</span>' + (r.busiest ? '<span>Busiest: ' + new Date(r.busiest + "T12:00:00").toLocaleDateString([], { weekday: "long" }) + '</span>' : '') + '</div>'
       + '<div class="wk-two"><div><h3>Top songs</h3>' + rank(r.songs, x => '<b>' + wkEsc(x.title) + '<small>' + wkEsc(x.artist) + '</small></b><span>' + wkH(x.secs) + '</span>') + '</div>'
       + '<div><h3>Top artists</h3>' + rank(r.artists, x => '<b>' + wkEsc(x.name) + '</b><span>' + wkH(x.secs) + '</span>') + '</div></div>'
       + '<h3>Games</h3>' + rank(r.games, x => '<b>' + wkEsc(x.name) + '</b><span>' + wkH(x.secs) + '</span>');
+    wkCount();
+  }
+  // the totals count up from zero when the recap opens
+  function wkCount() {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    $("wkBody").querySelectorAll(".wk-big b[data-sec], .wk-big b[data-n]").forEach(b => {
+      const sec = b.dataset.sec != null, to = +(sec ? b.dataset.sec : b.dataset.n), t0 = performance.now(), dur = 1200;
+      const step = now => { const p = Math.min(1, (now - t0) / dur), v = to * (1 - Math.pow(1 - p, 3)); b.textContent = sec ? wkH(v) : String(Math.round(v)); if (p < 1) requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    });
   }
   function wkOpen() { wkOff = 0; $("wkOv").hidden = false; wkShow(); }
   $("hmWeek").onclick = wkOpen;
@@ -6138,9 +6248,21 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     const b = $("hmClip"); b.classList.add("busy");
     let r = null; try { r = await D.medalClip(); } catch {}
     b.classList.remove("busy");
-    if (r && r.ok) { b.classList.add("done"); b.querySelector("span").textContent = "Clipped!"; setTimeout(() => { b.classList.remove("done"); b.querySelector("span").textContent = "Clip it"; }, 2500); }
+    if (r && r.ok) { clipBurst(b); b.classList.add("done"); b.querySelector("span").textContent = "Clipped!"; setTimeout(() => { b.classList.remove("done"); b.querySelector("span").textContent = "Clip it"; }, 2500); }
     else toast((r && r.err) || "Couldn't save a clip");
   };
+  function clipBurst(btn) {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    [0, 180].forEach(d => setTimeout(() => { const r = mk("span", "clip-ring"); btn.append(r); setTimeout(() => r.remove(), 1000); }, d));
+    const from = $("hx"), to = $("hmClipDir"); if (!from || !to || from.offsetParent === null) return;
+    const a = from.getBoundingClientRect(), z = to.getBoundingClientRect();
+    const f = mk("div", "clip-fly"); const bg = $("hxBg").getAttribute("src");
+    if (bg) f.style.backgroundImage = `url("${bg}"), linear-gradient(160deg, #57202f, #1d1018)`;
+    Object.assign(f.style, { left: a.left + "px", top: a.top + "px", width: a.width + "px", height: a.height + "px", opacity: ".9" });
+    document.body.append(f);
+    requestAnimationFrame(() => requestAnimationFrame(() => { f.style.transform = `translate(${z.left + z.width / 2 - a.left - 6}px, ${z.top + z.height / 2 - a.top - 4}px) scale(${12 / a.width}, ${8 / a.height})`; f.style.opacity = "0"; }));
+    setTimeout(() => { f.remove(); to.classList.remove("bump"); void to.offsetWidth; to.classList.add("bump"); }, 1000);
+  }
   $("hmClipDir").onclick = () => { try { flKind = "clips"; store.set("fl.kind", "clips"); } catch {} showTab("clips"); };
 
   /* ---------- Clips page (your Medal folder) ---------- */

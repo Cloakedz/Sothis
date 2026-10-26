@@ -1,5 +1,17 @@
 [
  {
+  "v": "1.9.6",
+  "d": "2026-10-25",
+  "notes": [
+   "Clip saved: rings burst from the Clip button and the moment flies into your clips",
+   "The background glows with the current song's album color",
+   "The tab highlight glides between tabs and pages slide in from the side",
+   "Notifications stack up like cards (hover to fan them out)",
+   "Your week counts up and its bars grow in",
+   "New idle screen after 5 quiet minutes (Settings \u2192 Window)"
+  ]
+ },
+ {
   "v": "1.9.5",
   "d": "2026-10-25",
   "notes": [
