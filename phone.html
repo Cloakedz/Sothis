@@ -24,15 +24,19 @@ body { min-height: 100dvh; padding: calc(env(safe-area-inset-top) + 10px) 16px c
   background: radial-gradient(120% 60% at 50% -10%, rgba(232, 52, 91, .22), transparent 60%), var(--bg); }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 .hide { display: none !important; }
-header { display: flex; align-items: center; gap: 10px; margin: 4px 2px 16px; }
+header { position: relative; display: flex; align-items: center; gap: 10px; margin: 4px 2px 16px; min-height: 44px; }
+/* the Sothis crest in the middle of the top bar, breathing with the same glow as the name */
+header .crest { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; object-fit: contain; transform: translate(-50%, -50%); pointer-events: none; animation: crestGlow 3.2s ease-in-out infinite; }
+@keyframes crestGlow { 0%, 100% { filter: drop-shadow(0 0 2px rgba(232, 52, 91, .25)); opacity: .85; } 50% { filter: drop-shadow(0 0 8px rgba(255, 70, 110, .9)) drop-shadow(0 0 18px rgba(232, 52, 91, .55)); opacity: 1; } }
 header h1 { margin: 0; font: 400 1.9rem/1 "Pirata", serif; letter-spacing: .02em; color: var(--accent); text-shadow: 0 0 18px var(--glow); animation: logoGlow 3.2s ease-in-out infinite; }
 /* the logo's glow slowly fades in and out */
 @keyframes logoGlow {
   0%, 100% { text-shadow: 0 0 4px rgba(232, 52, 91, .15); color: #c92d4f; }
   50% { text-shadow: 0 0 10px rgba(255, 70, 110, .9), 0 0 26px rgba(232, 52, 91, .7), 0 0 48px rgba(232, 52, 91, .45); color: #ff5a7e; }
 }
-@media (prefers-reduced-motion: reduce) { header h1 { animation: none; } }
+@media (prefers-reduced-motion: reduce) { header h1, header .crest { animation: none; } }
 header .pc { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: .78rem; color: var(--muted); }
+header .pc { max-width: calc(50% - 74px); min-width: 0; } header .pc span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 header .dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
 header .dot.on { background: var(--good); box-shadow: 0 0 8px var(--good); }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 16px; margin-bottom: 12px; }
@@ -157,7 +161,7 @@ main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 </style>
 </head>
 <body>
-<header><h1>Sothis</h1><div class="pc"><i class="dot" id="dot"></i><span id="pcName">Connecting…</span></div><button class="lockc hide" id="lock" type="button" aria-label="Lock PC" title="Lock PC"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button></header>
+<header><h1>Sothis</h1><img class="crest" src="/crest.png" alt=""><div class="pc"><i class="dot" id="dot"></i><span id="pcName">Connecting…</span></div><button class="lockc hide" id="lock" type="button" aria-label="Lock PC" title="Lock PC"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button></header>
 
 <section id="pairView" class="pair hide">
   <img src="/icon.png" alt="">

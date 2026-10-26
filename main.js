@@ -4266,7 +4266,7 @@ function phPush(force) {
   if (!force && j === phLastJson) return;
   phLastJson = j; phEvent("state", s);
 }
-const PH_FILES = { "/": ["phone.html", "text/html; charset=utf-8"], "/manifest.json": ["phone-manifest.json", "application/manifest+json"], "/icon.png": ["phone-icon.png", "image/png"], "/phone-icon.png": ["phone-icon.png", "image/png"], "/apple-touch-icon.png": ["phone-icon.png", "image/png"], "/apple-touch-icon-precomposed.png": ["phone-icon.png", "image/png"], "/chime.wav": ["queue-chime.wav", "audio/wav"],
+const PH_FILES = { "/": ["phone.html", "text/html; charset=utf-8"], "/manifest.json": ["phone-manifest.json", "application/manifest+json"], "/icon.png": ["phone-icon.png", "image/png"], "/phone-icon.png": ["phone-icon.png", "image/png"], "/apple-touch-icon.png": ["phone-icon.png", "image/png"], "/apple-touch-icon-precomposed.png": ["phone-icon.png", "image/png"], "/chime.wav": ["queue-chime.wav", "audio/wav"], "/crest.png": ["crest-bg.png", "image/png"],
   "/fonts/nunito-800.woff2": ["fonts/nunito-800.woff2", "font/woff2"], "/fonts/pirata-one.woff2": ["fonts/pirata-one.woff2", "font/woff2"] };
 async function phCmd(cmd, value) {
   if (["playpause", "next", "prev"].includes(cmd)) { remote(cmd); return { ok: true }; }
