@@ -1,5 +1,12 @@
 [
  {
+  "v": "1.11.1",
+  "d": "2026-10-25",
+  "notes": [
+   "Settings: the Discord call section is now just called Discord"
+  ]
+ },
+ {
   "v": "1.11.0",
   "d": "2026-10-25",
   "notes": [
