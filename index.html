@@ -4254,7 +4254,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     $("hmDcEmpty").hidden = !!ch;
     const setup = !s.configured || s.status === "off" || s.status === "error";
     $("hmDcEmptyT").textContent = setup ? "Discord not connected" : s.status === "nodiscord" ? "Waiting for Discord" : "Not in a call";
-    $("hmDcEmptyS").textContent = setup ? "Connect it in Settings → Discord call." : s.status === "nodiscord" ? "Open the Discord app and it connects automatically." : "Join a channel in Discord and it shows up here.";
+    $("hmDcEmptyS").textContent = setup ? "Connect it in Settings → Discord." : s.status === "nodiscord" ? "Open the Discord app and it connects automatically." : "Join a channel in Discord and it shows up here.";
     if (!ch) return;
     $("hmDcName").textContent = ch.name;
     $("hmDcGuild").textContent = ch.guild || "";
