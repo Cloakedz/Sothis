@@ -189,6 +189,8 @@ contextBridge.exposeInMainWorld("desktop", {
   releasesGet: force => ipcRenderer.invoke("releases:get", force),
   weekGet: offset => ipcRenderer.invoke("week:get", offset),
   dayYesterday: () => ipcRenderer.invoke("day:yesterday"),
+  crExt: () => ipcRenderer.invoke("cr:ext"),
+  crStatus: () => ipcRenderer.invoke("cr:status"),
   onWeekOpen: cb => ipcRenderer.on("week:open", () => cb()),
   shareGet: () => ipcRenderer.invoke("share:get"),
   shareAddFiles: files => ipcRenderer.invoke("share:add", Array.from(files || []).map(f => { try { return webUtils.getPathForFile(f); } catch { return ""; } }).filter(Boolean)),

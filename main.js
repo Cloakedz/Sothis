@@ -827,6 +827,23 @@ function dcPresenceNow() {
         : logo ? Object.assign({ large_image: logo, large_text: cut(game.name, 120) }, (small && small.img) ? { small_image: small.img, small_text: cut(small.text || rank || game.name, 120) } : {})
         : art ? { large_image: art, large_text: cut(song.t, 120) } : undefined
     };
+  } else if ((crExt || crNow) && dcPresOn() && settings.dcWatch !== false) {
+    // Crunchyroll: "S1 E4 · Episode title", with the episode's time bar when the extension tells us where you are
+    const c = crExt || crNow, CR_ICON = "https://www.google.com/s2/favicons?domain=crunchyroll.com&sz=256";
+    const se = (c.season ? "S" + c.season + " " : "") + (c.ep ? "E" + c.ep : "");
+    let ts;
+    if (crExt && crExt.time != null && crExt.dur && !crExt.paused) {
+      const st = Date.now() - crExt.time * 1000;
+      ts = { start: Math.round(st), end: Math.round(st + crExt.dur * 1000) }; crSentStart = st;
+    } else if (!crExt) { ts = { start: c.at || Date.now() }; crSentStart = 0; }
+    else crSentStart = 0;
+    act = {
+      type: 3, status_display_type: 2,
+      details: cut(c.show || "Crunchyroll", 120),
+      state: cut((crExt && crExt.paused ? "⏸ " : "") + [se, c.title].filter(Boolean).join(" · "), 120) || undefined,
+      timestamps: ts,
+      assets: crExt && crExt.img ? { large_image: crExt.img, large_text: cut(c.show || "Crunchyroll", 120), small_image: CR_ICON, small_text: "Crunchyroll" } : { large_image: CR_ICON, large_text: "Crunchyroll" }
+    };
   } else if (song) {
     act = {
       type: 2, details: cut(song.t, 120), state: cut(song.a || "YouTube Music", 120), status_display_type: 2,
@@ -861,6 +878,92 @@ function dcPresenceNow() {
   });
 }
 let dcNoName = false, matchKey = "", matchAt = 0;
+/* ---------- Crunchyroll in your Discord status: "Watching <show> · Episode N" while a Crunchyroll episode is open in any browser
+   (Chrome, Edge, Opera GX…). Only the window title is read. ---------- */
+let crNow = null, crProc = null, crLast = "", crKey = "", crAt = 0;
+const CR_GENERIC = /^(home|browse|search|simulcast.*|my lists?|watchlist|crunchylists?|history|account.*|settings|news|store|calendar|anime|watch popular anime.*|crunchyroll)$/i;
+function crParse(raw) {
+  let t = String(raw || "").replace(/\s+[-—–]\s+(Google Chrome|Opera( GX)?|Microsoft​? Edge|Brave|Mozilla Firefox|Vivaldi|Arc)$/i, "").trim();
+  t = t.replace(/^Crunchyroll\s*[:|-]\s*/i, "").replace(/\s*[-|–—]\s*(Watch (it )?on |Stream on )?Crunchyroll\s*$/i, "").replace(/^Watch\s+/i, "").trim();
+  if (!t || CR_GENERIC.test(t)) return null;
+  // "Show Episode 5 - Episode title" / "Episode title - Show" with "Episode 5" or "E5" somewhere
+  const parts = t.split(/\s+[-–—|]\s+/);
+  let show = "", ep = "", title = "";
+  for (let i = 0; i < parts.length; i++) {
+    const m = /^(.*?)\s*(?:\bEpisode\b|\bEp\.?|\bE)\s*(\d+(?:\.\d+)?)\b\s*[:.\-–]?\s*(.*)$/i.exec(parts[i]);
+    if (m) {
+      ep = m[2]; show = m[1].trim(); title = m[3].trim();
+      const before = parts.slice(0, i).join(" - "), after = parts.slice(i + 1).join(" - ");
+      if (!show) { if (before) { show = before; if (!title) title = after; } else { show = after; } }
+      else if (!title) title = after || before;
+      break;
+    }
+  }
+  if (!ep) return null;   // a show's page or the home page, not an episode
+  return { show: (show || "Anime").slice(0, 100), ep, title: title.slice(0, 100) };
+}
+function crStart() {
+  if (crProc || process.platform !== "win32") return;
+  try {
+    crProc = require("child_process").spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path.join(__dirname, "crunchy-watch.ps1")], { windowsHide: true, stdio: ["ignore", "pipe", "ignore"] });
+  } catch { crProc = null; return; }
+  let buf = "";
+  crProc.stdout.on("data", d => {
+    buf += d.toString("utf8"); let i;
+    while ((i = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+      let titles = []; try { titles = JSON.parse(line) || []; } catch { continue; }
+      if (!Array.isArray(titles)) titles = [titles];
+      let hit = null; for (const t of titles) { hit = crParse(t); if (hit) break; }
+      const raw = titles.join(" || ");
+      if (raw !== crLast) { crLast = raw; if (raw) presLog("crunchyroll window: " + raw.slice(0, 300)); }   // helps fix the title reading if Crunchyroll changes it
+      const k = hit ? hit.show + "|" + hit.ep : "";
+      if (k !== crKey) { crKey = k; crAt = Date.now(); }
+      const changed = JSON.stringify(hit) !== JSON.stringify(crNow);
+      crNow = hit ? Object.assign(hit, { at: crAt }) : null;
+      if (changed) dcPresence();
+    }
+  });
+  crProc.on("exit", () => { crProc = null; crNow = null; setTimeout(crStart, 30000); });
+}
+app.whenReady().then(() => setTimeout(crStart, 8000));
+// the "Sothis for Crunchyroll" browser extension sends the full details (season, episode, time) here; this PC only
+let crExt = null, crExtSeen = 0, crSentStart = 0;
+function crExtSet(d) {
+  if (!d || d.gone) { const was = !!crExt; crExt = null; if (was) dcPresence(); return; }
+  const n = { show: String(d.show || "").slice(0, 100), season: String(d.season || "").replace(/\D/g, "").slice(0, 4), ep: String(d.ep || "").slice(0, 8), title: String(d.title || "").slice(0, 120),
+    img: /^https:\/\//.test(d.img || "") ? String(d.img).slice(0, 400) : "", paused: !!d.paused,
+    time: isFinite(+d.time) ? +d.time : null, dur: isFinite(+d.dur) && +d.dur > 0 ? +d.dur : null };
+  if (!n.show && !n.ep) return;
+  const old = crExt; crExt = n; crExtSeen = Date.now();
+  // Discord gets a new status when something visible changes, or the time jumps (you skipped ahead / back)
+  const start = n.time != null && !n.paused ? Date.now() - n.time * 1000 : 0;
+  const jumped = start && crSentStart && Math.abs(start - crSentStart) > 8000;
+  if (!old || old.show !== n.show || old.ep !== n.ep || old.season !== n.season || old.paused !== n.paused || old.title !== n.title || jumped || (start && !crSentStart)) { if (jumped) dcPresKey = "x"; dcPresence(); }
+}
+setInterval(() => { if (crExt && Date.now() - crExtSeen > 20000) { crExt = null; dcPresence(); } }, 5000);
+function crExtServer() {
+  try {
+    require("http").createServer((req, res) => {
+      if (req.method === "POST" && req.url === "/crunchyroll") {
+        let b = ""; req.on("data", c => { b += c; if (b.length > 20000) req.destroy(); });
+        req.on("end", () => { try { crExtSet(JSON.parse(b)); } catch {} res.writeHead(204); res.end(); });
+        return;
+      }
+      res.writeHead(404); res.end();
+    }).on("error", () => {}).listen(47823, "127.0.0.1");
+  } catch {}
+}
+app.whenReady().then(crExtServer);
+ipcMain.handle("cr:ext", () => {
+  // a copy outside the app folder, so updates don't move it; your browser loads it from there
+  const dest = path.join(DATA_DIR, "crunchyroll-ext");
+  try { fs.mkdirSync(dest, { recursive: true }); for (const f of fs.readdirSync(path.join(__dirname, "crunchyroll-ext"))) fs.copyFileSync(path.join(__dirname, "crunchyroll-ext", f), path.join(dest, f)); } catch (e) { return { ok: false, err: e.message }; }
+  shell.openPath(dest);
+  return { ok: true, path: dest };
+});
+ipcMain.handle("cr:status", () => ({ ext: !!crExt || Date.now() - crExtSeen < 60000, seen: crExtSeen, now: crExt || crNow || null }));
+app.on("will-quit", () => { try { crProc && crProc.kill(); } catch {} });
 let dcPresSong = "";
 function dcPresenceFromPlayer() {
   const k = (player.title || "") + "\u0000" + (player.artist || "");

@@ -1,5 +1,13 @@
 [
  {
+  "v": "1.11.0",
+  "d": "2026-10-25",
+  "notes": [
+   "Crunchyroll in your Discord status: the show, season and episode (S1 E4) and the episode's time bar",
+   "Set it up in Settings \u2192 Discord (a small browser extension)"
+  ]
+ },
+ {
   "v": "1.10.2",
   "d": "2026-10-25",
   "notes": [

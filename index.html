@@ -2414,6 +2414,10 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
             <button class="switch" id="setDcIdle" role="switch" aria-checked="true" aria-label="Idle status"></button>
           </div>
           <div class="setting">
+            <div class="txt"><div class="name">Crunchyroll in your status</div><div class="desc" id="setCrDesc">Shows the show, season and episode (like S1 E4) and the episode's time bar while you watch. Needs the small Sothis extension in the browser you watch in.</div></div>
+            <button class="btn ghost" id="setCrExt" type="button">Set up</button>
+          </div>
+          <div class="setting">
             <div class="txt"><div class="name">Just say "Sothis"</div><div class="desc">The member list shows "Playing Sothis" instead of the song or game. The details still show when someone opens your profile.</div></div>
             <button class="switch" id="setDcName" role="switch" aria-checked="true" aria-label="Just say Sothis"></button>
           </div>
@@ -7523,6 +7527,23 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   D.dcNameOnly().then(v => { dcNameOn = v !== false; $("setDcName").setAttribute("aria-checked", dcNameOn); }).catch(() => {});
   $("setDcName").onclick = () => D.dcNameOnly(!dcNameOn).then(v => { dcNameOn = v; $("setDcName").setAttribute("aria-checked", dcNameOn); });
   $("setDcIdle").onclick = () => D.dcIdle(!dcIdleOn).then(v => { dcIdleOn = v; $("setDcIdle").setAttribute("aria-checked", dcIdleOn); });
+  // Crunchyroll: the browser extension sends the episode and its time; without it, only the episode number from the window title
+  const crDescBase = "Shows the show, season and episode (like S1 E4) and the episode's time bar while you watch. Needs the small Sothis extension in the browser you watch in.";
+  let crHelpUntil = 0;
+  async function crPaint() {
+    let st = null; try { st = await D.crStatus(); } catch {}
+    if (Date.now() < crHelpUntil && !(st && st.ext)) return;
+    $("setCrDesc").textContent = st && st.ext ? "Extension connected" + (st.now && st.now.show ? " · watching " + st.now.show : "") + ". Your Discord status shows the season, episode and time." : crDescBase;
+    $("setCrExt").textContent = st && st.ext ? "Open folder" : "Set up";
+  }
+  $("setCrExt").onclick = async () => {
+    let r = null; try { r = await D.crExt(); } catch {}
+    crHelpUntil = Date.now() + 5 * 60000;
+    $("setCrDesc").textContent = r && r.ok
+      ? "The extension folder just opened. In your browser go to its Extensions page (chrome://extensions, opera://extensions or edge://extensions), turn on Developer mode, click Load unpacked and pick that folder. Then open an episode on Crunchyroll."
+      : "Couldn't copy the extension" + (r && r.err ? " (" + r.err + ")" : "") + ".";
+  };
+  crPaint(); setInterval(() => { if (tab === "settings") crPaint(); }, 10000);
 
   /* ---------- Retro games inside Sothis (muted while you're on another tab) ---------- */
   let rtNow = null, rtWv = null, rtFullOn = false;

@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Sothis for Crunchyroll",
+  "version": "1.0.0",
+  "description": "Tells the Sothis app on this PC which Crunchyroll episode you're watching (show, season, episode, time), for your Discord status.",
+  "permissions": [],
+  "host_permissions": ["http://127.0.0.1:47823/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    { "matches": ["https://www.crunchyroll.com/*", "https://static.crunchyroll.com/*"], "js": ["content.js"], "all_frames": true, "run_at": "document_idle" }
+  ]
+}
