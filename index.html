@@ -1642,35 +1642,14 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .btn.ib-only .bi { margin-right: 0; }
 .btn:hover .bi svg { filter: drop-shadow(0 0 4px rgba(255, 59, 79, .55)); }
 
-/* Friends playing now (top of Games) */
-.dfr { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
-.dfr-h { display: flex; align-items: center; gap: 8px; font: 700 14px var(--f-display); padding: 0 2px; }
-.dfr-n { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--muted); }
-.dfr-live { width: 8px; height: 8px; border-radius: 50%; background: var(--good); animation: dfrPulse 2s ease-in-out infinite; }
-@keyframes dfrPulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 55%, transparent); } 50% { box-shadow: 0 0 0 5px transparent; } }
-.dfr-row { display: flex; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink) 18%, transparent) transparent; mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); }
-.dfr-row::-webkit-scrollbar { height: 4px; } .dfr-row::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ink) 18%, transparent); border-radius: 4px; }
-.dfr-c { flex: none; width: 150px; padding: 10px; border-radius: 14px; background: color-mix(in srgb, var(--ink) 5%, transparent); border: 1px solid var(--line); scroll-snap-align: start; text-align: left; color: var(--ink); cursor: pointer; transition: border-color .15s, background .15s, transform .12s; }
-.dfr-c:hover { border-color: color-mix(in srgb, var(--accent) 50%, transparent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
-.dfr-c:active { transform: scale(.97); }
-.dfr-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.dfr-av { position: relative; flex: none; width: 32px; height: 32px; }
-.dfr-av img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: #24242c; }
-.dfr-av i { position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; background: var(--good); border: 2px solid #121218; }
-.dfr-av i.idle { background: var(--warn); } .dfr-av i.dnd { background: var(--bad); }
-.dfr-nm { min-width: 0; } .dfr-nm b { display: block; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .dfr-nm span { font-size: 11px; color: var(--muted); }
-.dfr-g { margin-top: 9px; display: flex; align-items: center; gap: 7px; padding: 6px 7px; border-radius: 9px; background: color-mix(in srgb, var(--ink) 5%, transparent); min-width: 0; }
-.dfr-g img, .dfr-g .dfr-gi { width: 22px; height: 22px; border-radius: 6px; flex: none; object-fit: cover; background: #24242c; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--muted); }
-.dfr-g b { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dfr-msg { font-size: 12px; color: var(--muted); padding: 2px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.dfr-msg .btn { padding: 5px 10px; font-size: 12px; }
 /* Tab icons react: Music bounces to the beat, Games shows a dot while a game is open */
 @keyframes tiBeat { 0%, 100% { transform: translateY(0) scale(1); } 18% { transform: translateY(-2px) scale(1.12); } 40% { transform: translateY(0) scale(.97); } }
 #tabbtn-ytm.beat svg { animation: tiBeat .5s ease-in-out infinite; transform-origin: 50% 60%; }
 #tabbtn-ytm.beat.live svg { animation: none; transform: translateY(calc(var(--tb, 0) * -2.5px)) scale(calc(1 + var(--tb, 0) * .16)); transition: transform .06s linear; }
 #tabbtn-games { position: relative; }
+@keyframes gmRunPulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 55%, transparent); } 50% { box-shadow: 0 0 0 5px transparent; } }
 #tabbtn-games::after { content: ""; position: absolute; right: 10px; top: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--good); border: 2px solid color-mix(in srgb, var(--bg) 90%, #000); opacity: 0; transform: scale(.4); transition: opacity .25s, transform .25s cubic-bezier(.35, 1.4, .5, 1); }
-#tabbtn-games.running::after { opacity: 1; transform: none; animation: dfrPulse 2s ease-in-out infinite; }
+#tabbtn-games.running::after { opacity: 1; transform: none; animation: gmRunPulse 2s ease-in-out infinite; }
 .tabs.compact #tabbtn-games::after { right: 6px; } .tabs.tiny #tabbtn-games::after { right: 4px; }
 /* Daily start screen */
 .ds { position: fixed; inset: 0; z-index: 90; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; gap: 14px; padding: 46px 26px 26px; box-sizing: border-box;
@@ -1696,7 +1675,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .ds-sp { flex: 1; min-height: 6px; opacity: 1 !important; }
 .ds-go { border: 0; border-radius: 16px; padding: 14px; background: var(--accent); color: var(--accent-ink); font: 700 15px var(--f-body); cursor: pointer; }
 .ds-foot { text-align: center; font-size: 12px; color: var(--muted); }
-@media (prefers-reduced-motion: reduce) { .dfr-live, #tabbtn-games.running::after, #tabbtn-ytm.beat svg { animation: none !important; } .ds > * { opacity: 1; transform: none; } .ds.on > * { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #tabbtn-games.running::after, #tabbtn-ytm.beat svg { animation: none !important; } .ds > * { opacity: 1; transform: none; } .ds.on > * { animation: none; } }
 
 /* Game news pop-up */
 .np { position: fixed; inset: 0; z-index: 85; border-radius: 20px; background: rgba(0, 0, 0, .55); display: grid; padding: 14px; box-sizing: border-box; opacity: 0; transition: opacity .2s ease; -webkit-app-region: no-drag; }
@@ -2149,11 +2128,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
         <div class="rt-muted" id="rtMuted" hidden>Muted while you're on another tab</div>
       </div>
       <div class="col gm" id="gmView">
-        <section class="dfr" id="dfrBar" hidden aria-label="Friends playing now">
-          <div class="dfr-h"><span class="dfr-live" aria-hidden="true"></span><b>Friends playing now</b><span class="dfr-n" id="dfrN"></span></div>
-          <div class="dfr-row" id="dfrRow"></div>
-          <div class="dfr-msg" id="dfrMsg" hidden></div>
-        </section>
         <div class="seg gm-mode" id="gmMode" role="radiogroup" aria-label="Which games">
           <button type="button" role="radio" data-m="pc" aria-checked="true">PC games</button>
           <button type="button" role="radio" data-m="retro" aria-checked="false">Retro</button>
@@ -2293,10 +2267,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
           <div class="setting">
             <div class="txt"><div class="name">Daily start screen</div><div class="desc">The first time you open Sothis each day: the weather, what's out today and what you did yesterday.</div></div>
             <button class="switch" id="setDaily" role="switch" aria-checked="true" aria-label="Daily start screen"></button>
-          </div>
-          <div class="setting">
-            <div class="txt"><div class="name">Friends playing now</div><div class="desc" id="setFrDesc">A bar at the top of Games showing which Discord friends are in a game. Discord asks once to let Sothis see your friends.</div></div>
-            <button class="switch" id="setFriends" role="switch" aria-checked="false" aria-label="Friends playing now"></button>
           </div>
           <div class="setting">
             <div class="txt"><div class="name">Accent color</div><div class="desc">The color of buttons, switches and highlights.</div></div>
@@ -5787,55 +5757,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       shown = true; ov.classList.add("on");
     }, 10000);
   }
-
-  /* ---------- Friends playing now: a scrollable bar at the top of Games ---------- */
-  let dfrSt = null;
-  const dfrAgo = t => { if (!t) return "in a game"; const m = Math.max(0, Math.round((Date.now() - t) / 60000)); return m < 2 ? "just started" : m < 60 ? "for " + m + "m" : "for " + Math.floor(m / 60) + "h " + String(m % 60).padStart(2, "0") + "m"; };
-  async function dfrSet(on) {
-    $("setFriends").setAttribute("aria-checked", String(on));
-    if (on) { store.set("fr.hide", "0"); $("dfrMsg").hidden = false; $("dfrMsg").textContent = "Check Discord: it asks once to let Sothis see your friends…"; }
-    try { dfrSt = await D.friendsSet(on); } catch {}
-    dfrRender();
-  }
-  function dfrRender() {
-    const st = dfrSt || {}, bar = $("dfrBar"), row = $("dfrRow"), msg = $("dfrMsg");
-    $("setFriends").setAttribute("aria-checked", String(!!st.on));
-    $("setFrDesc").textContent = st.on && st.err ? st.err : "A bar at the top of Games showing which Discord friends are in a game. Discord asks once to let Sothis see your friends.";
-    const sayMsg = (text, ...btns) => { msg.hidden = false; msg.replaceChildren(text, ...btns); };
-    const mkBtn = (label, ghost, fn) => { const b = mk("button", "btn" + (ghost ? " ghost" : ""), label); b.type = "button"; b.onclick = fn; return b; };
-    $("dfrN").textContent = "";
-    if (!st.on) {
-      if (store.get("fr.hide") === "1") { bar.hidden = true; return; }
-      bar.hidden = false; row.replaceChildren();
-      return sayMsg("See which Discord friends are in a game.", mkBtn("Turn on", false, () => dfrSet(true)), mkBtn("Not now", true, () => { store.set("fr.hide", "1"); dfrRender(); }));
-    }
-    bar.hidden = false;
-    const list = st.list || [];
-    if (st.err) { row.replaceChildren(); return sayMsg(st.err, mkBtn("Try again", false, () => dfrSet(true))); }
-    if (!st.linked) { row.replaceChildren(); return sayMsg("Waiting for Discord to connect…"); }
-    if (!list.length) { row.replaceChildren(); return sayMsg("None of your friends are in a game right now."); }
-    msg.hidden = true;
-    $("dfrN").textContent = list.length + " in a game";
-    row.replaceChildren(...list.map(f => {
-      const c = mk("button", "dfr-c"); c.type = "button";
-      c.title = f.name + " · " + f.game + (f.details ? " · " + f.details : "") + " · " + dfrAgo(f.since) + "\nClick to open Discord";
-      const top = mk("div", "dfr-top"), av = mk("div", "dfr-av"), im = mk("img"); im.src = f.avatar; im.alt = ""; im.loading = "lazy";
-      av.append(im, mk("i", f.status === "idle" ? "idle" : f.status === "dnd" ? "dnd" : ""));
-      const nm = mk("div", "dfr-nm"); nm.append(mk("b", "", f.name), mk("span", "dfr-t", dfrAgo(f.since))); nm.lastChild.dataset.since = f.since || 0;
-      top.append(av, nm);
-      const g = mk("div", "dfr-g");
-      if (f.icon) { const gi = mk("img"); gi.src = f.icon; gi.alt = ""; gi.loading = "lazy"; gi.onerror = () => gi.replaceWith(mk("span", "dfr-gi", (f.game[0] || "?").toUpperCase())); g.append(gi); }
-      else g.append(mk("span", "dfr-gi", (f.game[0] || "?").toUpperCase()));
-      g.append(mk("b", "", f.game));
-      c.append(top, g);
-      c.onclick = () => { try { showTab("dcapp"); } catch {} };
-      return c;
-    }));
-  }
-  $("setFriends").onclick = () => dfrSet(!(dfrSt && dfrSt.on));
-  D.onFriends(d => { dfrSt = d; dfrRender(); });
-  D.friendsGet().then(d => { dfrSt = d; dfrRender(); }).catch(() => dfrRender());
-  setInterval(() => { document.querySelectorAll("#dfrRow .dfr-t").forEach(e => { e.textContent = dfrAgo(+e.dataset.since); }); }, 60000);
 
   /* ---------- Tab icons react: Music bounces to the beat, Games shows a dot while a game is open ---------- */
   { const mus = $("tabbtn-ytm"), gm = $("tabbtn-games");

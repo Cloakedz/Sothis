@@ -1,17 +1,22 @@
 [
  {
+  "v": "1.10.2",
+  "d": "2026-10-25",
+  "notes": [
+   "Removed the Friends playing now bar"
+  ]
+ },
+ {
   "v": "1.10.1",
   "d": "2026-10-25",
   "notes": [
-   "Game news opens in a pop-up inside Sothis",
-   "Fixed the Friends playing now bar clashing with the Stats friends list"
+   "Game news opens in a pop-up inside Sothis"
   ]
  },
  {
   "v": "1.10.0",
   "d": "2026-10-25",
   "notes": [
-   "Friends playing now: a scrollable bar at the top of Games showing which Discord friends are in a game",
    "The Music tab icon bounces to the beat, and Games shows a green dot while a game is open",
    "Daily start screen: weather, what's out today and yesterday's totals, the first time you open Sothis each day"
   ]
