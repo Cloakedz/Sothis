@@ -1,5 +1,12 @@
 [
  {
+  "v": "1.12.3",
+  "d": "2026-10-26",
+  "notes": [
+   "Phone: the Sothis logo glows, slowly fading in and out"
+  ]
+ },
+ {
   "v": "1.12.2",
   "d": "2026-10-26",
   "notes": [

@@ -25,7 +25,13 @@ body { min-height: 100dvh; padding: calc(env(safe-area-inset-top) + 10px) 16px c
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 .hide { display: none !important; }
 header { display: flex; align-items: center; gap: 10px; margin: 4px 2px 16px; }
-header h1 { margin: 0; font: 400 1.9rem/1 "Pirata", serif; letter-spacing: .02em; color: var(--accent); text-shadow: 0 0 18px var(--glow); }
+header h1 { margin: 0; font: 400 1.9rem/1 "Pirata", serif; letter-spacing: .02em; color: var(--accent); text-shadow: 0 0 18px var(--glow); animation: logoGlow 3.2s ease-in-out infinite; }
+/* the logo's glow slowly fades in and out */
+@keyframes logoGlow {
+  0%, 100% { text-shadow: 0 0 4px rgba(232, 52, 91, .15); color: #c92d4f; }
+  50% { text-shadow: 0 0 10px rgba(255, 70, 110, .9), 0 0 26px rgba(232, 52, 91, .7), 0 0 48px rgba(232, 52, 91, .45); color: #ff5a7e; }
+}
+@media (prefers-reduced-motion: reduce) { header h1 { animation: none; } }
 header .pc { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: .78rem; color: var(--muted); }
 header .dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
 header .dot.on { background: var(--good); box-shadow: 0 0 8px var(--good); }
