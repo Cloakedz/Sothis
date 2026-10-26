@@ -58,7 +58,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
 .clip i { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--glow); }
 .clip:active { transform: scale(.96); }
 .clip.off { opacity: .5; }
-.cfab { position: fixed; right: 18px; bottom: calc(22px + env(safe-area-inset-bottom)); z-index: 30; width: 78px; height: 78px; border-radius: 50%; display: grid; place-items: center; align-content: center; gap: 2px;
+.cfab { position: fixed; right: 18px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 30; width: 78px; height: 78px; border-radius: 50%; display: grid; place-items: center; align-content: center; gap: 2px;
   background: var(--accent); color: #fff; font-weight: 800; font-size: .78rem; box-shadow: 0 10px 30px var(--glow), 0 4px 14px rgba(0,0,0,.5); transition: transform .12s, opacity .2s; }
 .cfab svg { width: 30px; height: 30px; }
 .cfab i { position: absolute; top: 10px; right: 12px; width: 9px; height: 9px; border-radius: 50%; background: #fff; opacity: 0; }
@@ -68,7 +68,27 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
 .cfab.off { opacity: .55; }
 .cfab.busy { pointer-events: none; opacity: .7; }
 .cfab.done { background: var(--good); }
-main { padding-bottom: 110px; }
+main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+/* pages + bottom tab bar */
+.pg { display: none; animation: pgIn .22s ease; }
+.pg.on { display: block; }
+@keyframes pgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.pg-h { font: 800 1.35rem/1.2 "Nunito", sans-serif; margin: 2px 2px 12px; }
+.pnav { position: fixed; left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 40; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 6px;
+  border-radius: 24px; background: rgba(22, 22, 28, .92); border: 1px solid var(--line); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
+.pnav button { position: relative; display: grid; justify-items: center; gap: 3px; padding: 8px 0 6px; border-radius: 18px; color: var(--muted); font-size: .68rem; font-weight: 700; }
+.pnav button svg { width: 23px; height: 23px; }
+.pnav button.on { background: rgba(232, 52, 91, .18); color: var(--ink); }
+.pnav button.on svg { color: var(--accent); }
+.pnav button i { position: absolute; top: 6px; right: calc(50% - 18px); width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 6px var(--good); display: none; }
+.pnav button.live i { display: block; }
+/* quick call strip on Now */
+.qcall { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; }
+.qcall b { font-weight: 800; font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qcall small { display: block; color: var(--muted); font-size: .75rem; font-weight: 600; }
+.qcall button { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 14px; background: var(--card2); }
+.qcall button svg { width: 20px; height: 20px; }
+.qcall button.on { background: rgba(255, 77, 106, .22); color: #ff6b84; }
 
 /* discord */
 .dch { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
@@ -98,13 +118,6 @@ main { padding-bottom: 110px; }
 .tip { margin-top: 26px; padding: 14px; border-radius: 16px; background: var(--card); color: var(--muted); font-size: .82rem; text-align: left; }
 .tip b { color: var(--ink); }
 
-/* match found */
-.match { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; text-align: center; padding: 30px;
-  background: radial-gradient(circle at 50% 40%, rgba(232, 52, 91, .55), rgba(11, 11, 15, .97) 70%); animation: pulse 1.2s ease-in-out infinite alternate; }
-.match b { display: block; font: 400 3.2rem/1 "Pirata", serif; color: #fff; text-shadow: 0 0 30px var(--accent); }
-.match span { display: block; margin-top: 12px; color: #ffd0da; font-size: 1.1rem; }
-.match small { display: block; margin-top: 30px; color: var(--muted); }
-@keyframes pulse { from { background-color: rgba(0, 0, 0, 0); } to { background-color: rgba(232, 52, 91, .12); } }
 .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 18px); transform: translateX(-50%) translateY(20px); opacity: 0; transition: .25s; padding: 10px 16px; border-radius: 999px; background: rgba(30, 30, 38, .96); border: 1px solid var(--line); font-size: .86rem; white-space: nowrap; z-index: 60; }
 .toast.on { opacity: 1; transform: translateX(-50%); }
 .off-note { text-align: center; color: var(--muted); font-size: .85rem; margin: 6px 0 14px; }
@@ -151,6 +164,7 @@ main { padding-bottom: 110px; }
   <button class="cfab" id="cfab" type="button" aria-label="Clip the last moments"><i></i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/></svg><span>Clip</span></button>
   <div class="off-note hide" id="offNote">Can't reach your PC. Is Sothis open and are you on the same Wi-Fi?</div>
 
+  <div class="pg" data-pg="now">
   <section class="card">
     <div class="k">Now playing</div>
     <div class="np"><div class="art" id="art"></div><div><div class="t" id="title">Nothing playing</div><div class="a" id="artist">Music isn't open in Sothis</div></div></div>
@@ -161,14 +175,15 @@ main { padding-bottom: 110px; }
     </div>
     <div class="vol"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg><input type="range" id="vol" min="0" max="100" value="50" aria-label="Volume"></div>
   </section>
-
   <section class="card">
-    <div class="row2">
-      <div class="game"><div class="k" style="margin-bottom:6px">Game</div><b id="game">Not in a game</b><span id="gameT"></span></div>
-      <button class="clip" id="clip" type="button"><i></i>Clip it</button>
-    </div>
+    <div class="game"><div class="k" style="margin-bottom:6px">Game</div><b id="game">Not in a game</b><span id="gameT"></span></div>
   </section>
-
+  <section class="card" id="qCall" hidden>
+    <div class="qcall"><div><b id="qcName"></b><small id="qcSub"></small></div><button id="qMute" type="button" aria-label="Mute"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><button id="qDeaf" type="button" aria-label="Deafen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-6H5a2 2 0 0 0-2 2z"/></svg></button></div>
+  </section>
+  </div>
+  <div class="pg" data-pg="call">
+    <h2 class="pg-h">Discord</h2>
   <section class="card">
     <div class="k">Discord call</div>
     <div id="dcBody"></div>
@@ -177,7 +192,9 @@ main { padding-bottom: 110px; }
       <button id="deaf" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-6H5a2 2 0 0 0-2 2z"/></svg><span>Deafen</span></button>
     </div>
   </section>
-
+  </div>
+  <div class="pg" data-pg="files">
+    <h2 class="pg-h">Files</h2>
   <section class="card">
     <div class="rgbh"><b>Files</b><span class="fxnote" id="fxNote"></span></div>
     <label class="fxsend"><input type="file" id="fxPick" multiple hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><span id="fxSendT">Send to PC</span></label>
@@ -185,20 +202,26 @@ main { padding-bottom: 110px; }
     <div class="fxh" id="fxH" hidden>From your PC</div>
     <div class="fxlist" id="fxList"></div>
   </section>
-
+  </div>
+  <div class="pg" data-pg="pc">
+    <h2 class="pg-h">PC</h2>
   <section class="card" id="rgbCard" hidden>
     <div class="rgbh"><b>Lights</b><button class="rgbfx" id="rgbFx" type="button">Solid</button></div>
     <div class="rgbsw" id="rgbSw"></div>
   </section>
-
   <section class="card">
     <button class="lock" id="lock" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Lock PC</button>
   </section>
-
-  <div class="foot"><button id="unpair" type="button">Unpair this phone</button></div>
+    <div class="foot"><button id="unpair" type="button">Unpair this phone</button></div>
+  </div>
 </main>
+<nav class="pnav hide" id="pnav" aria-label="Sections">
+  <button type="button" data-pg="now"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Now</button>
+  <button type="button" data-pg="call"><i></i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-6H5a2 2 0 0 0-2 2z"/></svg>Discord</button>
+  <button type="button" data-pg="files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>Files</button>
+  <button type="button" data-pg="pc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>PC</button>
+</nav>
 
-<div class="match hide" id="match"><div><b>Match found</b><span id="matchG"></span><small>Tap to dismiss</small></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -210,12 +233,16 @@ main { padding-bottom: 110px; }
   if (standalone) $("a2hs").classList.add("hide");
 
   function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 2200); }
-  function view(paired) { $("pairView").classList.toggle("hide", paired); $("mainView").classList.toggle("hide", !paired); }
-
-  // sound for "match found": iPhone only lets a page play sound after you've touched it once
-  let audio = null;
-  const unlock = () => { if (audio) return; audio = new Audio("/chime.wav"); audio.volume = 1; audio.play().then(() => { audio.pause(); audio.currentTime = 0; }).catch(() => {}); };
-  document.addEventListener("touchend", unlock, { once: true }); document.addEventListener("click", unlock, { once: true });
+  function view(paired) { $("pairView").classList.toggle("hide", paired); $("mainView").classList.toggle("hide", !paired); $("pnav").classList.toggle("hide", !paired); }
+  // pages: Now (music, game, quick call buttons), Discord, Files, PC (lights, lock); the last one opened is remembered
+  function page(p) {
+    if (!["now", "call", "files", "pc"].includes(p)) p = "now";
+    document.querySelectorAll(".pg").forEach(el => el.classList.toggle("on", el.dataset.pg === p));
+    document.querySelectorAll(".pnav button").forEach(b => b.classList.toggle("on", b.dataset.pg === p));
+    store.set("sothis.pg", p); window.scrollTo(0, 0);
+  }
+  document.querySelectorAll(".pnav button").forEach(b => b.onclick = () => page(b.dataset.pg));
+  page(store.get("sothis.pg") || "now");
 
   async function cmd(c, value) {
     try {
@@ -234,7 +261,6 @@ main { padding-bottom: 110px; }
     if (es) es.close();
     es = new EventSource("/api/events?t=" + encodeURIComponent(tok));
     es.addEventListener("state", e => { try { st = JSON.parse(e.data); } catch { return; } render(); });
-    es.addEventListener("match", e => { let d = {}; try { d = JSON.parse(e.data); } catch {} matchFound(d); });
     es.addEventListener("unpaired", () => {});
     es.addEventListener("files", e => { let l = []; try { l = JSON.parse(e.data); } catch {} const before = st && Array.isArray(st.files) ? st.files.length : 0; if (st) st.files = l; fxRender(l); if (l.length > before) toast("New file from your PC"); });
     es.addEventListener("week", e => { let d = {}; try { d = JSON.parse(e.data); } catch {} toast("Your week: " + (d.body || "recap ready on your PC")); });
@@ -273,7 +299,6 @@ main { padding-bottom: 110px; }
     const g = st.game;
     $("game").textContent = g ? g.name.replace(/^Retro: /, "") : "Not in a game";
     $("gameT").textContent = g && g.start ? "Playing for " + fmtT(Date.now() - g.start) : g ? "Retro" : "";
-    $("clip").classList.toggle("off", !(st.clip && st.clip.recording) && !g);
     $("cfab").classList.toggle("off", !(st.clip && st.clip.recording) && !g);
     $("cfab").classList.toggle("rec", !!(st.clip && st.clip.recording));
     const d = st.dc || {}, body = $("dcBody"); body.replaceChildren();
@@ -294,17 +319,14 @@ main { padding-bottom: 110px; }
     }
     $("mute").classList.toggle("on", !!d.mute); $("mute").querySelector("span").textContent = d.mute ? "Muted" : "Mute";
     $("deaf").classList.toggle("on", !!d.deaf); $("deaf").querySelector("span").textContent = d.deaf ? "Deafened" : "Deafen";
+    // in a call: a green dot on the Discord tab, and quick mute / deafen on Now
+    const inCall = !!(d.ok && d.channel);
+    document.querySelector('.pnav button[data-pg="call"]').classList.toggle("live", inCall);
+    $("qCall").hidden = !inCall;
+    if (inCall) { $("qcName").textContent = d.channel.name; $("qcSub").textContent = (d.channel.members || []).length + " in call" + (d.channel.guild ? " · " + d.channel.guild : ""); }
+    $("qMute").classList.toggle("on", !!d.mute); $("qDeaf").classList.toggle("on", !!d.deaf);
   }
   setInterval(() => { if (st && st.game && st.game.start) $("gameT").textContent = "Playing for " + fmtT(Date.now() - st.game.start); }, 30000);
-
-  function matchFound(d) {
-    $("matchG").textContent = d.game ? d.game + (d.test ? " (test)" : "") : "";
-    $("match").classList.remove("hide");
-    try { if (audio) { audio.currentTime = 0; audio.play().catch(() => {}); } } catch {}
-    try { navigator.vibrate && navigator.vibrate([300, 150, 300]); } catch {}
-    clearTimeout(matchFound.t); matchFound.t = setTimeout(() => $("match").classList.add("hide"), 25000);
-  }
-  $("match").onclick = () => $("match").classList.add("hide");
 
   $("pp").onclick = () => cmd("playpause");
   $("next").onclick = () => cmd("next");
@@ -318,7 +340,8 @@ main { padding-bottom: 110px; }
     b.classList.remove("busy");
     if (r && r.ok) { toast("Clip saved"); b.classList.add("done"); setTimeout(() => b.classList.remove("done"), 1200); }
   }
-  $("clip").onclick = doClip;
+  $("qMute").onclick = () => cmd("mute");
+  $("qDeaf").onclick = () => cmd("deaf");
   $("cfab").onclick = doClip;
   const vol = $("vol");
   vol.addEventListener("touchstart", () => { volDrag = true; }, { passive: true });

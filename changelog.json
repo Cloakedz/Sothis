@@ -1,5 +1,13 @@
 [
  {
+  "v": "1.12.1",
+  "d": "2026-10-26",
+  "notes": [
+   "Phone remote reorganized into tabs: Now, Discord, Files and PC",
+   "Quick mute and deafen on the phone's Now tab while you're in a call"
+  ]
+ },
+ {
   "v": "1.12.0",
   "d": "2026-10-25",
   "notes": [
