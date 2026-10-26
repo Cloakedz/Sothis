@@ -3573,7 +3573,7 @@ const qpOn = () => settings.qpop !== false;
 let qpProc = null, qpBuf = "", qpLast = {}, qpWin = null, qpReady = false, qpData = null, qpHideT = null;
 function qpEnsure() {
   if (process.platform !== "win32") return;
-  const need = qpOn() && !!sess;
+  const need = false;   // the match-found alert is removed (it never starts now)
   if (need) { fgWatch(); if (!qpProc) qpStart(); }
   else if (qpProc) { try { qpProc.kill(); } catch {} qpProc = null; }
 }
@@ -3600,6 +3600,7 @@ function qpFlash(exe, hwnd) {
   qpShow({ game, hwnd: /^\d+$/.test(hwnd || "") ? hwnd : "" });
 }
 function qpShow(d) {
+  return;   // match-found alert removed
   qpData = d;
   try { phEvent("match", { game: d.game || "", test: !!d.test }); } catch {}
   try { if (rgbCfg().flashMatch) rgbFlash("ffffff", 4); } catch {}

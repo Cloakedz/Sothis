@@ -2262,7 +2262,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
             <div class="txt"><div class="name">Wardogs team colors</div><div class="desc" id="rgbWdDesc">In Wardogs your lights turn your team's color: blue for Lonestar, red for Valkyra, green for Manticore. Back to your own color when you leave.</div></div>
             <button class="switch" id="setRgbWd" role="switch" aria-checked="true" aria-label="Wardogs team colors"></button>
           </div>
-          <div class="setting">
+          <div class="setting" hidden>
             <div class="txt"><div class="name">Flash on match found</div><div class="desc">Your lights blink white when a queue pops. <button class="linkbtn" id="rgbTest" type="button">Try it</button></div></div>
             <button class="switch" id="setRgbFlash" role="switch" aria-checked="true" aria-label="Flash on match found"></button>
           </div>
@@ -2339,11 +2339,11 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 
         <div class="group">
           <h2>Gaming</h2>
-          <div class="setting">
+          <div class="setting" hidden>
             <div class="txt"><div class="name">Match found alert</div><div class="desc">When your game finds a match while you're tabbed out, Sothis plays a chime and shows a banner with a button that takes you back to the game.</div></div>
             <button class="switch" id="setQp" role="switch" aria-checked="true" aria-label="Match found alert"></button>
           </div>
-          <div class="form"><div class="row"><button class="btn ghost" id="qpTest" type="button">Test the alert</button></div></div>
+          <div class="form" hidden><div class="row"><button class="btn ghost" id="qpTest" type="button">Test the alert</button></div></div>
           <div class="setting">
             <div class="txt"><div class="name">Lower the music while someone talks</div><div class="desc">Turns Sothis down while someone else speaks in your Discord call, then back up.</div></div>
             <button class="switch" id="setDuckTalk" role="switch" aria-checked="true" aria-label="Lower the music while someone talks"></button>
