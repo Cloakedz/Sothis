@@ -1712,6 +1712,19 @@ body.dock-row .ln-col { flex-direction: row-reverse; }
 .dock-bg { position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--dock, 82px) + 10px); z-index: 3; pointer-events: none; border-radius: 0 0 20px 20px;
   background: linear-gradient(to top, rgba(0, 0, 0, .92) 0, rgba(0, 0, 0, .82) calc(100% - 26px), transparent); }
 body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.in-settings .dock-bg { display: none; }
+
+/* Games → Mods (Mod Organizer 2 setups) */
+.mo2 { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.mo2-msg { margin: 6px 2px; color: var(--muted); font-size: .85rem; }
+.mo2-grid { display: flex; flex-direction: column; gap: 8px; }
+.mo2-c { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 10px 12px 10px 10px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); cursor: pointer; transition: border-color .15s, background .15s, transform .12s; }
+.mo2-c:hover { border-color: color-mix(in srgb, var(--accent) 50%, transparent); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+.mo2-c:active { transform: scale(.98); } .mo2-c.busy { opacity: .6; pointer-events: none; }
+.mo2-ic { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; background: rgba(255, 255, 255, .05); font: 800 1.2rem var(--f-display); color: var(--muted); overflow: hidden; }
+.mo2-ic img { width: 40px; height: 40px; object-fit: contain; }
+.mo2-tx { min-width: 0; } .mo2-tx b { display: block; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .mo2-tx span { display: block; font-size: .76rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mo2-f svg { width: 17px; height: 17px; }
+.mo2-go { font: 700 .78rem var(--f-body); padding: 7px 12px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); }
 </style>
 </head>
 <body class="splashing">
@@ -2172,6 +2185,7 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
           <button type="button" role="radio" data-m="pc" aria-checked="true">PC games</button>
           <button type="button" role="radio" data-m="retro" aria-checked="false">Retro</button>
           <button type="button" role="radio" data-m="rel" aria-checked="false">Releases</button>
+          <button type="button" role="radio" data-m="mods" aria-checked="false">Mods</button>
         </div>
         <section class="gm-news" id="gmNews" hidden aria-label="Game news"><div class="gm-news-h" id="gmNewsH"><b>Game news</b></div><div class="gm-news-list" id="gmNewsList"></div></section>
         <div class="gm-top">
@@ -2181,6 +2195,10 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
         <p class="yts-msg" id="gmMsg">Looking for your games…</p>
         <div class="gm-grid" id="gmGrid"></div>
         <button class="linkbtn gm-hidden" id="gmShowHidden" type="button" hidden></button>
+        <div class="mo2" id="gmMods" hidden>
+          <p class="mo2-msg" id="mo2Msg">Looking for your Mod Organizer setups…</p>
+          <div class="mo2-grid" id="mo2Grid"></div>
+        </div>
         <div class="rel" id="gmRel" hidden>
           <div class="rel-bar">
             <div class="seg rel-kind" id="relKind" role="radiogroup" aria-label="What to show">
@@ -7089,11 +7107,12 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
   $("duckLvl").addEventListener("change", () => D.duckSet({ level: +$("duckLvl").value / 100 }).then(c => { duckC = c; duckPaint(); }));
 
   /* ---------- Games tab: Retro (your own game files) ---------- */
-  let gmMode = ["retro", "rel"].includes(store.get("gm.mode")) ? store.get("gm.mode") : "pc", rtData = null, rtSys = "All", rtDirsOpen = false, rtBusy = false;
+  let gmMode = ["retro", "rel", "mods"].includes(store.get("gm.mode")) ? store.get("gm.mode") : "pc", rtData = null, rtSys = "All", rtDirsOpen = false, rtBusy = false;
   function gmModeShow() {
     document.querySelectorAll("#gmMode button").forEach(b => b.setAttribute("aria-checked", b.dataset.m === gmMode));
-    const rel = gmMode === "rel";
-    $("gmRel").hidden = !rel;
+    const rel = gmMode === "rel", mods = gmMode === "mods";
+    $("gmRel").hidden = !rel; $("gmMods").hidden = !mods;
+    if (mods) { $("gmRetro").hidden = true; $("gmGrid").hidden = true; $("gmMsg").hidden = true; $("gmNews").hidden = true; $("gmShowHidden").hidden = true; $("gmQ").placeholder = "Find a modded setup"; mo2Load(); return; }
     if (rel) { $("gmRetro").hidden = true; $("gmGrid").hidden = true; $("gmMsg").hidden = true; $("gmNews").hidden = true; $("gmShowHidden").hidden = true; $("gmQ").placeholder = "Find a release"; relLoad(); return; }
     const retro = gmMode === "retro";
     $("gmRetro").hidden = !retro;
@@ -7309,8 +7328,35 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
   }
   async function rtPickAzahar() { if (await D.emuPickAzahar()) loadRetro(true); }
   $("rtAdd").onclick = rtAddDir;
-  $("gmQ").addEventListener("input", () => { if (gmMode === "retro") renderRetro(); else if (gmMode === "rel") relRender(); });
-  $("gmRef").onclick = () => gmMode === "retro" ? loadRetro(true) : gmMode === "rel" ? relLoad(true) : loadGames(true);
+  $("gmQ").addEventListener("input", () => { if (gmMode === "retro") renderRetro(); else if (gmMode === "rel") relRender(); else if (gmMode === "mods") mo2Render(); });
+  $("gmRef").onclick = () => gmMode === "retro" ? loadRetro(true) : gmMode === "rel" ? relLoad(true) : gmMode === "mods" ? mo2Load(true) : loadGames(true);
+  /* ---------- Games → Mods: every Mod Organizer 2 setup on this PC; click one to open it ---------- */
+  let mo2Data = null, mo2Busy = false;
+  async function mo2Load(force) {
+    if (mo2Busy) return; if (mo2Data && !force) return mo2Render();
+    mo2Busy = true; $("gmRef").classList.add("spin"); if (!mo2Data) $("mo2Msg").textContent = "Looking for your Mod Organizer setups…";
+    try { mo2Data = await D.mo2List(!!force); } catch { mo2Data = []; }
+    mo2Busy = false; $("gmRef").classList.remove("spin"); mo2Render();
+  }
+  function mo2Render() {
+    if (gmMode !== "mods") return;
+    const q = $("gmQ").value.trim().toLowerCase(), list = (mo2Data || []).filter(x => !q || (x.name + " " + x.game).toLowerCase().includes(q));
+    $("mo2Msg").hidden = !!list.length;
+    $("mo2Msg").textContent = !mo2Data ? "Looking for your Mod Organizer setups…" : !mo2Data.length ? "No Mod Organizer 2 setups found. Make one in Mod Organizer, then press refresh." : "Nothing matches that.";
+    $("mo2Grid").replaceChildren(...list.map(x => {
+      const c = mk("div", "mo2-c"); c.setAttribute("role", "button"); c.tabIndex = 0; c.title = "Open " + x.name + " in Mod Organizer";
+      const ic = mk("div", "mo2-ic"); if (x.icon) { const im = mk("img"); im.src = x.icon; im.alt = ""; ic.append(im); } else ic.textContent = (x.game[0] || "?").toUpperCase();
+      const tx = mk("div", "mo2-tx"); tx.append(mk("b", "", x.name), mk("span", "", x.game + (x.name !== x.game ? "" : "") + " · " + x.mods + (x.mods === 1 ? " mod" : " mods") + (x.kind === "portable" ? " · portable" : "")));
+      const fb = mk("button", "ib mo2-f"); fb.type = "button"; fb.title = "Open its folder"; fb.setAttribute("aria-label", "Open its folder");
+      fb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
+      fb.onclick = e => { e.stopPropagation(); D.mo2Folder(x.id); };
+      const go = mk("span", "mo2-go", "Open");
+      c.append(ic, tx, fb, go);
+      const open = async () => { c.classList.add("busy"); const r = await D.mo2Open(x.id).catch(() => null); c.classList.remove("busy"); toast(r && r.ok ? "Opening " + x.name : (r && r.err) || "Couldn't open it"); };
+      c.onclick = open; c.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } };
+      return c;
+    }));
+  }
   gmModeShow();
 
 

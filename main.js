@@ -4838,6 +4838,90 @@ async function relAnime() {
   const seenA = new Set();
   return out.filter(x => x.title && !seenA.has(x.id) && seenA.add(x.id));
 }
+/* ---------- Mod Organizer 2: every modded setup on this PC in one list (Games → Mods), opened with one click ---------- */
+// Finds MO2's own instances (Local\ModOrganizer\<name>) and portable setups (a folder with ModOrganizer.exe + portable.txt,
+// like Wabbajack lists) on each drive, two folders deep.
+const MO2_BIN = {
+  "Skyrim Special Edition": "SkyrimSE.exe", "Skyrim": "TESV.exe", "Skyrim VR": "SkyrimVR.exe", "Enderal Special Edition": "SkyrimSE.exe",
+  "Fallout 4": "Fallout4.exe", "Fallout 4 VR": "Fallout4VR.exe", "Fallout 3": "Fallout3.exe", "New Vegas": "FalloutNV.exe", "Fallout New Vegas": "FalloutNV.exe", "TTW": "FalloutNV.exe",
+  "Oblivion": "Oblivion.exe", "Morrowind": "Morrowind.exe", "Starfield": "Starfield.exe",
+  "Cyberpunk 2077": "bin\\x64\\Cyberpunk2077.exe", "The Witcher 3": "bin\\x64\\witcher3.exe", "Witcher 3": "bin\\x64\\witcher3.exe", "Baldur's Gate 3": "bin\\bg3.exe"
+};
+const mo2Val = (ini, key) => { const m = new RegExp("^" + key + "=(.*)$", "m").exec(ini); if (!m) return ""; let v = m[1].trim(); const b = /^@ByteArray\((.*)\)$/.exec(v); if (b) v = b[1]; return v.replace(/\\\\/g, "\\").replace(/\//g, "\\"); };
+function mo2Exes() {
+  // where Mod Organizer itself is installed (MO2 remembers every copy in nxmhandler.ini), for its own instances
+  const out = [];
+  try { const t = fs.readFileSync(path.join(process.env.LOCALAPPDATA || "", "ModOrganizer", "nxmhandler.ini"), "utf8"); for (const m of t.matchAll(/executable=(.+)/g)) { const e = m[1].trim().replace(/\\\\/g, "\\").replace(/\//g, "\\"); if (/ModOrganizer\.exe$/i.test(e) && fs.existsSync(e)) out.push(e); } } catch {}
+  for (const e of ["C:\\Modding\\MO2\\ModOrganizer.exe", path.join(process.env.ProgramFiles || "C:\\Program Files", "Mod Organizer", "ModOrganizer.exe")]) if (fs.existsSync(e)) out.push(e);
+  return [...new Set(out)];
+}
+async function mo2Icon(file) { try { if (!file || !fs.existsSync(file)) return ""; return (await app.getFileIcon(file, { size: "large" })).toDataURL(); } catch { return ""; } }
+function mo2GameExe(game, gamePath) {
+  if (!gamePath) return "";
+  const known = MO2_BIN[game]; if (known && fs.existsSync(path.join(gamePath, known))) return path.join(gamePath, known);
+  // otherwise the biggest program in the game's folder
+  try { let best = "", size = 0; for (const f of fs.readdirSync(gamePath)) { if (!/\.exe$/i.test(f) || /launcher|crash|setup|unins|redist|helper/i.test(f)) continue; const st = fs.statSync(path.join(gamePath, f)); if (st.size > size) { size = st.size; best = path.join(gamePath, f); } } return best; } catch { return ""; }
+}
+function mo2Count(dir) { try { return fs.readdirSync(dir, { withFileTypes: true }).filter(d => d.isDirectory() && !/_separator$/i.test(d.name)).length; } catch { return 0; } }
+async function mo2Read(dir, kind, exe) {
+  let ini = ""; try { ini = fs.readFileSync(path.join(dir, "ModOrganizer.ini"), "utf8"); } catch {}
+  const game = mo2Val(ini, "gameName"), gamePath = mo2Val(ini, "gamePath"), base = mo2Val(ini, "base_directory") || dir;
+  const modsDir = (mo2Val(ini, "mod_directory") || "%BASE_DIR%\\mods").replace(/%BASE_DIR%/i, base);
+  const profile = mo2Val(ini, "selected_profile");
+  const name = kind === "global" ? path.basename(dir) : path.basename(dir);
+  const gExe = mo2GameExe(game, gamePath);
+  let at = 0; try { at = fs.statSync(path.join(dir, "ModOrganizer.ini")).mtimeMs; } catch {}
+  return { id: Buffer.from(dir).toString("base64url"), kind, dir, exe, name, game: game || "Not set up yet", gamePath, profile, mods: mo2Count(modsDir), icon: await mo2Icon(gExe || exe), at };
+}
+let mo2Cache = null;
+async function mo2List(force) {
+  if (mo2Cache && !force) return mo2Cache;
+  const out = [], seen = new Set();
+  const exes = mo2Exes();
+  // MO2's own (global) instances
+  const gdir = path.join(process.env.LOCALAPPDATA || "", "ModOrganizer");
+  try {
+    for (const d of fs.readdirSync(gdir, { withFileTypes: true })) {
+      if (!d.isDirectory()) continue;
+      const dir = path.join(gdir, d.name);
+      if (!fs.existsSync(path.join(dir, "ModOrganizer.ini")) || !exes.length) continue;
+      seen.add(dir.toLowerCase()); out.push(await mo2Read(dir, "global", exes[0]));
+    }
+  } catch {}
+  // portable setups on every drive (two folders deep)
+  const skip = /^(windows|program files|program files \(x86\)|programdata|\$recycle\.bin|system volume information|recovery|perflogs|users|intel|amd|inetpub|xboxgames)$/i;
+  const check = async dir => {
+    const exe = path.join(dir, "ModOrganizer.exe");
+    if (seen.has(dir.toLowerCase()) || !fs.existsSync(exe)) return false;
+    if (!fs.existsSync(path.join(dir, "portable.txt")) || !fs.existsSync(path.join(dir, "ModOrganizer.ini"))) return true;   // an MO2 install with no setup of its own
+    seen.add(dir.toLowerCase()); out.push(await mo2Read(dir, "portable", exe)); return true;
+  };
+  for (const L of "CDEFGHIJKLMNOPQRSTUVWXYZ") {
+    const root = L + ":\\";
+    let top; try { top = fs.readdirSync(root, { withFileTypes: true }); } catch { continue; }
+    for (const a of top) {
+      if (!a.isDirectory() || skip.test(a.name)) continue;
+      const d1 = path.join(root, a.name);
+      if (await check(d1)) continue;
+      let sub; try { sub = fs.readdirSync(d1, { withFileTypes: true }); } catch { continue; }
+      for (const b of sub.slice(0, 200)) if (b.isDirectory()) await check(path.join(d1, b.name));
+    }
+  }
+  out.sort((a, b) => b.at - a.at);
+  mo2Cache = out;
+  return out;
+}
+ipcMain.handle("mo2:list", (_e, force) => mo2List(!!force).catch(() => []));
+ipcMain.handle("mo2:open", async (_e, id) => {
+  const it = (await mo2List(false)).find(x => x.id === id); if (!it) return { ok: false, err: "Couldn't find that setup any more." };
+  try {
+    const args = it.kind === "global" ? ["-i", it.name] : [];
+    require("child_process").spawn(it.exe, args, { cwd: path.dirname(it.exe), detached: true, stdio: "ignore" }).unref();
+    return { ok: true };
+  } catch (e) { return { ok: false, err: "Couldn't open Mod Organizer (" + e.message + ")." }; }
+});
+ipcMain.handle("mo2:folder", async (_e, id) => { const it = (await mo2List(false)).find(x => x.id === id); if (it) shell.openPath(it.dir); return !!it; });
+
 ipcMain.handle("releases:get", async (_e, force) => {
   if (!force && relCache && Date.now() - relCache.at < 3 * 3600000) return relCache;
   const [games, anime] = await Promise.all([relGames().catch(() => []), relAnime().catch(() => [])]);
