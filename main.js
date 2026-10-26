@@ -4845,7 +4845,9 @@ const MO2_BIN = {
   "Skyrim Special Edition": "SkyrimSE.exe", "Skyrim": "TESV.exe", "Skyrim VR": "SkyrimVR.exe", "Enderal Special Edition": "SkyrimSE.exe",
   "Fallout 4": "Fallout4.exe", "Fallout 4 VR": "Fallout4VR.exe", "Fallout 3": "Fallout3.exe", "New Vegas": "FalloutNV.exe", "Fallout New Vegas": "FalloutNV.exe", "TTW": "FalloutNV.exe",
   "Oblivion": "Oblivion.exe", "Morrowind": "Morrowind.exe", "Starfield": "Starfield.exe",
-  "Cyberpunk 2077": "bin\\x64\\Cyberpunk2077.exe", "The Witcher 3": "bin\\x64\\witcher3.exe", "Witcher 3": "bin\\x64\\witcher3.exe", "Baldur's Gate 3": "bin\\bg3.exe"
+  "Cyberpunk 2077": "bin\\x64\\Cyberpunk2077.exe", "Baldur's Gate 3": "bin\\bg3.exe",
+  // The Witcher 3 (the next-gen update keeps its game in bin\x64_dx12)
+  "The Witcher 3: Wild Hunt": ["bin\\x64_dx12\\witcher3.exe", "bin\\x64\\witcher3.exe"], "The Witcher 3": ["bin\\x64_dx12\\witcher3.exe", "bin\\x64\\witcher3.exe"], "Witcher 3": ["bin\\x64_dx12\\witcher3.exe", "bin\\x64\\witcher3.exe"]
 };
 const mo2Val = (ini, key) => { const m = new RegExp("^" + key + "=(.*)$", "m").exec(ini); if (!m) return ""; let v = m[1].trim(); const b = /^@ByteArray\((.*)\)$/.exec(v); if (b) v = b[1]; return v.replace(/\\\\/g, "\\").replace(/\//g, "\\"); };
 function mo2Exes() {
@@ -4858,9 +4860,10 @@ function mo2Exes() {
 async function mo2Icon(file) { try { if (!file || !fs.existsSync(file)) return ""; return (await app.getFileIcon(file, { size: "large" })).toDataURL(); } catch { return ""; } }
 function mo2GameExe(game, gamePath) {
   if (!gamePath) return "";
-  const known = MO2_BIN[game]; if (known && fs.existsSync(path.join(gamePath, known))) return path.join(gamePath, known);
-  // otherwise the biggest program in the game's folder
-  try { let best = "", size = 0; for (const f of fs.readdirSync(gamePath)) { if (!/\.exe$/i.test(f) || /launcher|crash|setup|unins|redist|helper/i.test(f)) continue; const st = fs.statSync(path.join(gamePath, f)); if (st.size > size) { size = st.size; best = path.join(gamePath, f); } } return best; } catch { return ""; }
+  for (const k of [].concat(MO2_BIN[game] || [])) if (fs.existsSync(path.join(gamePath, k))) return path.join(gamePath, k);
+  // otherwise the biggest program in the game's folder (or its bin\x64 folders, where many games keep it)
+  for (const sub of ["", "bin\\x64_dx12", "bin\\x64", "bin", "Binaries\\Win64"]) try { const d = path.join(gamePath, sub); let best = "", size = 0; for (const f of fs.readdirSync(d)) { if (!/\.exe$/i.test(f) || /launcher|crash|setup|unins|redist|helper|report/i.test(f)) continue; const st = fs.statSync(path.join(d, f)); if (st.size > size) { size = st.size; best = path.join(d, f); } } if (best) return best; } catch {}
+  return "";
 }
 function mo2Count(dir) { try { return fs.readdirSync(dir, { withFileTypes: true }).filter(d => d.isDirectory() && !/_separator$/i.test(d.name)).length; } catch { return 0; } }
 async function mo2Read(dir, kind, exe) {
@@ -4869,7 +4872,9 @@ async function mo2Read(dir, kind, exe) {
   const modsDir = (mo2Val(ini, "mod_directory") || "%BASE_DIR%\\mods").replace(/%BASE_DIR%/i, base);
   const profile = mo2Val(ini, "selected_profile");
   const name = kind === "global" ? path.basename(dir) : path.basename(dir);
-  const gExe = mo2GameExe(game, gamePath);
+  let gExe = mo2GameExe(game, gamePath);
+  // a Witcher 3 setup (or one named "W3…") whose game folder isn't filled in: use the Steam copy's icon
+  if (!gExe && /witcher\s*3|^w3\b/i.test(game + " " + name) || (!gExe && /^w3\b/i.test(name))) { try { gExe = mo2GameExe("The Witcher 3", await steamInstallDir(292030)); } catch {} }
   let at = 0; try { at = fs.statSync(path.join(dir, "ModOrganizer.ini")).mtimeMs; } catch {}
   return { id: Buffer.from(dir).toString("base64url"), kind, dir, exe, name, game: game || "Not set up yet", gamePath, profile, mods: mo2Count(modsDir), icon: await mo2Icon(gExe || exe), at };
 }
