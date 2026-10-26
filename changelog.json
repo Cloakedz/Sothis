@@ -1,5 +1,12 @@
 [
  {
+  "v": "1.13.1",
+  "d": "2026-10-26",
+  "notes": [
+   "The corner buttons (Claude, sound, Discord, bell, Opera) sit in one row with the tab bar on every page, so they no longer overlap the content or each other"
+  ]
+ },
+ {
   "v": "1.13.0",
   "d": "2026-10-26",
   "notes": [

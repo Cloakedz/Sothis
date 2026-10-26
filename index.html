@@ -1706,10 +1706,17 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .ms-box.cur { border-color: color-mix(in srgb, var(--accent) 60%, transparent); } .ms-box.cur em { display: block; }
 .ms-box.na { opacity: .5; }
 .ms-note { min-height: 1em; }
+
+/* bottom strip: the corner buttons and tab bar share one row, and scrolled content fades out behind it instead of running under the buttons */
+body.dock-row .ln-col { flex-direction: row-reverse; }
+.dock-bg { position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--dock, 82px) + 10px); z-index: 3; pointer-events: none; border-radius: 0 0 20px 20px;
+  background: linear-gradient(to top, rgba(0, 0, 0, .92) 0, rgba(0, 0, 0, .82) calc(100% - 26px), transparent); }
+body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.in-settings .dock-bg { display: none; }
 </style>
 </head>
 <body class="splashing">
 <div class="shell" id="shell">
+  <div class="dock-bg" aria-hidden="true"></div>
   <div class="viz-glow" aria-hidden="true"></div>
   <canvas class="viz" id="vizRing" aria-hidden="true"></canvas>
   <div class="titlebar">
@@ -6934,7 +6941,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   // On Switch and Music, line Discord + sound up beside the Claude button and slide the tab bar over to make room
   function dockRow() {
     // every wide (landscape) page, plus Music
-    const row = (tab === "switch" || tab === "ytm" || tab === "claude" || tab === "web" || tab === "opera" || tab === "dcapp" || tab === "discord" || window.innerWidth > window.innerHeight) && !document.body.classList.contains("is-mini");
+    // every page: all the corner buttons sit in one row with the tab bar, so nothing stacks up over the content
+    const row = !document.body.classList.contains("is-mini");
     document.body.classList.toggle("dock-row", row);
     const nav = document.querySelector(".tabs"); if (!nav) return;
     nav.style.left = ""; nav.classList.remove("compact", "tiny");
