@@ -1,5 +1,14 @@
 [
  {
+  "v": "1.13.0",
+  "d": "2026-10-26",
+  "notes": [
+   "Music: pick YouTube Music, Spotify or Apple Music and sign in; Sothis shows just that one",
+   "Spotify and Apple Music play inside Sothis (needs the new installer once)",
+   "Now playing, the phone remote, Discord status and the tray work with all three"
+  ]
+ },
+ {
   "v": "1.12.3",
   "d": "2026-10-26",
   "notes": [

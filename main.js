@@ -846,9 +846,9 @@ function dcPresenceNow() {
     };
   } else if (song) {
     act = {
-      type: 2, details: cut(song.t, 120), state: cut(song.a || "YouTube Music", 120), status_display_type: 2,
+      type: 2, details: cut(song.t, 120), state: cut(song.a || svcName(), 120), status_display_type: 2,
       timestamps: { start: dcPresSongAt || Date.now() },
-      assets: Object.assign({ large_text: "YouTube Music · Sothis" }, art ? { large_image: art } : {})
+      assets: Object.assign({ large_text: svcName() + " · Sothis" }, art ? { large_image: art } : {})
     };
   } else if (game) {
     act = {
@@ -878,6 +878,7 @@ function dcPresenceNow() {
   });
 }
 let dcNoName = false, matchKey = "", matchAt = 0;
+const svcName = () => ({ spotify: "Spotify", apple: "Apple Music" })[player.svc] || "YouTube Music";
 /* ---------- Crunchyroll in your Discord status: "Watching <show> · Episode N" while a Crunchyroll episode is open in any browser
    (Chrome, Edge, Opera GX…). Only the window title is read. ---------- */
 let crNow = null, crProc = null, crLast = "", crKey = "", crAt = 0;
@@ -3442,7 +3443,13 @@ app.on("before-quit", e => {
   flushSites();
   if (worker) worker.kill();
 });
-app.whenReady().then(() => {
+// Spotify and Apple Music need Widevine (protected music). The castlabs build of Electron includes it as a "component"
+// that's ready a moment after start; the normal build has no components and just carries on.
+const WV = (() => { try { return require("electron").components || null; } catch { return null; } })();
+const wvReady = () => WV ? WV.whenReady().then(() => true).catch(e => { try { fs.appendFileSync(path.join(app.getPath("userData"), "widevine-log.txt"), new Date().toISOString() + " " + (e && e.message) + "\n"); } catch {} return false; }) : Promise.resolve(false);
+let wvOk = false;
+ipcMain.handle("music:drm", () => ({ engine: !!WV, ok: wvOk }));
+app.whenReady().then(wvReady).then(ok => { wvOk = ok; }).then(() => {
   try { session.fromPartition("persist:watch").setPermissionRequestHandler((_wc, perm, cb) => cb(["fullscreen", "clipboard-sanitized-write"].includes(perm))); } catch {}
   const browserSession = session.fromPartition("persist:browser");
   const browserOk = new Set(["fullscreen", "clipboard-sanitized-write", "notifications", "media"]);
@@ -3500,6 +3507,17 @@ app.whenReady().then(() => {
   });
   const claudeOk = new Set(["fullscreen", "clipboard-sanitized-write", "notifications", "media"]);
   claudeSession.setPermissionRequestHandler((_wc, perm, cb) => cb(claudeOk.has(perm)));
+  const CHROME_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/" + (process.versions.chrome || "130.0.0.0") + " Safari/537.36";
+  for (const part of ["persist:spotify", "persist:applemusic"]) {
+    try {
+      const ss = session.fromPartition(part);
+      ss.setUserAgent(CHROME_UA);
+      const ok = new Set(["fullscreen", "clipboard-sanitized-write", "notifications", "media", "protected-media-identifier", "mediaKeySystem"]);
+      ss.setPermissionRequestHandler((_wc, perm, cb) => cb(ok.has(perm)));
+      ss.setPermissionCheckHandler((_wc, perm) => ok.has(perm));
+      ss.setPreloads([path.join(__dirname, "nopasskey-preload.js")]);
+    } catch {}
+  }
   const ytmOk = new Set(["fullscreen", "clipboard-sanitized-write", "notifications"]);
   ytmSession.setPermissionRequestHandler((_wc, perm, cb) => cb(ytmOk.has(perm)));
   const discordSession = session.fromPartition("persist:discord");

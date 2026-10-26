@@ -190,6 +190,7 @@ contextBridge.exposeInMainWorld("desktop", {
   weekGet: offset => ipcRenderer.invoke("week:get", offset),
   dayYesterday: () => ipcRenderer.invoke("day:yesterday"),
   crExt: () => ipcRenderer.invoke("cr:ext"),
+  musicDrm: () => ipcRenderer.invoke("music:drm"),
   dcKeysGet: () => ipcRenderer.invoke("dcKeys:get"),
   dcKeysSet: p => ipcRenderer.invoke("dcKeys:set", p),
   crStatus: () => ipcRenderer.invoke("cr:status"),

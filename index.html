@@ -1682,6 +1682,30 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 
 .dk-key { padding: 6px 10px; font-size: 12px; white-space: nowrap; }
 .wk-calls { grid-template-columns: 1fr !important; }
+
+/* Music service: YouTube Music (built in), Spotify or Apple Music (their web players inside Sothis) */
+.ms-chip { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; margin-right: 4px; background: color-mix(in srgb, var(--ink) 7%, transparent); border: 1px solid var(--line); transition: transform .12s, background .15s; }
+.ms-chip:hover { background: color-mix(in srgb, var(--ink) 14%, transparent); } .ms-chip:active { transform: scale(.92); }
+.ms-chip img { width: 20px; height: 20px; object-fit: contain; }
+#tab-ytm #msWrap { visibility: hidden; background: #000; }
+#tab-ytm.svc #msWrap { visibility: visible; }
+#tab-ytm.svc #ytWrap, #tab-ytm.svc #spotWrap, #tab-ytm.svc .yts, #tab-ytm.svc .ynp, #tab-ytm.svc .atp-fab, #tab-ytm.svc #ytSw, #tab-ytm.svc #ytSite { visibility: hidden !important; pointer-events: none !important; }
+#msWrap webview { width: 100%; height: 100%; }
+.ms-pick { position: absolute; left: 0; right: 0; top: 0; bottom: var(--dock, 82px); z-index: 4; display: grid; place-items: center; padding: 20px 18px; color: #f1f2f6; --ink: #f1f2f6; --muted: #a7abb9; --line: rgba(255, 255, 255, .12); border-radius: 0 0 14px 14px; background: radial-gradient(ellipse 90% 60% at 50% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%), #07070a; }
+.ms-pick-in { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 12px; text-align: center; }
+.ms-pick h2 { margin: 0; font: 800 26px/1.15 var(--f-display); }
+.ms-pick p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.ms-boxes { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.ms-box { position: relative; display: grid; grid-template-columns: 52px 1fr; grid-template-rows: auto auto; column-gap: 14px; align-items: center; text-align: left; padding: 14px 16px; border-radius: 18px;
+  background: color-mix(in srgb, var(--ink) 5%, transparent); border: 1px solid var(--line); color: var(--ink); cursor: pointer; transition: border-color .15s, background .15s, transform .12s; }
+.ms-box:hover { border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.ms-box:active { transform: scale(.98); }
+.ms-box img { grid-row: 1 / 3; width: 52px; height: 52px; object-fit: contain; }
+.ms-box b { font: 700 16px var(--f-display); } .ms-box span { font-size: 12px; color: var(--muted); }
+.ms-box em { display: none; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font: 700 10px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-style: normal; }
+.ms-box.cur { border-color: color-mix(in srgb, var(--accent) 60%, transparent); } .ms-box.cur em { display: block; }
+.ms-box.na { opacity: .5; }
+.ms-note { min-height: 1em; }
 </style>
 </head>
 <body class="splashing">
@@ -1971,10 +1995,25 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
           <button type="button" role="radio" data-yv="spot" aria-checked="false">Songspot</button>
         </div>
         <span class="ytbar-sp"></span>
+        <button class="ms-chip" id="msChip" type="button" title="Change music service" aria-label="Change music service"><img id="msChipImg" src="logos/svc-ytm.png" alt=""></button>
         <button class="ib ytnav" id="ytSite" type="button" aria-label="Open the YouTube Music website" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></button>
       </div>
       <div class="webwrap" id="ytWrap"><div class="loadline" id="ytLoad"></div></div>
       <div class="webwrap" id="spotWrap"><div class="loadline" id="spotLoad"></div></div>
+      <div class="webwrap" id="msWrap"><div class="loadline" id="msLoad"></div></div>
+      <div class="ms-pick" id="msPick" hidden>
+        <div class="ms-pick-in">
+          <h2>Your music</h2>
+          <p>Pick where your music lives and sign in. Sothis then shows just that one.</p>
+          <div class="ms-boxes">
+            <button class="ms-box" type="button" data-svc="ytm"><img src="logos/svc-ytm.png" alt=""><b>YouTube Music</b><span>Sign in with Google</span><em>Current</em></button>
+            <button class="ms-box" type="button" data-svc="spotify"><img src="logos/svc-spotify.png" alt=""><b>Spotify</b><span>Sign in with Spotify</span><em>Current</em></button>
+            <button class="ms-box" type="button" data-svc="apple"><img src="logos/svc-apple.png" alt=""><b>Apple Music</b><span>Sign in with your Apple ID</span><em>Current</em></button>
+          </div>
+          <p class="ms-note" id="msNote"></p>
+          <button class="btn ghost" id="msPickClose" type="button" hidden>Cancel</button>
+        </div>
+      </div>
       <div class="yts" id="ytlView">
         <div class="seg yts-kind" id="ytlKind" role="radiogroup" aria-label="Library section">
           <button type="button" role="radio" data-k="playlists">Playlists</button>
@@ -2813,7 +2852,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     if (tab === "web") wbEnsure(); else if (document.body.classList.contains("wb-full")) wbFull(false);
     if (tab === "games") loadGames();
     if (tab === "home") { try { hxRender(); } catch {} }
-    if (tab === "ytm") { ensureYTM(); showYtView(ytView); }
+    if (tab === "ytm") msApply();
     TABS.forEach(k => {
       const b = $("tabbtn-" + k); if (!b) return;
       b.setAttribute("aria-selected", k === tab);
@@ -3077,15 +3116,54 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     if (!art) { const im = bar && bar.querySelector("img"); if (im) art = im.src; }
     return { has: !!(v && title), playing: !!(v && !v.paused && !v.ended), title, artist: by ? by.textContent.split("•")[0].trim() : "", volume: vol, art, pos: v ? v.currentTime : 0, dur: v && isFinite(v.duration) ? v.duration : 0 };
   })()`;
+  // Spotify / Apple Music: what's playing, read from the page (Media Session, the player, MusicKit on Apple)
+  const MS_READ = `(() => {
+    const host = location.hostname, ms = navigator.mediaSession, md = ms && ms.metadata;
+    const media = [...document.querySelectorAll("video,audio")].find(m => m.duration > 0) || null;
+    let pos = 0, dur = 0, playing = false, vol = 0.5;
+    if (/apple/.test(host)) { try { const mk = window.MusicKit && MusicKit.getInstance(); if (mk) { pos = mk.currentPlaybackTime || 0; dur = mk.currentPlaybackDuration || 0; playing = !!mk.isPlaying; if (typeof mk.volume === "number") vol = mk.volume; } } catch (e) {} }
+    if (/spotify/.test(host)) {
+      const b = document.querySelector('[data-testid="control-button-playpause"]'); if (b) playing = /pause/i.test(b.getAttribute("aria-label") || "");
+      const t = id => { const e = document.querySelector('[data-testid="' + id + '"]'); return e ? e.textContent.trim().split(":").reduce((a, x) => a * 60 + (+x || 0), 0) : 0; };
+      pos = t("playback-position"); dur = t("playback-duration");
+      const vr = document.querySelector('[data-testid="volume-bar"] input[type=range]'); if (vr) vol = (+vr.value) / (+vr.max || 1);
+    }
+    if (media) { if (!dur && isFinite(media.duration)) { dur = media.duration; pos = media.currentTime; } if (!playing) playing = !media.paused; }
+    if (ms && ms.playbackState === "playing") playing = true;
+    const aw = md && md.artwork ? [...md.artwork] : [], art = aw.length ? aw[aw.length - 1].src : "";
+    return { has: !!(md && md.title), playing, title: md ? md.title || "" : "", artist: md ? md.artist || "" : "", volume: vol, art, pos, dur };
+  })()`;
+  const msCmdJs = (cmd, value) => `(() => {
+    const cmd = ${JSON.stringify(cmd)}, value = ${JSON.stringify(value ?? null)}, host = location.hostname, q = s => document.querySelector(s);
+    const setRange = (el, v) => { if (!el) return; const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set; set.call(el, String(v)); el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); };
+    if (/apple/.test(host)) {
+      const mk = window.MusicKit && MusicKit.getInstance(); if (!mk) return;
+      if (cmd === "playpause") mk.isPlaying ? mk.pause() : mk.play();
+      else if (cmd === "next") mk.skipToNextItem();
+      else if (cmd === "prev") mk.skipToPreviousItem();
+      else if (cmd === "seek" && mk.currentPlaybackDuration) mk.seekToTime(Math.max(0, Math.min(1, value)) * mk.currentPlaybackDuration);
+      else if (cmd === "vol") mk.volume = Math.max(0, Math.min(1, value));
+      else if (cmd === "volstep") mk.volume = Math.max(0, Math.min(1, (mk.volume || 0) + value));
+      return;
+    }
+    const tid = id => q('[data-testid="' + id + '"]');
+    if (cmd === "playpause") { const b = tid("control-button-playpause"); if (b) b.click(); }
+    else if (cmd === "next") { const b = tid("control-button-skip-forward"); if (b) b.click(); }
+    else if (cmd === "prev") { const b = tid("control-button-skip-back"); if (b) b.click(); }
+    else if (cmd === "seek") { const r = q('[data-testid="playback-progressbar"] input[type=range]'); if (r) setRange(r, Math.round(Math.max(0, Math.min(1, value)) * (+r.max || 0))); }
+    else if (cmd === "vol" || cmd === "volstep") { const r = q('[data-testid="volume-bar"] input[type=range]'); if (r) { const mx = +r.max || 1, cur = (+r.value) / mx; setRange(r, Math.round(Math.max(0, Math.min(1, cmd === "vol" ? value : cur + value)) * mx * 1000) / 1000); } }
+  })()`;
+  const musWv = () => musicSvc === "ytm" ? yt : msv;
   async function pollYT() {
-    if (!yt) { ytState = null; return; }
-    try { ytState = await yt.executeJavaScript(YT_READ); } catch { ytState = null; }
+    const wv = musWv();
+    if (!wv) { ytState = null; renderMiniYT(); return; }
+    try { ytState = await wv.executeJavaScript(musicSvc === "ytm" ? YT_READ : MS_READ); } catch { ytState = null; }
     renderMiniYT();
   }
   function renderMiniYT() {
     const y = ytState && ytState.has ? ytState : null;
     M.mTitle.textContent = y ? y.title || "Nothing playing" : "Nothing playing";
-    M.mArtist.textContent = y ? y.artist || "YouTube Music" : "Open YouTube Music to start";
+    M.mArtist.textContent = y ? y.artist || msName() : "Open " + msName() + " to start";
     if (y && y.art) { if (M.mThumb.getAttribute("src") !== y.art) M.mThumb.src = y.art; } else M.mThumb.removeAttribute("src");
     M.mFill.style.width = (y && y.dur ? Math.min(100, y.pos / y.dur * 100) : 0) + "%";
     M.mPlayIcon.innerHTML = y && y.playing ? PAUSE : PLAY;
@@ -3094,6 +3172,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   }
   setInterval(pollYT, 1000);
   function ytCmd(cmd, value) {
+    if (musicSvc !== "ytm") { if (msv) msv.executeJavaScript(msCmdJs(cmd, value), true).then(() => setTimeout(() => pollYT().then(report), 250)).catch(() => {}); return; }
     if (!yt) return;
     const js = `(() => {
       const mp = document.getElementById("movie_player");
@@ -3120,7 +3199,8 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       volume: y ? y.volume : 0.5,
       title: y ? y.title : "",
       artist: y ? y.artist : "",
-      art: y ? y.art || "" : ""
+      art: y ? y.art || "" : "",
+      svc: musicSvc
     };
     const k = JSON.stringify(p);
     if (k !== lastReport) { lastReport = k; D.reportPlayer(p); }
@@ -4144,6 +4224,61 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     ytv.addEventListener("did-stop-loading", () => $("ytLoad").classList.remove("on"));
     watchNav(ytv);
   }
+  /* ---------- Music service: pick YouTube Music, Spotify or Apple Music; only the one you pick shows ---------- */
+  var MS = { ytm: { name: "YouTube Music" }, spotify: { name: "Spotify", url: "https://open.spotify.com/", part: "persist:spotify" }, apple: { name: "Apple Music", url: "https://music.apple.com/", part: "persist:applemusic" } };
+  var musicSvc = MS[store.get("music.svc")] ? store.get("music.svc") : "", msv = null, msvFor = "", msDrm = { engine: true, ok: true };
+  try { D.musicDrm().then(d => { if (d) msDrm = d; msPaintPick(); }).catch(() => {}); } catch {}
+  function msName() { return (MS[musicSvc] || MS.ytm).name; }
+  function ensureMs() {
+    const m = MS[musicSvc]; if (!m || !m.url) return;
+    if (msv && msvFor === musicSvc) return;
+    if (msv) { try { msv.remove(); } catch {} msv = null; }
+    msv = document.createElement("webview");
+    msv.setAttribute("partition", m.part);
+    msv.setAttribute("allowpopups", "");
+    msv.setAttribute("webpreferences", "backgroundThrottling=no");
+    msv.setAttribute("src", m.url);
+    msvFor = musicSvc;
+    $("msWrap").append(msv);
+    msv.addEventListener("did-start-loading", () => $("msLoad").classList.add("on"));
+    msv.addEventListener("did-stop-loading", () => { $("msLoad").classList.remove("on"); ytNavState(); });
+    msv.addEventListener("did-navigate-in-page", () => ytNavState());
+  }
+  function msPaintPick() {
+    document.querySelectorAll(".ms-box").forEach(b => {
+      b.classList.toggle("cur", b.dataset.svc === musicSvc);
+      b.classList.toggle("na", b.dataset.svc !== "ytm" && msDrm && msDrm.engine === false);
+    });
+    $("msNote").textContent = msDrm && msDrm.engine === false ? "Spotify and Apple Music need the newest Sothis installer (they play protected music). Download it from the GitHub page and run it once." : "";
+    $("msPickClose").hidden = !musicSvc;
+    $("msChipImg").src = "logos/svc-" + (musicSvc || "ytm") + ".png";
+  }
+  function msOpenPick(on) { $("msPick").hidden = !on; msPaintPick(); }
+  function msApply() {
+    const other = musicSvc && musicSvc !== "ytm";
+    $("tab-ytm").classList.toggle("svc", !!other);
+    $("tabbtn-ytm").setAttribute("aria-label", msName());
+    if (!musicSvc) { msOpenPick(true); return; }
+    msOpenPick(false);
+    if (other) {
+      ensureMs();
+      // only one service plays: pause YouTube Music if it was going
+      if (yt) { try { yt.executeJavaScript("document.querySelectorAll('video,audio').forEach(m => m.pause())").catch(() => {}); } catch {} }
+    } else {
+      if (msv) { try { msv.remove(); } catch {} msv = null; msvFor = ""; }
+      ensureYTM(); showYtView(ytView);
+    }
+    ytNavState(); renderYnp();
+  }
+  document.querySelectorAll(".ms-box").forEach(b => b.onclick = () => {
+    const s = b.dataset.svc;
+    if (s !== "ytm" && msDrm && msDrm.engine === false) { toast("Install the newest Sothis to use " + MS[s].name); return; }
+    musicSvc = s; store.set("music.svc", s); msApply();
+    if (s !== "ytm") toast("Sign in to " + MS[s].name + " here. Sothis remembers it");
+  });
+  $("msChip").onclick = () => msOpenPick(true);
+  $("msPickClose").onclick = () => msOpenPick(false);
+  msPaintPick();
   function showYtView(v) {
     const was = ytView;
     ytView = v === "yt" || v === "spot" ? v : "music";
@@ -4169,7 +4304,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     ytNavState();
   }
   document.querySelectorAll("#ytSw button").forEach(b => b.addEventListener("click", () => showYtView(b.dataset.yv)));
-  const ytActive = () => ytView === "spot" ? spotv : ytSite ? yt : null;
+  const ytActive = () => musicSvc && musicSvc !== "ytm" ? msv : ytView === "spot" ? spotv : ytSite ? yt : null;
   function ytNavState() {
     const w = ytActive();
     let back = false, fwd = false;
@@ -4183,7 +4318,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 
   /* ---------- Home ---------- */
   function nowInfo() {
-    if (ytState && ytState.has) return { src: "YouTube Music", title: ytState.title, artist: ytState.artist, art: ytState.art, pos: ytState.pos, dur: ytState.dur, playing: ytState.playing };
+    if (ytState && ytState.has) return { src: msName(), title: ytState.title, artist: ytState.artist, art: ytState.art, pos: ytState.pos, dur: ytState.dur, playing: ytState.playing };
     return null;
   }
   function renderHome() {
@@ -4204,7 +4339,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     const n = nowInfo();
     $("hmSrc").textContent = n ? (n.playing ? "Now playing" : "Paused") + " · " + n.src : "Now playing";
     $("hmTitle").textContent = n ? n.title || "Unknown song" : "Nothing playing";
-    $("hmArtist").textContent = n ? n.artist || "" : "Open YouTube Music to start";
+    $("hmArtist").textContent = n ? n.artist || "" : "Open " + msName() + " to start";
     const art = n && n.art;
     if (art) { if ($("hmArt").getAttribute("src") !== art) $("hmArt").src = art; } else $("hmArt").removeAttribute("src");
     $("hmFill").style.width = (n && n.dur ? Math.min(100, n.pos / n.dur * 100) : 0) + "%";
@@ -4910,11 +5045,11 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     setTimeout(() => { if (!vizLive) vizCx.clearRect(0, 0, vizCv.width, vizCv.height); }, 700);
   }
   async function vizTick() {
-    if (!vizOn || mini || !yt || document.hidden || document.body.classList.contains("splashing") || !(ytState && ytState.playing)) { vizStop(); return; }
+    if (!vizOn || mini || !musWv() || document.hidden || document.body.classList.contains("splashing") || !(ytState && ytState.playing)) { vizStop(); return; }
     if (vizBusy) return;
     vizBusy = true;
     try {
-      const b = await yt.executeJavaScript(VIZ_JS, true);
+      const b = await musWv().executeJavaScript(VIZ_JS, true);
       if (!b) { vizStop(); return; }
       for (let i = 0; i < 32; i++) vizBands[i] = Math.max(b[i], vizBands[i] * 0.82);
       const bass = (b[0] + b[1] + b[2] + b[3]) / (4 * 255);
