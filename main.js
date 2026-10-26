@@ -405,6 +405,7 @@ async function dcReady() {
    Needs Discord's "see your friends" permission, asked once when you turn it on. ---------- */
 const FR_SCOPE = "relationships.read";
 const fr = { list: new Map(), err: "" };
+function frLog(line) { try { fs.appendFileSync(path.join(DATA_DIR, "discord-friends-log.txt"), new Date().toISOString() + "  " + line + "\n"); } catch {} }
 function frAvatar(u) {
   if (u.avatar) return `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png?size=64`;
   let n = 0; try { n = Number((BigInt(u.id) >> 22n) % 6n); } catch {} return `https://cdn.discordapp.com/embed/avatars/${n}.png`;
@@ -431,7 +432,8 @@ async function frStart() {
     for (const x of (r && r.relationships) || []) frPut(x);
     fr.err = "";
     await dcCmd("SUBSCRIBE", {}, "RELATIONSHIP_UPDATE").catch(() => {});
-  } catch (e) { fr.err = "Discord didn't share your friends list (" + (e.message || "error") + ")."; }
+    frLog("friends list ok: " + fr.list.size + " in a game, " + (((r && r.relationships) || []).length) + " relationships");
+  } catch (e) { fr.err = "Discord didn't share your friends list (" + (e.message || "error") + ")."; frLog("GET_RELATIONSHIPS failed: code " + e.code + " " + e.message); }
   frPush();
 }
 ipcMain.handle("friends:get", () => frState());
@@ -447,6 +449,7 @@ ipcMain.handle("friends:set", async (_e, on) => {
       const au = await dcCmd("AUTHENTICATE", { access_token: tok });
       dc.scopes = (au && Array.isArray(au.scopes)) ? au.scopes : dc.scopes;
     } catch (e) {
+      frLog("asking for the friends permission failed: code " + e.code + " " + e.message + " | scopes now: " + (dc.scopes || []).join(","));
       fr.err = e.code === 5000 ? "You chose not to share your friends list." : "Discord didn't allow Sothis to see your friends (" + (e.message || "error") + ").";
       frPush(); return frState();
     }

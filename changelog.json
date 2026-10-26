@@ -1,5 +1,13 @@
 [
  {
+  "v": "1.10.1",
+  "d": "2026-10-25",
+  "notes": [
+   "Game news opens in a pop-up inside Sothis",
+   "Fixed the Friends playing now bar clashing with the Stats friends list"
+  ]
+ },
+ {
   "v": "1.10.0",
   "d": "2026-10-25",
   "notes": [
