@@ -55,7 +55,7 @@ button:disabled { opacity: .35; cursor: default; }
 @property --song-glow { syntax: "<color>"; inherits: true; initial-value: rgba(0, 0, 0, 0); }
 .shell { transition: --song-glow 1.2s ease; }
 /* the current song's album color, as a soft glow behind everything (fades when the song changes) */
-.shell::after { content: ""; position: absolute; inset: 0; z-index: -1; background: radial-gradient(ellipse 80% 60% at 50% 30%, var(--song-glow), transparent 70%); pointer-events: none; transition: opacity .6s; }
+.shell::after { content: ""; position: absolute; inset: 0; z-index: -4; background: radial-gradient(ellipse 80% 60% at 50% 30%, var(--song-glow), transparent 70%); pointer-events: none; transition: opacity .6s; }
 /* only on Home and Music: pages with a website or app in them stay plain */
 body:not([data-tab="home"]):not([data-tab="ytm"]) .shell::after { opacity: 0; }
 .titlebar h1, .title, .artist, .owname, .sethead h2 { text-shadow: 0 1px 8px var(--bg); }
@@ -750,7 +750,7 @@ input::selection, textarea::selection { background: rgba(255, 77, 115, .4); }
 .viz, .viz-glow { position: absolute; left: 50%; top: 50%; aspect-ratio: 1; transform: translate(-50%, -50%); z-index: -3; pointer-events: none; }
 .viz { width: calc(min(58vw, 48vh) * 1.66); opacity: 0; transition: opacity .6s ease; }
 .viz-glow { width: calc(min(58vw, 48vh) * 1.28); border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 30, 50, .5), rgba(200, 0, 20, .16) 58%, transparent 76%);
-  opacity: var(--glow, 0); transform: translate(-50%, -50%) scale(var(--gs, 1)); will-change: opacity, transform; }
+  opacity: var(--vglow, 0); transform: translate(-50%, -50%) scale(var(--gs, 1)); will-change: opacity, transform; }
 body.viz-on .viz { opacity: 1; }
 body:not(.viz-on) .viz-glow { opacity: 0; transition: opacity .6s ease; }
 body.is-mini .viz, body.is-mini .viz-glow { display: none; }
@@ -4845,14 +4845,14 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
     }
     shellEl.style.setProperty("--beat", (1 + vizBass * 0.045).toFixed(4));
-    shellEl.style.setProperty("--glow", Math.min(1, Math.pow(vizBass, 1.4) * 1.1).toFixed(3));
+    shellEl.style.setProperty("--vglow", Math.min(1, Math.pow(vizBass, 1.4) * 1.1).toFixed(3));
     shellEl.style.setProperty("--gs", (0.88 + vizBass * 0.28).toFixed(3));
   }
   function vizStop() {
     if (!vizLive) return;
     vizLive = false; document.body.classList.remove("viz-on");
     vizBands.fill(0); vizBass = 0;
-    shellEl.style.setProperty("--beat", "1"); shellEl.style.setProperty("--glow", "0");
+    shellEl.style.setProperty("--beat", "1"); shellEl.style.setProperty("--vglow", "0");
     setTimeout(() => { if (!vizLive) vizCx.clearRect(0, 0, vizCv.width, vizCv.height); }, 700);
   }
   async function vizTick() {
@@ -4860,7 +4860,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     if (vizBusy) return;
     vizBusy = true;
     try {
-      const b = await yt.executeJavaScript(VIZ_JS, false);
+      const b = await yt.executeJavaScript(VIZ_JS, true);
       if (!b) { vizStop(); return; }
       for (let i = 0; i < 32; i++) vizBands[i] = Math.max(b[i], vizBands[i] * 0.82);
       const bass = (b[0] + b[1] + b[2] + b[3]) / (4 * 255);

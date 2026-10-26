@@ -1,5 +1,13 @@
 [
  {
+  "v": "1.9.8",
+  "d": "2026-10-25",
+  "notes": [
+   "Fixed the white glow on the tab buttons and corner icons",
+   "The music visualizer works again"
+  ]
+ },
+ {
   "v": "1.9.7",
   "d": "2026-10-25",
   "notes": [
