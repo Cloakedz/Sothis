@@ -429,7 +429,7 @@ async function dcApplyChannel(ch) {
   const since = dc.channel && dc.channel.id === ch.id ? dc.channel.since : Date.now();
   dc.channel = { id: ch.id, guildId: ch.guild_id || "", name: ch.name || (ch.guild_id ? "Voice" : "Call"), guild: guild || (ch.guild_id ? "" : "Direct call"), since, members: new Map() };
   for (const v of ch.voice_states || []) dcUpsert(v);
-  if (old !== ch.id) { dc.subChan = ch.id; for (const e of DC_CH_EVTS) dcCmd("SUBSCRIBE", { channel_id: ch.id }, e).catch(() => {}); }
+  if (old !== ch.id) { dc.subChan = ch.id; for (const e of DC_CH_EVTS) dcCmd("SUBSCRIBE", { channel_id: ch.id }, e).catch(() => {}); try { const d = wkDay(Date.now()); d.callCount = (d.callCount || 0) + 1; wkDirty = true; } catch {} }
   dcPush();
 }
 function dcEvent(evt, d) {
@@ -3017,6 +3017,38 @@ ipcMain.handle("r6live:me", (_e, { name, platform }) => {
 });
 ipcMain.handle("r6live:test", () => { setTimeout(r6TabRun, 3000); return true; });
 app.on("will-quit", () => { try { globalShortcut.unregisterAll(); } catch {} });
+// Discord mute / deafen from anywhere (even in a game), with a small pop-up so you know which way it went
+const DC_KEYS_DEF = { on: true, mute: "Ctrl+Alt+M", deaf: "Ctrl+Alt+D" };
+const dcKeysCfg = () => Object.assign({}, DC_KEYS_DEF, settings.dcKeys || {});
+let dcKeysOn = {};
+async function dcKeyPress(what) {
+  if (dc.status !== "ok") { showSongToast({ title: "Discord isn't connected", artist: "Open Discord, then try again", art: "" }); return; }
+  await dcToggle(what);
+  const v = dc.vs || {};
+  showSongToast(what === "deaf" ? { title: v.deaf ? "Deafened" : "Undeafened", artist: "Discord · " + dcKeysCfg().deaf, art: "" } : { title: v.mute ? "Muted" : "Unmuted", artist: "Discord · " + dcKeysCfg().mute, art: "" });
+}
+function dcKeysRegister() {
+  for (const k of Object.values(dcKeysOn)) { try { globalShortcut.unregister(k); } catch {} }
+  dcKeysOn = {};
+  const c = dcKeysCfg(), ok = {};
+  if (!c.on) return ok;
+  for (const what of ["mute", "deaf"]) {
+    const acc = c[what]; if (!acc) continue;
+    try { ok[what] = globalShortcut.register(acc, () => dcKeyPress(what)); } catch { ok[what] = false; }
+    if (ok[what]) dcKeysOn[what] = acc;
+  }
+  return ok;
+}
+app.whenReady().then(() => setTimeout(dcKeysRegister, 3000));
+ipcMain.handle("dcKeys:get", () => Object.assign(dcKeysCfg(), { registered: Object.assign({}, dcKeysOn) }));
+ipcMain.handle("dcKeys:set", (_e, patch) => {
+  const c = dcKeysCfg();
+  if (patch && typeof patch.on === "boolean") c.on = patch.on;
+  for (const what of ["mute", "deaf"]) if (patch && typeof patch[what] === "string") c[what] = patch[what].slice(0, 40);
+  settings.dcKeys = c; saveSettings();
+  const ok = dcKeysRegister();
+  return Object.assign(dcKeysCfg(), { registered: Object.assign({}, dcKeysOn), failed: ["mute", "deaf"].filter(w => c.on && c[w] && !ok[w]) });
+});
 
 /* ---------- stats.cc (Rainbow Six Siege) shown inside the Stats tab ---------- */
 const isStatsCC = url => { try { const h = new URL(url).hostname.toLowerCase(); return h === "stats.cc" || h.endsWith(".stats.cc"); } catch { return false; } };
@@ -4577,6 +4609,12 @@ function wkTick() {
     wkDirty = true;
   }
   if (sess && sess.game) { d.games[sess.game] = (d.games[sess.game] || 0) + step; wkDirty = true; }
+  // Discord calls: time in a call, and who you spent it with
+  if (dc.status === "ok" && dc.channel) {
+    d.calls = (d.calls || 0) + step; d.people = d.people || {};
+    for (const m of dc.channel.members.values()) if (!m.me && m.name) d.people[m.name] = (d.people[m.name] || 0) + step;
+    wkDirty = true;
+  }
   // keep about a year
   const D = wkLoad().days, ks = Object.keys(D);
   if (ks.length > 400) { ks.sort(); for (const k of ks.slice(0, ks.length - 400)) delete D[k]; wkDirty = true; }
@@ -4598,7 +4636,7 @@ function wkClipsBetween(a, b) {
 }
 function wkSum(from, to) {
   const D = wkLoad().days, days = [];
-  const out = { music: 0, plays: 0, songs: {}, artists: {}, games: {}, days };
+  const out = { music: 0, plays: 0, songs: {}, artists: {}, games: {}, days, calls: 0, callCount: 0, people: {} };
   for (let t = from; t < to; t += 86400000) {
     const k = wkDayKey(t + 3600000), d = D[k] || { music: 0, plays: 0, songs: {}, artists: {}, games: {} };
     const gameSecs = Object.values(d.games || {}).reduce((a, b) => a + b, 0);
@@ -4607,6 +4645,8 @@ function wkSum(from, to) {
     for (const [a, v] of Object.entries(d.songs || {})) out.songs[a] = (out.songs[a] || 0) + v;
     for (const [a, v] of Object.entries(d.artists || {})) out.artists[a] = (out.artists[a] || 0) + v;
     for (const [a, v] of Object.entries(d.games || {})) out.games[a] = (out.games[a] || 0) + v;
+    out.calls += d.calls || 0; out.callCount += d.callCount || 0;
+    for (const [a, v] of Object.entries(d.people || {})) out.people[a] = (out.people[a] || 0) + v;
   }
   return out;
 }
@@ -4626,7 +4666,8 @@ function wkReport(offset) {
     songs: wkTop(cur.songs, 5).map(([k, v]) => { const [title, artist] = k.split("\u0001"); return { title, artist, secs: v }; }),
     artists: wkTop(cur.artists, 5).map(([name, secs]) => ({ name, secs })),
     games: wkTop(cur.games, 5).map(([name, secs]) => ({ name, secs })),
-    days: cur.days, busiest: busiest && busiest.music + busiest.game > 0 ? busiest.day : ""
+    days: cur.days, busiest: busiest && busiest.music + busiest.game > 0 ? busiest.day : "",
+    calls: cur.calls, callsPrev: prev.calls, callCount: cur.callCount, people: wkTop(cur.people, 5).map(([name, secs]) => ({ name, secs }))
   };
 }
 ipcMain.handle("week:get", (_e, offset) => { wkSave(); return wkReport(offset); });

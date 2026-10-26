@@ -1679,6 +1679,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .np-b { position: relative; flex: 1; min-height: 0; background: #fff; }
 .np-b webview { position: absolute; inset: 0; width: 100%; height: 100%; }
 .np-load { position: absolute; inset: 0; display: grid; place-items: center; background: #0d0d12; color: #a7abb9; font-size: 13px; z-index: 1; pointer-events: none; }
+
+.dk-key { padding: 6px 10px; font-size: 12px; white-space: nowrap; }
+.wk-calls { grid-template-columns: 1fr !important; }
 </style>
 </head>
 <body class="splashing">
@@ -2399,6 +2402,10 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
           <div class="setting">
             <div class="txt"><div class="name">Idle status</div><div class="desc">When no song or game is on, your Discord status shows "Idle on PC".</div></div>
             <button class="switch" id="setDcIdle" role="switch" aria-checked="true" aria-label="Idle status"></button>
+          </div>
+          <div class="setting">
+            <div class="txt"><div class="name">Mute and deafen hotkeys</div><div class="desc" id="setDkDesc">Mute or deafen in Discord from anywhere, even inside a game. A small pop-up shows which way it went. Click a key to change it.</div></div>
+            <div class="ck-volc"><button class="btn ghost dk-key" id="setDkMute" type="button" title="Mute hotkey">Ctrl+Alt+M</button><button class="btn ghost dk-key" id="setDkDeaf" type="button" title="Deafen hotkey">Ctrl+Alt+D</button><button class="switch" id="setDkOn" role="switch" aria-checked="true" aria-label="Mute and deafen hotkeys"></button></div>
           </div>
           <div class="setting">
             <div class="txt"><div class="name">Crunchyroll in your status</div><div class="desc" id="setCrDesc">Shows the show, season and episode (like S1 E4) and the episode's time bar while you watch. Needs the small Sothis extension in the browser you watch in.</div></div>
@@ -5852,7 +5859,9 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
       + '<div class="wk-key"><span><i style="background:var(--accent)"></i>Music</span><span><i style="background:#5b8cff"></i>Games</span>' + (r.busiest ? '<span>Busiest: ' + new Date(r.busiest + "T12:00:00").toLocaleDateString([], { weekday: "long" }) + '</span>' : '') + '</div>'
       + '<div class="wk-two"><div><h3>Top songs</h3>' + rank(r.songs, x => '<b>' + wkEsc(x.title) + '<small>' + wkEsc(x.artist) + '</small></b><span>' + wkH(x.secs) + '</span>') + '</div>'
       + '<div><h3>Top artists</h3>' + rank(r.artists, x => '<b>' + wkEsc(x.name) + '</b><span>' + wkH(x.secs) + '</span>') + '</div></div>'
-      + '<h3>Games</h3>' + rank(r.games, x => '<b>' + wkEsc(x.name) + '</b><span>' + wkH(x.secs) + '</span>');
+      + '<h3>Games</h3>' + rank(r.games, x => '<b>' + wkEsc(x.name) + '</b><span>' + wkH(x.secs) + '</span>')
+      + (r.calls || r.callsPrev ? '<h3>Discord calls</h3><div class="wk-big wk-calls"><div><b data-sec="' + (r.calls || 0) + '">' + wkH(r.calls || 0) + '</b><span>in calls' + (r.callCount ? ' · ' + r.callCount + (r.callCount === 1 ? ' call' : ' calls') : '') + '</span><br>' + wkDelta(r.calls || 0, r.callsPrev, true) + '</div></div>'
+        + (r.people && r.people.length ? '<h3>Most time with</h3>' + rank(r.people, x => '<b>' + wkEsc(x.name) + '</b><span>' + wkH(x.secs) + '</span>') : '') : '');
     wkCount();
   }
   // the totals count up from zero when the recap opens
@@ -7494,6 +7503,32 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   D.dcNameOnly().then(v => { dcNameOn = v !== false; $("setDcName").setAttribute("aria-checked", dcNameOn); }).catch(() => {});
   $("setDcName").onclick = () => D.dcNameOnly(!dcNameOn).then(v => { dcNameOn = v; $("setDcName").setAttribute("aria-checked", dcNameOn); });
   $("setDcIdle").onclick = () => D.dcIdle(!dcIdleOn).then(v => { dcIdleOn = v; $("setDcIdle").setAttribute("aria-checked", dcIdleOn); });
+  // Discord mute / deafen hotkeys: click a key button, then press the new combination (Esc cancels)
+  let dhkCfg = null, dhkRec = "";
+  const dhkPaint = (msg) => {
+    if (!dhkCfg) return;
+    $("setDkOn").setAttribute("aria-checked", String(!!dhkCfg.on));
+    $("setDkMute").textContent = dhkRec === "mute" ? "Press keys…" : "Mute: " + (dhkCfg.mute || "none");
+    $("setDkDeaf").textContent = dhkRec === "deaf" ? "Press keys…" : "Deafen: " + (dhkCfg.deaf || "none");
+    $("setDkDesc").textContent = msg || "Mute or deafen in Discord from anywhere, even inside a game. A small pop-up shows which way it went. Click a key to change it.";
+  };
+  const dhkSave = async patch => { let r = null; try { r = await D.dcKeysSet(patch); } catch {} if (r) dhkCfg = r; dhkRec = ""; dhkPaint(r && r.failed && r.failed.length ? "Another app is already using " + r.failed.map(w => r[w]).join(" and ") + ". Pick a different key." : ""); };
+  D.dcKeysGet().then(r => { dhkCfg = r; dhkPaint(); }).catch(() => {});
+  $("setDkOn").onclick = () => dhkSave({ on: !(dhkCfg && dhkCfg.on) });
+  $("setDkMute").onclick = () => { dhkRec = "mute"; dhkPaint("Press the new mute keys (with Ctrl, Alt or Shift). Esc cancels."); };
+  $("setDkDeaf").onclick = () => { dhkRec = "deaf"; dhkPaint("Press the new deafen keys (with Ctrl, Alt or Shift). Esc cancels."); };
+  window.addEventListener("keydown", e => {
+    if (!dhkRec) return;
+    e.preventDefault(); e.stopPropagation();
+    if (e.key === "Escape") { dhkRec = ""; dhkPaint(); return; }
+    if (["Control", "Alt", "Shift", "Meta"].includes(e.key)) return;
+    const mods = [e.ctrlKey && "Ctrl", e.altKey && "Alt", e.shiftKey && "Shift"].filter(Boolean);
+    let k = e.code.startsWith("Key") ? e.code.slice(3) : e.code.startsWith("Digit") ? e.code.slice(5) : /^F\d{1,2}$/.test(e.key) ? e.key : e.code.startsWith("Numpad") ? "num" + e.code.slice(6).toLowerCase() : ({ Backquote: "`", Minus: "-", Equal: "=", BracketLeft: "[", BracketRight: "]", Semicolon: ";", Quote: "'", Comma: ",", Period: ".", Slash: "/", Backslash: "\\", Insert: "Insert", Home: "Home", End: "End", PageUp: "PageUp", PageDown: "PageDown", Pause: "Pause" })[e.code];
+    if (!k) return;
+    if (!mods.length && !/^F\d{1,2}$/.test(k)) { dhkPaint("Use Ctrl, Alt or Shift with a key (or an F key on its own) so it doesn't fire while you type."); return; }
+    dhkSave({ [dhkRec]: [...mods, k].join("+") });
+  }, true);
+
   // Crunchyroll: the browser extension sends the episode and its time; without it, only the episode number from the window title
   const crDescBase = "Shows the show, season and episode (like S1 E4) and the episode's time bar while you watch. Needs the small Sothis extension in the browser you watch in.";
   let crHelpUntil = 0;
