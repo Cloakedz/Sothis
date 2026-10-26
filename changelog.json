@@ -1,5 +1,12 @@
 [
  {
+  "v": "1.9.7",
+  "d": "2026-10-25",
+  "notes": [
+   "The album color glow no longer turns white, and only shows on Home and Music"
+  ]
+ },
+ {
   "v": "1.9.6",
   "d": "2026-10-25",
   "notes": [

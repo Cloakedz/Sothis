@@ -55,7 +55,9 @@ button:disabled { opacity: .35; cursor: default; }
 @property --song-glow { syntax: "<color>"; inherits: true; initial-value: rgba(0, 0, 0, 0); }
 .shell { transition: --song-glow 1.2s ease; }
 /* the current song's album color, as a soft glow behind everything (fades when the song changes) */
-.shell::after { content: ""; position: absolute; inset: 0; z-index: -1; background: radial-gradient(ellipse 80% 60% at 50% 30%, var(--song-glow), transparent 70%); pointer-events: none; }
+.shell::after { content: ""; position: absolute; inset: 0; z-index: -1; background: radial-gradient(ellipse 80% 60% at 50% 30%, var(--song-glow), transparent 70%); pointer-events: none; transition: opacity .6s; }
+/* only on Home and Music: pages with a website or app in them stay plain */
+body:not([data-tab="home"]):not([data-tab="ytm"]) .shell::after { opacity: 0; }
 .titlebar h1, .title, .artist, .owname, .sethead h2 { text-shadow: 0 1px 8px var(--bg); }
 /* Frosted-glass panels over the art */
 .group, .tile, .rank, .heroes, .tabs, .seg, .owmsg, .batt, .chip, .mini, .glass { -webkit-backdrop-filter: blur(8px) saturate(1.15); backdrop-filter: blur(8px) saturate(1.15); }
@@ -2743,7 +2745,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     try { if (bellOpen) bellShow(false); } catch {}
     const ORDER = ["home", "ytm", "games", "stats", "switch", "web", "opera", "claude"], fromI = ORDER.indexOf(showTab.prev || ""), toI = ORDER.indexOf(tab);
     const slide = fromI >= 0 && toI >= 0 && fromI !== toI ? (toI > fromI ? "from-r" : "from-l") : "";
-    showTab.prev = tab;
+    showTab.prev = tab; document.body.dataset.tab = tab;
     ["home", "ytm", "games", "stats", "switch", "dcapp", "web", "opera", "claude", "discord", "settings", "clips"].forEach(k => $("tab-" + k).classList.toggle("off", k !== tab));
     try { if (tab === "opera") opShow(); else D.operaHide(); } catch {}
     try { if (tab === "dcapp") dkShow(); else D.dockHide("discord"); } catch {}
@@ -4769,7 +4771,11 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
         const c = document.createElement("canvas"); c.width = c.height = 24; const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(im, 0, 0, 24, 24);
         const d = x.getImageData(0, 0, 24, 24).data; let r = 0, g = 0, b = 0, w = 0;
         for (let i = 0; i < d.length; i += 4) { const mx = Math.max(d[i], d[i + 1], d[i + 2]), mn = Math.min(d[i], d[i + 1], d[i + 2]), sat = mx - mn, k = 1 + sat * sat / 900; r += d[i] * k; g += d[i + 1] * k; b += d[i + 2] * k; w += k; }
-        set(`rgba(${Math.round(r / w)}, ${Math.round(g / w)}, ${Math.round(b / w)}, .32)`);
+        // never a white or grey glow: pale or washed-out covers get none, and bright colors are toned down
+        let R = r / w, G = g / w, B = b / w; const mx = Math.max(R, G, B), mn = Math.min(R, G, B), sat = mx ? (mx - mn) / mx : 0;
+        if (sat < 0.3 || mx < 40) return set("rgba(0, 0, 0, 0)");
+        const k = Math.min(1, 170 / mx); R *= k; G *= k; B *= k;
+        set(`rgba(${Math.round(R)}, ${Math.round(G)}, ${Math.round(B)}, .3)`);
       } catch { set("rgba(0, 0, 0, 0)"); }
     };
     im.onerror = () => set("rgba(0, 0, 0, 0)");
