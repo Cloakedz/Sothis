@@ -74,7 +74,7 @@ main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 .pg.on { display: block; }
 @keyframes pgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .pg-h { font: 800 1.35rem/1.2 "Nunito", sans-serif; margin: 2px 2px 12px; }
-.pnav { position: fixed; left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 40; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 6px;
+.pnav { position: fixed; left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 40; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 6px;
   border-radius: 24px; background: rgba(22, 22, 28, .92); border: 1px solid var(--line); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
 .pnav button { position: relative; display: grid; justify-items: center; gap: 3px; padding: 8px 0 6px; border-radius: 18px; color: var(--muted); font-size: .68rem; font-weight: 700; }
 .pnav button svg { width: 23px; height: 23px; }
@@ -140,6 +140,9 @@ main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 .fxlist a { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 14px; background: var(--card2); color: var(--ink); text-decoration: none; }
 .fxlist a b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fxlist a span { color: var(--muted); font-size: .8rem; }
+.lockc { flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--card2); border: 1px solid var(--line); color: var(--ink); }
+.lockc svg { width: 18px; height: 18px; }
+.lockc:active { transform: scale(.92); background: rgba(232, 52, 91, .25); }
 .lock { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 15px; border-radius: 16px; background: var(--card2); font-weight: 700; }
 .lock svg { width: 21px; height: 21px; }
 .lock:active { transform: scale(.97); background: rgba(232, 52, 91, .2); }
@@ -148,7 +151,7 @@ main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 </style>
 </head>
 <body>
-<header><h1>Sothis</h1><div class="pc"><i class="dot" id="dot"></i><span id="pcName">Connecting…</span></div></header>
+<header><h1>Sothis</h1><div class="pc"><i class="dot" id="dot"></i><span id="pcName">Connecting…</span></div><button class="lockc hide" id="lock" type="button" aria-label="Lock PC" title="Lock PC"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></button></header>
 
 <section id="pairView" class="pair hide">
   <img src="/icon.png" alt="">
@@ -196,21 +199,11 @@ main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
   <div class="pg" data-pg="files">
     <h2 class="pg-h">Files</h2>
   <section class="card">
-    <div class="rgbh"><b>Files</b><span class="fxnote" id="fxNote"></span></div>
+    <span class="fxnote" id="fxNote" hidden></span>
     <label class="fxsend"><input type="file" id="fxPick" multiple hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><span id="fxSendT">Send to PC</span></label>
     <div class="fxbar" id="fxBar" hidden><i id="fxBarI"></i></div>
     <div class="fxh" id="fxH" hidden>From your PC</div>
     <div class="fxlist" id="fxList"></div>
-  </section>
-  </div>
-  <div class="pg" data-pg="pc">
-    <h2 class="pg-h">PC</h2>
-  <section class="card" id="rgbCard" hidden>
-    <div class="rgbh"><b>Lights</b><button class="rgbfx" id="rgbFx" type="button">Solid</button></div>
-    <div class="rgbsw" id="rgbSw"></div>
-  </section>
-  <section class="card">
-    <button class="lock" id="lock" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Lock PC</button>
   </section>
     <div class="foot"><button id="unpair" type="button">Unpair this phone</button></div>
   </div>
@@ -219,7 +212,6 @@ main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
   <button type="button" data-pg="now"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Now</button>
   <button type="button" data-pg="call"><i></i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-6H5a2 2 0 0 0-2 2z"/></svg>Discord</button>
   <button type="button" data-pg="files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>Files</button>
-  <button type="button" data-pg="pc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>PC</button>
 </nav>
 
 <div class="toast" id="toast"></div>
@@ -233,10 +225,10 @@ main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
   if (standalone) $("a2hs").classList.add("hide");
 
   function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 2200); }
-  function view(paired) { $("pairView").classList.toggle("hide", paired); $("mainView").classList.toggle("hide", !paired); $("pnav").classList.toggle("hide", !paired); }
+  function view(paired) { $("pairView").classList.toggle("hide", paired); $("mainView").classList.toggle("hide", !paired); $("pnav").classList.toggle("hide", !paired); $("lock").classList.toggle("hide", !paired); }
   // pages: Now (music, game, quick call buttons), Discord, Files, PC (lights, lock); the last one opened is remembered
   function page(p) {
-    if (!["now", "call", "files", "pc"].includes(p)) p = "now";
+    if (!["now", "call", "files"].includes(p)) p = "now";
     document.querySelectorAll(".pg").forEach(el => el.classList.toggle("on", el.dataset.pg === p));
     document.querySelectorAll(".pnav button").forEach(b => b.classList.toggle("on", b.dataset.pg === p));
     store.set("sothis.pg", p); window.scrollTo(0, 0);
@@ -286,9 +278,6 @@ main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
   function render() {
     if (!st) return;
     fxRender(st.files);
-    { const r = st.rgb; $("rgbCard").hidden = !r;
-      if (r) { const off = !r.on || r.mode === "off"; for (const b of $("rgbSw").children) b.classList.toggle("on", b.dataset.c === "off" ? off : !off && b.dataset.c === r.color);
-        $("rgbFx").textContent = { static: "Solid", breathe: "Breathing", cycle: "Rainbow", off: "Off" }[r.mode] || "Solid"; } }
     $("pcName").textContent = st.pc || "Your PC";
     const p = st.player || {};
     $("title").textContent = p.connected && p.title ? p.title : "Nothing playing";
@@ -347,15 +336,6 @@ main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
   vol.addEventListener("touchstart", () => { volDrag = true; }, { passive: true });
   vol.addEventListener("touchend", () => { setTimeout(() => { volDrag = false; }, 1500); });
   vol.addEventListener("input", () => { vol.style.setProperty("--p", vol.value + "%"); clearTimeout(volT); volT = setTimeout(() => cmd("vol", vol.value / 100), 120); });
-  { const FX = ["static", "breathe", "cycle"];
-    for (const c of ["ff0000", "ff5a00", "ffc400", "00ff40", "00e5ff", "0050ff", "8a2be2", "ff00b4", "ffffff", "off"]) {
-      const b = document.createElement("button"); b.type = "button"; b.dataset.c = c;
-      if (c === "off") { b.className = "offb"; b.textContent = "OFF"; b.onclick = () => cmd("rgb", { mode: "off" }); }
-      else { b.style.background = "#" + c; b.onclick = () => cmd("rgb", { color: c, mode: st && st.rgb && FX.includes(st.rgb.mode) ? st.rgb.mode : "static", on: true }); }
-      $("rgbSw").append(b);
-    }
-    $("rgbFx").onclick = () => { const r = (st && st.rgb) || {}; const i = FX.indexOf(r.mode); cmd("rgb", { mode: FX[(i + 1) % FX.length], on: true }); };
-  }
   $("fxPick").onchange = async () => {
     const files = Array.from($("fxPick").files || []); $("fxPick").value = "";
     if (!files.length) return;
