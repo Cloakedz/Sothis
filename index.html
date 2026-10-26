@@ -1582,16 +1582,7 @@ body.is-compact .rail { position: absolute; inset: 0; display: flex; flex-direct
 /* weekly recap: bars grow in one after another */
 @keyframes wkGrow { from { transform: scaleY(0); } to { transform: none; } }
 .wk-col i { transform-origin: bottom; animation: wkGrow .7s cubic-bezier(.3, 1.2, .5, 1) backwards; }
-/* idle screen */
-.idle { position: fixed; inset: 0; z-index: 95; display: grid; place-items: center; background: #050507; opacity: 0; pointer-events: none; transition: opacity 1.2s ease; overflow: hidden; border-radius: 20px; }
-.idle.on { opacity: 1; pointer-events: auto; cursor: none; }
-.idle-drift { position: absolute; inset: -40%; background: radial-gradient(circle at 30% 40%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 40%), radial-gradient(circle at 70% 60%, rgba(91, 140, 255, .16), transparent 42%); animation: idleDrift 16s ease-in-out infinite alternate; }
-.idle-crest { position: relative; width: min(220px, 42vw); max-height: 42vh; object-fit: contain; animation: idleBreathe 5s ease-in-out infinite; filter: drop-shadow(0 0 22px var(--glow)); }
-.idle-clock { position: absolute; left: 0; right: 0; bottom: 14%; text-align: center; font: 800 clamp(2rem, 9vw, 3.6rem)/1 var(--f-display); color: rgba(255, 255, 255, .88); font-variant-numeric: tabular-nums; }
-.idle-hint { position: absolute; left: 0; right: 0; bottom: calc(14% - 28px); text-align: center; font-size: .8rem; color: var(--muted); }
-@keyframes idleDrift { from { transform: translate(0, 0) rotate(0); } to { transform: translate(8%, -6%) rotate(12deg); } }
-@keyframes idleBreathe { 0%, 100% { transform: scale(.94); opacity: .8; } 50% { transform: scale(1.05); opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .tab-pill, .clip-fly, .dcn-stack > .dcn { transition: none; } .clip-ring, .ynp-art.swap, .wk-col i, .idle-drift, .idle-crest { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tab-pill, .clip-fly, .dcn-stack > .dcn { transition: none; } .clip-ring, .ynp-art.swap, .wk-col i { animation: none; } }
 .clc, .phc, .fr-card, .hxp-h, .wb-q, .rank, .tile, .fm-row, .hm-dc, .hx { transition: transform .2s cubic-bezier(.2, .8, .2, 1), box-shadow .2s, border-color .2s, background .2s; }
 .clc:hover, .phc:hover, .fr-card:hover, .tile:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0, 0, 0, .28); }
 .wb-q:hover, .hxp-h:hover { transform: translateY(-2px); }
@@ -2260,10 +2251,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
         <nav class="set-nav" id="setNav" aria-label="Settings sections"></nav>
         <div class="group">
           <h2>Window</h2>
-          <div class="setting">
-            <div class="txt"><div class="name">Idle screen</div><div class="desc">After 5 minutes without using Sothis, the background drifts slowly and the crest breathes, with the time on top. Move the mouse to wake it.</div></div>
-            <button class="switch" id="setIdle" role="switch" aria-checked="true" aria-label="Idle screen"></button>
-          </div>
           <div class="setting">
             <div class="txt"><div class="name">Daily start screen</div><div class="desc">The first time you open Sothis each day: the weather, what's out today and what you did yesterday.</div></div>
             <button class="switch" id="setDaily" role="switch" aria-checked="true" aria-label="Daily start screen"></button>
@@ -5740,26 +5727,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
     pop.addEventListener("mouseenter", () => clearTimeout(hideT));
     pop.addEventListener("mouseleave", hide);
     document.addEventListener("click", e => { if (e.target.closest && e.target.closest(".bell-btn")) { pop.classList.remove("on"); cur = null; } }, true);
-  }
-
-  /* ---------- Idle screen: after 5 quiet minutes the background drifts and the crest breathes ---------- */
-  { const ov = mk("div", "idle"); ov.setAttribute("aria-hidden", "true");
-    ov.innerHTML = '<div class="idle-drift"></div><img class="idle-crest" alt=""><div class="idle-clock"></div><div class="idle-hint">Move the mouse to wake Sothis</div>';
-    document.body.append(ov);
-    let idleOn = store.get("idle.on") !== "0", last = Date.now(), shown = false;
-    const sw = $("setIdle"); sw.setAttribute("aria-checked", String(idleOn));
-    sw.onclick = () => { idleOn = !idleOn; store.set("idle.on", idleOn ? "1" : "0"); sw.setAttribute("aria-checked", String(idleOn)); };
-    const clock = () => { ov.querySelector(".idle-clock").textContent = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); };
-    const wake = () => { last = Date.now(); if (shown) { shown = false; ov.classList.remove("on"); } };
-    ["mousemove", "mousedown", "keydown", "wheel", "touchstart"].forEach(ev => window.addEventListener(ev, wake, { passive: true, capture: true }));
-    setInterval(() => {
-      if (shown) { clock(); return; }
-      // not over things you're watching or using: videos, the Switch, Claude, the browser, a retro game
-      const busy = ["switch", "claude", "web", "clips", "opera", "dcapp"].includes(tab) || window.__rtPlaying || document.hidden || document.body.classList.contains("is-mini") || document.body.classList.contains("is-compact");
-      if (!idleOn || busy || Date.now() - last < 5 * 60000) return;
-      ov.querySelector(".idle-crest").src = window.__brandCrest || "crest-bg.png"; clock();
-      shown = true; ov.classList.add("on");
-    }, 10000);
   }
 
   /* ---------- Tab icons react: Music bounces to the beat, Games shows a dot while a game is open ---------- */
