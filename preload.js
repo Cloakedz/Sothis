@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 contextBridge.exposeInMainWorld("desktop", {
+  changelog: () => ipcRenderer.invoke("app:changelog"),
   brandGet: () => ipcRenderer.invoke("brand:get"),
   brandPickLogo: () => ipcRenderer.invoke("brand:pickLogo"),
   brandResetLogo: () => ipcRenderer.invoke("brand:resetLogo"),

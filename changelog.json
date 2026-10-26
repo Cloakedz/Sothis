@@ -1,0 +1,14 @@
+[
+  { "v": "1.9.4", "d": "2026-10-25", "notes": ["Releases: a Back button in the browser takes you straight back to the list", "Patch notes: hover the bell to see what's new"] },
+  { "v": "1.9.3", "d": "2026-10-25", "notes": ["Releases load faster and open inside Sothis's browser", "Fixed blank pictures for some new games"] },
+  { "v": "1.9.2", "d": "2026-10-25", "notes": ["Fixed the Update ready pill not showing"] },
+  { "v": "1.9.1", "d": "2026-10-25", "notes": ["New Releases page in Games: upcoming anime and games, sorted by day, month or year"] },
+  { "v": "1.9.0", "d": "2026-10-25", "notes": ["Claude and Switch open wide again; other tabs keep the Home size"] },
+  { "v": "1.8.9", "d": "2026-10-25", "notes": ["Clip sound no longer crackles or distorts on loud moments", "Cleaner mic noise suppression"] },
+  { "v": "1.8.6", "d": "2026-10-24", "notes": ["Pick your own accent color and logo in Settings → Window"] },
+  { "v": "1.8.5", "d": "2026-10-24", "notes": ["Window is a little bigger so the corner buttons have room"] },
+  { "v": "1.8.0", "d": "2026-10-19", "notes": ["The window no longer grows while you drag it"] },
+  { "v": "1.7.1", "d": "2026-10-19", "notes": ["Clips no longer come out tall and narrow", "Clip tiles keep a normal shape"] },
+  { "v": "1.6.6", "d": "2026-10-18", "notes": ["Your week: a weekly recap of music, games and clips", "Send files between your phone and PC"] },
+  { "v": "1.6.4", "d": "2026-10-18", "notes": ["Sothis can run your ASUS RGB lights"] }
+]
