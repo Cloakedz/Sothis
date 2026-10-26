@@ -2727,9 +2727,14 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   // the pink highlight under the selected tab, moved (not jumped) when you switch
   function tabPill() {
     const nav = document.querySelector(".tabs"); if (!nav) return;
-    let pill = nav.querySelector(".tab-pill"); if (!pill) { pill = mk("span", "tab-pill"); pill.setAttribute("aria-hidden", "true"); nav.prepend(pill); nav.classList.add("has-pill"); }
+    let pill = nav.querySelector(".tab-pill"); if (!pill) { pill = mk("span", "tab-pill"); pill.setAttribute("aria-hidden", "true"); nav.prepend(pill); nav.classList.add("has-pill");
+      // follow the bar whenever it or a tab changes size (window resize, compact bar, fonts loading), so the pill never sits off its tab
+      try { const ro = new ResizeObserver(() => tabPill()); ro.observe(nav); nav.querySelectorAll(".tab").forEach(t => ro.observe(t)); } catch {}
+      try { document.fonts && document.fonts.ready.then(() => tabPill()); } catch {} }
     const sel = nav.querySelector('.tab[aria-selected="true"]');
     if (!sel || sel.offsetParent === null) { pill.style.opacity = "0"; return; }
+    // first placement (and whenever it was hidden) jumps straight to the tab instead of sliding in from the corner
+    if (pill.style.opacity !== "1" || document.body.classList.contains("splashing")) { pill.style.transition = "none"; requestAnimationFrame(() => requestAnimationFrame(() => { pill.style.transition = ""; })); }
     pill.style.width = sel.offsetWidth + "px"; pill.style.height = sel.offsetHeight + "px";
     pill.style.transform = `translate(${sel.offsetLeft}px, ${sel.offsetTop}px)`; pill.style.opacity = "1";
   }
@@ -6063,7 +6068,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   (function splash() {
     const sp = $("splash");
     const end = () => {
-      document.body.classList.remove("splashing");
+      document.body.classList.remove("splashing"); try { tabPill(); } catch {}
       sp.classList.add("out");
       setTimeout(() => sp.remove(), 800);
     };
