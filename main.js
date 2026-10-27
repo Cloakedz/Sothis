@@ -850,9 +850,6 @@ function dcPresenceNow() {
   } else if (game && game.name === "Cyberpunk 2077" && cpNow) {
     if (cpNow.inGame) {
       const l = cpLines(cpNow); rank = l.rank; map = l.map; cpTip = l.tip;
-      // the small picture: V's Lifepath badge (kept in the Sothis repo)
-      const lp = String(cpNow.lifePath || "").toLowerCase();
-      if (["nomad", "streetkid", "corpo"].includes(lp)) small = { img: "https://raw.githubusercontent.com/Cloakedz/Sothis/main/assets/discord/lifepath-" + lp + ".png", text: cpNow.lifePath + " · " + rank };
     }
     else map = "In the main menu";
   }

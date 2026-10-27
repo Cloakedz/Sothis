@@ -1,5 +1,12 @@
 [
  {
+  "v": "1.16.5",
+  "d": "2026-10-26",
+  "notes": [
+   "Cyberpunk: removed the Lifepath badge from your Discord status"
+  ]
+ },
+ {
   "v": "1.16.4",
   "d": "2026-10-26",
   "notes": [
