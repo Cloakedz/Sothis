@@ -6829,7 +6829,8 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
     if (b.dataset.sure !== "1") { b.dataset.sure = "1"; b.textContent = "Sure? Click again"; setTimeout(() => { b.dataset.sure = ""; b.textContent = "Delete"; }, 3000); return; }
     b.dataset.sure = ""; b.textContent = "Delete"; deleteClip(clipNow);
   };
-  $("clBack").onclick = () => showTab(mainTab);
+  // Back: from a clip that's open (the editor), back to your clips; from the clips list, back to where you were
+  $("clBack").onclick = () => { if (!$("clPlay").hidden) { $("clClose").click(); try { $("tab-clips").scrollTo({ top: 0, behavior: "smooth" }); } catch {} return; } showTab(mainTab); };
   $("clRefresh").onclick = loadClips;
   $("clOpen").onclick = () => flKind === "clips" ? D.medalFolder() : D.filesOpen(flKind);
   $("clChoose").onclick = () => (flKind === "clips" ? D.clipsChoose() : D.filesChoose(flKind)).then(loadClips);
