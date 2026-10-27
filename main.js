@@ -914,7 +914,8 @@ function dcPresenceNow() {
   } else if (act) dcIdleAt = 0;
   // the member list says "Playing Sothis" (or "Listening to Sothis"); the details show on your profile card
   if (act && settings.dcNameOnly !== false) act.status_display_type = 0;
-  if (act && !dcNoName) act.name = "Sothis";   // show "Sothis" as the activity name instead of the Discord app's name
+  // the member list says "Playing <your game>" while you're in one (and "Sothis" for music or idle), instead of the Discord app's name
+  if (act && !dcNoName) act.name = game && game.name ? String(game.name).slice(0, 100) : "Sothis";
   const key = JSON.stringify(act && Object.assign({}, act, { timestamps: undefined }));
   if (key === dcPresKey) return;
   dcPresKey = key;

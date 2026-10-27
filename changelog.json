@@ -1,5 +1,12 @@
 [
  {
+  "v": "1.16.2",
+  "d": "2026-10-26",
+  "notes": [
+   "Discord says \"Playing <your game>\" instead of \"Playing Sothis\" while you're in a game"
+  ]
+ },
+ {
   "v": "1.16.1",
   "d": "2026-10-26",
   "notes": [
