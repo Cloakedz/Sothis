@@ -850,12 +850,9 @@ function dcPresenceNow() {
   } else if (game && game.name === "Cyberpunk 2077" && cpNow) {
     if (cpNow.inGame) {
       const l = cpLines(cpNow); rank = l.rank; map = l.map; cpTip = l.tip;
-      // the small picture: what V is doing right now, otherwise V's Lifepath (badges kept in the Sothis repo)
-      const IMG = n => "https://raw.githubusercontent.com/Cloakedz/Sothis/main/assets/discord/" + n + ".png";
-      const c = cpNow, lp = String(c.lifePath || "").toLowerCase();
-      const doing = c.paused ? ["paused", "Paused"] : c.health < 25 ? ["flatline", "Nearly flatlined"] : c.combat ? ["combat", "In combat"] : c.vehicle ? ["driving", "Driving " + c.vehicle] : null;
-      if (doing) small = { img: IMG("doing-" + doing[0]), text: doing[1] + (c.lifePath ? " · " + c.lifePath : "") };
-      else if (["nomad", "streetkid", "corpo"].includes(lp)) small = { img: IMG("lifepath-" + lp), text: c.lifePath + " · " + rank };
+      // the small picture: V's Lifepath badge (kept in the Sothis repo)
+      const lp = String(cpNow.lifePath || "").toLowerCase();
+      if (["nomad", "streetkid", "corpo"].includes(lp)) small = { img: "https://raw.githubusercontent.com/Cloakedz/Sothis/main/assets/discord/lifepath-" + lp + ".png", text: cpNow.lifePath + " · " + rank };
     }
     else map = "In the main menu";
   }

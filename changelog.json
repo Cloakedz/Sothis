@@ -1,5 +1,12 @@
 [
  {
+  "v": "1.16.4",
+  "d": "2026-10-26",
+  "notes": [
+   "Cyberpunk: the small picture always shows V's Lifepath (the activity badges are gone)"
+  ]
+ },
+ {
   "v": "1.16.3",
   "d": "2026-10-26",
   "notes": [
