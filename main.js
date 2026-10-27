@@ -581,7 +581,7 @@ const GAME_EXES = {
   "palworld-win64-shipping.exe": "Palworld", "eldenring.exe": "Elden Ring", "witcher3.exe": "The Witcher 3", "skyrimse.exe": "Skyrim",
   "fallout4.exe": "Fallout 4", "minecraft.exe": "Minecraft", "azahar.exe": "Nintendo 3DS (Azahar)", "eden.exe": "Nintendo Switch (Eden)",
   "fragpunk.exe": "FragPunk", "tslgame.exe": "PUBG", "gtav.exe": "GTA V", "gta5.exe": "GTA V", "rdr2.exe": "Red Dead Redemption 2",
-  "hytale.exe": "Hytale", "7daystodie.exe": "7 Days to Die", "vampiresurvivors.exe": "Vampire Survivors", "anno117.exe": "Anno 117"
+  "hytale.exe": "Hytale", "7daystodie.exe": "7 Days to Die", "vampiresurvivors.exe": "Vampire Survivors", "anno117.exe": "Anno 117", "cyberpunk2077.exe": "Cyberpunk 2077"
 };
 let dcGame = null, dcGameAt = 0, dcSwitchOn = false, r6MapNow = null, csLive = null, owMapNow = null, owPhase = null, owRankSeenAt = 0, owHero = null, owHudSaved = false;
 ipcMain.on("game:ranks", (_e, r) => {
@@ -763,6 +763,51 @@ const CS_SIDE_HEAD = {
 let r6Op = null, r6OpSaved = false, r6ShotsUntil = 0, r6ShotN = 0;
 const r6OpSlug = name => String(name || "").toLowerCase().replace(/ø/g, "o").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 const r6OpIcon = slug => "https://images.weserv.nl/?url=" + encodeURIComponent("cdn.jsdelivr.net/npm/r6operators/dist/icons/" + slug + ".svg") + "&w=256&h=256&fit=contain&output=png";
+/* ---------- Cyberpunk 2077: live details from the small "Sothis Presence" mod (Cyber Engine Tweaks) ---------- */
+// The mod writes presence.json every few seconds. With Mod Organizer it lands in the setup's overwrite folder (or the
+// mod's own folder); without it, in the game's folder. Sothis reads whichever is newest.
+const CP_REL = path.join("bin", "x64", "plugins", "cyber_engine_tweaks", "mods", "SothisPresence");
+let cpNow = null, cpFiles = null, cpFilesAt = 0;
+async function cpFind() {
+  const out = [];
+  try { const g = await steamInstallDir(1091500); if (g) out.push(path.join(g, CP_REL)); } catch {}
+  try {
+    for (const it of await mo2List(false)) {
+      if (it.game !== "Cyberpunk 2077") continue;
+      let base = it.dir; try { const ini = fs.readFileSync(path.join(it.dir, "ModOrganizer.ini"), "utf8"); base = mo2Val(ini, "base_directory") || it.dir; } catch {}
+      out.push(path.join(base, "overwrite", CP_REL));
+      try { for (const m of fs.readdirSync(path.join(base, "mods"))) out.push(path.join(base, "mods", m, CP_REL)); } catch {}
+      if (it.gamePath) out.push(path.join(it.gamePath, CP_REL));
+    }
+  } catch {}
+  return [...new Set(out)];
+}
+async function cpPoll() {
+  if (!dcGame || dcGame.name !== "Cyberpunk 2077") { if (cpNow) { cpNow = null; } return; }
+  if (!cpFiles || Date.now() - cpFilesAt > 120000) { cpFiles = await cpFind(); cpFilesAt = Date.now(); }
+  let best = null, bestAt = 0;
+  for (const dir of cpFiles) { const f = path.join(dir, "presence.json"); try { const st = fs.statSync(f); if (st.mtimeMs > bestAt) { bestAt = st.mtimeMs; best = f; } } catch {} }
+  let next = null;
+  if (best && Date.now() - bestAt < 30000) { try { next = JSON.parse(fs.readFileSync(best, "utf8")); } catch {} }
+  if (next && !next.running) next = null;
+  const key = JSON.stringify(next && Object.assign({}, next, { at: 0, minute: 0, money: Math.round((next.money || 0) / 1000), health: (next.health || 100) < 30 }));
+  const changed = key !== cpPoll.key; cpPoll.key = key;
+  cpNow = next;
+  if (changed) dcPresence();
+}
+setInterval(() => { cpPoll().catch(() => {}); }, 5000);
+// the line under the game: where V is and what V is doing
+function cpLines(c) {
+  const place = c.district && c.parentDistrict && c.parentDistrict !== c.district ? c.district + ", " + c.parentDistrict : (c.district || c.parentDistrict || "Night City");
+  const stars = c.wanted > 0 ? " · Wanted " + "★".repeat(Math.min(5, c.wanted)) : "";
+  const doing = c.paused ? "Paused" : c.health < 25 ? "Nearly flatlined" : c.combat ? "In combat" : c.vehicle ? "Driving " + c.vehicle : "";
+  const rank = "Level " + Math.round(c.level || 0) + " · Street Cred " + Math.round(c.streetCred || 0);
+  const hr = Math.round(c.hour || 0), time = hr < 5 || hr >= 21 ? "Night" : hr < 8 ? "Dawn" : hr < 18 ? "Day" : "Dusk";
+  const wx = String(c.weather || "").replace(/^24h_weather_/, "").replace(/_/g, " ").replace(/\b\w/g, x => x.toUpperCase());
+  const eddies = Math.round(c.money || 0).toLocaleString("en-US") + " €$";
+  const tip = [c.lifePath, eddies, time + (wx ? " · " + wx : ""), c.quest ? "Tracking: " + c.quest : ""].filter(Boolean).join(" · ");
+  return { map: place + (doing ? " · " + doing : "") + stars, rank, tip };
+}
 function mapPicture(game) {
   if (game === "Rainbow Six Siege" && r6MapNow && /^[a-z0-9-]+$/.test(r6MapNow.slug || "")) return `https://static.stats.cc/siege/maps/${r6MapNow.slug}_thumbnail.webp`;
   if (game === "Counter-Strike 2" && csLive && /^[a-z0-9_]+$/.test(csLive.raw || "")) return `https://raw.githubusercontent.com/ghostcap-gaming/cs2-map-images/main/cs2/${csLive.raw}.png`;
@@ -775,7 +820,7 @@ function dcPresenceNow() {
   const song = dcPresOn() && player.connected && player.playing && player.title ? { t: String(player.title), a: String(player.artist || "") } : null;
   let game = dcPresOn() ? dcGame : null;
   const gr = settings.gameRanks || {};
-  let rank = "", map = "", small = null;   // small: the little picture (your hero / operator / side) instead of the game logo
+  let rank = "", map = "", small = null, cpTip = "";   // small: the little picture (your hero / operator / side) instead of the game logo
   if (game && game.name === "Rainbow Six Siege") {
     rank = settings.r6RankName ? String(settings.r6RankName).replace(/^(no rank|not ranked)$/i, "Unranked") + (settings.r6RP ? " · " + Number(settings.r6RP).toLocaleString("en-US") + " RP" : "") : "";
     if (r6MapNow && Date.now() - r6MapNow.at < 45 * 60000) map = r6MapNow.name;
@@ -802,6 +847,9 @@ function dcPresenceNow() {
     if (ph === "menu") map = "In the main menu";
     else if (ph === "queue") map = "In queue";
     else if (owMapNow && Date.now() - owMapNow.at < 45 * 60000) map = owMapNow.name + (owMapNow.mode ? " · " + owMapNow.mode : "");
+  } else if (game && game.name === "Cyberpunk 2077" && cpNow) {
+    if (cpNow.inGame) { const l = cpLines(cpNow); rank = l.rank; map = l.map; cpTip = l.tip; }
+    else map = "In the main menu";
   }
   const art = /^https:\/\//.test(player.art || "") ? player.art : "";
   // on a map: the map's picture big and the game's logo small; anywhere else (menus, queue): just the game's logo
@@ -810,7 +858,7 @@ function dcPresenceNow() {
   const logo = game ? gameLogo(game) : "";
   const mapName = map ? map.split(" · ")[0] : "";
   // the timer on Discord counts the current match (a new map, or a Wardogs match with cash on screen); in menus it counts the whole game
-  const realMap = map && !/^In (the main menu|queue)$/.test(map) && !(game && /^wardogs\b/i.test(game.name)) ? mapName : "";
+  const realMap = map && !/^In (the main menu|queue)$/.test(map) && !(game && /^(wardogs|cyberpunk)\b/i.test(game.name)) ? mapName : "";
   const wdOn = game && /^wardogs\b/i.test(game.name) && wdCash && Date.now() - wdCash.at < 10 * 60000;
   const mKey = game ? game.name + "|" + realMap + (wdOn ? "|match" : "") : "";
   if (mKey !== matchKey) { matchKey = mKey; matchAt = Date.now(); }
@@ -824,7 +872,7 @@ function dcPresenceNow() {
       timestamps: { start: startTs },
       assets: mapImg
         ? Object.assign({ large_image: mapImg, large_text: cut(mapName || game.name, 120) }, (small && small.img) ? { small_image: small.img, small_text: cut(small.text || rank || game.name, 120) } : logo ? { small_image: logo, small_text: cut(rank || game.name, 120) } : {})
-        : logo ? Object.assign({ large_image: logo, large_text: cut(game.name, 120) }, (small && small.img) ? { small_image: small.img, small_text: cut(small.text || rank || game.name, 120) } : {})
+        : logo ? Object.assign({ large_image: logo, large_text: cut(cpTip || game.name, 120) }, (small && small.img) ? { small_image: small.img, small_text: cut(small.text || rank || game.name, 120) } : {})
         : art ? { large_image: art, large_text: cut(song.t, 120) } : undefined
     };
   } else if ((crExt || crNow) && dcPresOn() && settings.dcWatch !== false) {
@@ -855,7 +903,7 @@ function dcPresenceNow() {
       type: 0, status_display_type: 2, details: cut(game.name + (map ? " · " + map : ""), 120), state: rank || undefined,
       timestamps: { start: startTs },
       assets: mapImg ? Object.assign({ large_image: mapImg, large_text: cut(mapName || game.name, 120) }, (small && small.img) ? { small_image: small.img, small_text: cut(small.text || rank || game.name, 120) } : logo ? { small_image: logo, small_text: cut(rank || game.name, 120) } : {})
-        : logo ? Object.assign({ large_image: logo, large_text: cut(game.name, 120) }, (small && small.img) ? { small_image: small.img, small_text: cut(small.text || rank || game.name, 120) } : {}) : undefined
+        : logo ? Object.assign({ large_image: logo, large_text: cut(cpTip || game.name, 120) }, (small && small.img) ? { small_image: small.img, small_text: cut(small.text || rank || game.name, 120) } : {}) : undefined
     };
   }
   if (!act && dcPresOn() && settings.dcIdle !== false) {
