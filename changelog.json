@@ -1,5 +1,12 @@
 [
  {
+  "v": "1.16.3",
+  "d": "2026-10-26",
+  "notes": [
+   "Cyberpunk: the small picture in your Discord status shows what V is doing (driving, combat, nearly flatlined, paused) or V's Lifepath"
+  ]
+ },
+ {
   "v": "1.16.2",
   "d": "2026-10-26",
   "notes": [
