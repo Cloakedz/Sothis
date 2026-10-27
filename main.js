@@ -864,10 +864,12 @@ function dcPresenceNow() {
   if (mKey !== matchKey) { matchKey = mKey; matchAt = Date.now(); }
   const startTs = game && (realMap || wdOn) ? matchAt : (dcGameAt || Date.now());
   const cut = (x, n) => x.length > n ? x.slice(0, n - 1) + "…" : x;
+  // Cyberpunk with the Sothis Presence mod: the location is the headline (the game's logo already says Cyberpunk)
+  const cpOn = !!(game && game.name === "Cyberpunk 2077" && cpNow && cpNow.inGame && map);
   if (game && song) {
     act = {
       type: 0, status_display_type: 2,
-      details: cut("🎮 " + game.name + (rank ? " · " + rank : "") + (map ? " · " + map : ""), 120),
+      details: cut("🎮 " + (cpOn ? [map, rank].filter(Boolean).join(" · ") : game.name + (rank ? " · " + rank : "") + (map ? " · " + map : "")), 120),
       state: cut("🎵 " + song.t + (song.a ? " — " + song.a : ""), 120),
       timestamps: { start: startTs },
       assets: mapImg
@@ -900,7 +902,7 @@ function dcPresenceNow() {
     };
   } else if (game) {
     act = {
-      type: 0, status_display_type: 2, details: cut(game.name + (map ? " · " + map : ""), 120), state: rank || undefined,
+      type: 0, status_display_type: 2, details: cut(cpOn ? map : game.name + (map ? " · " + map : ""), 120), state: rank || undefined,
       timestamps: { start: startTs },
       assets: mapImg ? Object.assign({ large_image: mapImg, large_text: cut(mapName || game.name, 120) }, (small && small.img) ? { small_image: small.img, small_text: cut(small.text || rank || game.name, 120) } : logo ? { small_image: logo, small_text: cut(rank || game.name, 120) } : {})
         : logo ? Object.assign({ large_image: logo, large_text: cut(cpTip || game.name, 120) }, (small && small.img) ? { small_image: small.img, small_text: cut(small.text || rank || game.name, 120) } : {}) : undefined
