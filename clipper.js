@@ -6,7 +6,7 @@
 const path = require("path"), fs = require("fs"), { spawn, execFile } = require("child_process");
 
 module.exports = function makeClipper(ctx) {
-  const { app, screen, DATA_DIR, log, getSettings, clipsDir, VID_RE, currentGame, onState, requestAudio, setAudio, notify, gameRect } = ctx;
+  const { app, screen, DATA_DIR, log, getSettings, clipsDir, VID_RE, currentGame, onState, requestAudio, setAudio, notify, gameRect, gameMonitor } = ctx;
   const FF_DIR = path.join(DATA_DIR, "ffmpeg");
   const BUF = path.join(DATA_DIR, "clipbuf");
   const SEG = 2, WRAP = 70;   // 2 s pieces, 140 s kept at most
@@ -65,6 +65,9 @@ module.exports = function makeClipper(ctx) {
 
   /* ---- rolling buffer ---- */
   let ff = null, encIdx = 0, startedAt = 0, segs = [], wallOff = null, listPos = 0, listTimer = null, want = false, vidSize = null;
+  // each recorder run writes into its own folder; when Windows briefly takes the screen away (a game going full screen,
+  // alt-tab, a resolution change) the recorder restarts right away and the earlier pieces are kept, so clips stay full length
+  let run = 0, runDir = BUF, oldSegs = [], curIdx = -1;
   // recording quality, like Medal's: constant quality on the graphics card (lower number = sharper, bigger files)
   const QP = { standard: 23, high: 19, max: 16 };
   const qp = () => QP[cfg().quality] || QP.high;
@@ -76,13 +79,23 @@ module.exports = function makeClipper(ctx) {
   ];
   function monitorIdx() {
     const c = cfg(), all = screen.getAllDisplays();
+    // while you play, the screen your game is on (so the clip is the game, whatever screen is picked in Settings)
+    const g = typeof gameMonitor === "function" ? gameMonitor() : -1;
+    if (g >= 0 && all[g]) return g;
     if (c.monitor !== "auto" && all[+c.monitor]) return +c.monitor;
     const d = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
     const i = all.findIndex(x => x.id === d.id);
     return i >= 0 ? i : 0;
   }
+  let restartWanted = false, lossAt = [];
+  // the game moved to another screen (or just started on one): record that screen instead
+  function followGame() {
+    if (!ff) return;
+    const i = monitorIdx();
+    if (i !== curIdx) { log("clips: following the game to screen " + (i + 1)); restartWanted = true; try { ff.kill(); } catch {} }
+  }
   function readList() {
-    const f = path.join(BUF, "list.csv");
+    const f = path.join(runDir, "list.csv");
     let txt = ""; try { const fd = fs.openSync(f, "r"), size = fs.fstatSync(fd).size; if (size > listPos) { const b = Buffer.alloc(size - listPos); fs.readSync(fd, b, 0, b.length, listPos); txt = b.toString("utf8"); listPos = size; } fs.closeSync(fd); } catch { return; }
     if (!txt) return;
     const now = Date.now();
@@ -94,24 +107,33 @@ module.exports = function makeClipper(ctx) {
       if (wallOff == null || off < wallOff) wallOff = off;
     }
   }
-  function start() {
+  function start(keep) {
     want = true;
     if (ff || process.platform !== "win32" || !cfg().on) return;
     if (!ffExe()) { ffEnsure().then(ok => { if (ok && want) start(); }); return; }
-    try { fs.rmSync(BUF, { recursive: true, force: true }); } catch {}
-    fs.mkdirSync(BUF, { recursive: true });
+    if (keep && wallOff != null && segs.length) {
+      // keep the last run's pieces (by wall-clock time) for clips that reach back past the restart
+      for (const x of segs) oldSegs.push({ path: path.join(runDir, x.file), wa: wallOff + x.a * 1000, wb: wallOff + x.b * 1000, run });
+    } else { oldSegs = []; try { fs.rmSync(BUF, { recursive: true, force: true }); } catch {} }
+    const now = Date.now();
+    oldSegs = oldSegs.filter(x => x.wb > now - (WRAP * SEG + 20) * 1000);
+    // drop folders of runs nothing points to any more
+    try { const keepRuns = new Set(oldSegs.map(x => "r" + x.run)); for (const d of fs.readdirSync(BUF)) if (/^r\d+$/.test(d) && !keepRuns.has(d)) fs.rmSync(path.join(BUF, d), { recursive: true, force: true }); } catch {}
+    run++; runDir = path.join(BUF, "r" + run);
+    fs.mkdirSync(runDir, { recursive: true });
     segs = []; wallOff = null; listPos = 0;
     const c = cfg(), idx = monitorIdx(), d = screen.getAllDisplays()[idx] || screen.getPrimaryDisplay();
+    curIdx = idx;
     vidSize = { w: Math.round(d.size.width * d.scaleFactor), h: Math.round(d.size.height * d.scaleFactor) };
     const fps = c.fps === 30 ? 30 : 60, enc = ENC[Math.min(encIdx, ENC.length - 1)];
     const grab = `ddagrab=output_idx=${idx}:framerate=${fps}:draw_mouse=1`;
     const vf = enc.soft ? ["-vf", "hwdownload,format=bgra" + (vidSize.h > 1080 ? ",scale=-2:1080" : "")] : enc.hw === "qsv" ? ["-vf", "hwmap=derive_device=qsv,format=qsv"] : [];
     const args = ["-hide_banner", "-loglevel", "error", "-nostdin", "-f", "lavfi", "-i", grab, ...vf, ...enc.v, "-g", String(fps * SEG), "-keyint_min", String(fps * SEG), "-bf", "0",
-      "-f", "segment", "-segment_time", String(SEG), "-segment_format", "mpegts", "-segment_list", path.join(BUF, "list.csv"), "-segment_list_type", "csv",
-      "-segment_wrap", String(WRAP), "-reset_timestamps", "0", path.join(BUF, "seg%03d.ts")];
+      "-f", "segment", "-segment_time", String(SEG), "-segment_format", "mpegts", "-segment_list", path.join(runDir, "list.csv"), "-segment_list_type", "csv",
+      "-segment_wrap", String(WRAP), "-reset_timestamps", "0", path.join(runDir, "seg%03d.ts")];
     let err = "";
     startedAt = Date.now();
-    ff = spawn(ffExe(), args, { windowsHide: true, cwd: BUF });
+    ff = spawn(ffExe(), args, { windowsHide: true, cwd: runDir });
     ff.stderr.on("data", d => { err = (err + d).slice(-2000); });
     ff.on("error", e => { err += String(e && e.message); });
     ff.on("exit", code => {
@@ -119,6 +141,14 @@ module.exports = function makeClipper(ctx) {
       ff = null; clearInterval(listTimer); listTimer = null;
       if (!want) { setSt({ phase: "off", msg: "" }); return; }
       log("clips: recorder stopped (" + code + "): " + err.split("\n").filter(Boolean).slice(-2).join(" | "));
+      // Windows took the screen away for a moment (full screen switch, alt-tab, resolution change): not the encoder's fault,
+      // so pick up again right away with the same encoder and keep what was recorded
+      if (/887a0026|887a0027|ACCESS_LOST|AcquireNextFrame/i.test(err) || restartWanted) {
+        restartWanted = false;
+        const t = Date.now(); lossAt = lossAt.filter(x => t - x < 15000).concat(t);
+        setTimeout(() => start(true), lossAt.length > 6 ? 3000 : 300);   // if it keeps happening, breathe a little between tries
+        return;
+      }
       if (quick && encIdx < ENC.length - 1) { encIdx++; log("clips: trying " + ENC[encIdx].name + " encoding"); setTimeout(start, 500); return; }
       setSt({ phase: "error", msg: "The recorder stopped. " + (quick ? "Your graphics card's encoder didn't start." : "Trying again…") });
       if (!quick) setTimeout(start, 3000);
@@ -236,13 +266,23 @@ module.exports = function makeClipper(ctx) {
       for (let i = 0; i < 30; i++) { readList(); const last = segs[segs.length - 1]; if (last && wallOff + last.b * 1000 >= pressed - 200) break; await new Promise(r => setTimeout(r, 150)); }
       readList();
       const endS = (pressed - wallOff) / 1000, startS = endS - len;
-      const use = segs.filter(x => x.b > startS - 0.1 && x.a < endS + 0.1).sort((a, b) => a.a - b.a);
+      const all = oldSegs.map(x => ({ full: x.path, a: (x.wa - wallOff) / 1000, b: (x.wb - wallOff) / 1000, run: x.run }))
+        .concat(segs.map(x => ({ full: path.join(runDir, x.file), a: x.a, b: x.b, run })));
+      const use = all.filter(x => x.b > startS - 0.1 && x.a < endS + 0.1).sort((a, b) => a.a - b.a);
       if (!use.length) return { ok: false, err: "Nothing recorded yet" };
       const tmp = path.join(DATA_DIR, "cliptmp"); try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {} fs.mkdirSync(tmp, { recursive: true });
       // stitch the pieces (MPEG-TS pieces join end to end)
-      const ts = path.join(tmp, "v.ts"), out = fs.openSync(ts, "w");
-      for (const s of use) { try { fs.writeSync(out, fs.readFileSync(path.join(BUF, s.file))); } catch {} }
-      fs.closeSync(out);
+      const ts = path.join(tmp, "v.ts");
+      if (use.every(x => x.run === use[0].run)) {
+        const out = fs.openSync(ts, "w");
+        for (const s of use) { try { fs.writeSync(out, fs.readFileSync(s.full)); } catch {} }
+        fs.closeSync(out);
+      } else {
+        // pieces from before and after a restart start their clocks from zero: the concat reader lines them up
+        fs.writeFileSync(path.join(tmp, "parts.txt"), use.map(s => "file '" + s.full.replace(/\\/g, "/").replace(/'/g, "'\\''") + "'").join("\n"));
+        const r = await runFF(["-hide_banner", "-y", "-f", "concat", "-safe", "0", "-i", "parts.txt", "-c", "copy", "-f", "mpegts", "v.ts"], tmp);
+        if (!r.ok) { const out = fs.openSync(ts, "w"); for (const s of use.filter(x => x.run === run)) { try { fs.writeSync(out, fs.readFileSync(s.full)); } catch {} } fs.closeSync(out); }
+      }
       // only the game's window: crop to it when the game isn't filling the whole screen
       let crop = "";
       if (c.window !== false && typeof gameRect === "function") {
@@ -323,7 +363,7 @@ module.exports = function makeClipper(ctx) {
     start, stop, save, ffEnsure, ffExe,
     state: () => Object.assign({}, st, { ready: !!ffExe(), recording: !!ff, keys: hookActive(), cfg: cfg() }),
     keyName: () => cfg().key,
-    hookActive, hookStart,
+    hookActive, hookStart, followGame,
     _inject: evs => { inputs = evs; hookOk = true; hook = hook || { fake: true }; },
     applyAudio: () => { if (ff) setAudio(audioCfg()); },
     restart: () => { if (ff) { const was = want; stop(); setTimeout(() => { if (was) start(); }, 2000); } }

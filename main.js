@@ -1601,6 +1601,21 @@ const clipsDir = () => settings.clipsDir && fs.existsSync(settings.clipsDir) ? s
 const VID_RE = /\.(mp4|mkv|webm|mov|m4v)$/i;
 /* Sothis's own clips (clipper.js): records the last 15-120 s while you play and saves on your clip key */
 let clipperObj = null, audioReqs = {}, audioReqN = 0;
+// which screen the game is on (Electron's display order), checked every few seconds while you play; clips record that screen
+let clipGameMon = -1, clipMonBusy = false;
+setInterval(async () => {
+  if (!sess) { clipGameMon = -1; return; }
+  if (clipMonBusy) return; clipMonBusy = true;
+  try {
+    const g = await gameWindowRect();
+    if (g && g.mw) {
+      const all = screen.getAllDisplays();
+      let i = all.findIndex(d => { try { const p = screen.dipToScreenPoint({ x: d.bounds.x, y: d.bounds.y }); return Math.abs(p.x - g.mx) < 4 && Math.abs(p.y - g.my) < 4; } catch { return false; } });
+      if (i < 0) i = all.findIndex(d => Math.round(d.size.width * d.scaleFactor) === g.mw && Math.round(d.size.height * d.scaleFactor) === g.mh);
+      if (i >= 0 && i !== clipGameMon) { clipGameMon = i; try { clipperObj && clipperObj.followGame(); } catch {} }
+    }
+  } catch {} finally { clipMonBusy = false; }
+}, 6000);
 function clipper() {
   if (clipperObj) return clipperObj;
   clipperObj = require("./clipper.js")({
@@ -1608,6 +1623,7 @@ function clipper() {
     log: t => { try { presLog(t); } catch {} },
     getSettings: () => settings,
     gameRect: () => gameWindowRect(),
+    gameMonitor: () => (sess ? clipGameMon : -1),
     currentGame: () => (sess && sess.game) || (dcGame && dcGame.name !== "a Steam game" ? dcGame.name : "") || "",
     onState: st => { try { clipHideApply(); } catch {} if (win && !win.isDestroyed()) win.webContents.send("clip:state", Object.assign({}, st, { ready: !!clipperObj && !!clipperObj.ffExe() })); },
     setAudio: o => { try { aaSet(o && o.on); } catch {} if (win && !win.isDestroyed()) win.webContents.send("clip:audio", o); },
