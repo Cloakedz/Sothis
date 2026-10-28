@@ -1,9 +1,18 @@
 [
  {
+  "v": "1.20.0",
+  "d": "2026-10-28",
+  "notes": [
+   "Wide layout (Settings → Layout): tabs down the left, the page in the middle, and a side panel with what's playing, your Discord call and your last clip",
+   "Music in the wide layout shows lyrics in the side panel; Stats shows your friends' leaderboard there",
+   "Files in the wide layout: an open clip and its editor sit next to the grid"
+  ]
+ },
+ {
   "v": "1.19.0",
   "d": "2026-10-27",
   "notes": [
-   "Settings \u2192 Features (your own copy only): every feature with a switch for you and a switch for the GitHub copy"
+   "Settings → Features (your own copy only): every feature with a switch for you and a switch for the GitHub copy"
   ]
  },
  {
@@ -11,14 +20,14 @@
   "d": "2026-10-27",
   "notes": [
    "Lyrics: tap the lyrics button in Music for synced lyrics that follow the song, or pop them out into their own window that stays on top",
-   "Files \u2192 Screenshots: every game screenshot on your PC (Steam, Xbox Game Bar, Windows, NVIDIA / AMD, photo modes), sorted by game"
+   "Files → Screenshots: every game screenshot on your PC (Steam, Xbox Game Bar, Windows, NVIDIA / AMD, photo modes), sorted by game"
   ]
  },
  {
   "v": "1.17.0",
   "d": "2026-10-27",
   "notes": [
-   "Skyrim in your Discord status: where you are, your level and race, and (on hover) your character's name and day \u2014 read from your saves, no mod needed (works with Wabbajack lists too)"
+   "Skyrim in your Discord status: where you are, your level and race, and (on hover) your character's name and day — read from your saves, no mod needed (works with Wabbajack lists too)"
   ]
  },
  {
@@ -75,7 +84,7 @@
   "v": "1.16.0",
   "d": "2026-10-26",
   "notes": [
-   "Cyberpunk 2077 in your Discord status: level, Street Cred, where V is, driving / in combat / wanted, and (on hover) eddies, time, weather and your tracked quest \u2014 with the Sothis Presence mod"
+   "Cyberpunk 2077 in your Discord status: level, Street Cred, where V is, driving / in combat / wanted, and (on hover) eddies, time, weather and your tracked quest — with the Sothis Presence mod"
   ]
  },
  {
@@ -89,7 +98,7 @@
   "v": "1.15.0",
   "d": "2026-10-26",
   "notes": [
-   "Mouse battery works with more mice: pick G-Wolves, Logitech, Razer or any Bluetooth mouse in Settings \u2192 Mouse battery (Auto tries them all), or hide it"
+   "Mouse battery works with more mice: pick G-Wolves, Logitech, Razer or any Bluetooth mouse in Settings → Mouse battery (Auto tries them all), or hide it"
   ]
  },
  {
@@ -131,7 +140,7 @@
   "v": "1.14.0",
   "d": "2026-10-26",
   "notes": [
-   "Games \u2192 Mods: all your Mod Organizer 2 setups (MO2 instances and portable lists like Wabbajack) in one list; click one to open it"
+   "Games → Mods: all your Mod Organizer 2 setups (MO2 instances and portable lists like Wabbajack) in one list; click one to open it"
   ]
  },
  {
@@ -176,7 +185,7 @@
   "v": "1.12.0",
   "d": "2026-10-25",
   "notes": [
-   "Mute and deafen in Discord from anywhere: Ctrl+Alt+M and Ctrl+Alt+D (change them in Settings \u2192 Discord)",
+   "Mute and deafen in Discord from anywhere: Ctrl+Alt+M and Ctrl+Alt+D (change them in Settings → Discord)",
    "Your week now shows time in Discord calls and who you spent the most time with"
   ]
  },
@@ -199,7 +208,7 @@
   "d": "2026-10-25",
   "notes": [
    "Crunchyroll in your Discord status: the show, season and episode (S1 E4) and the episode's time bar",
-   "Set it up in Settings \u2192 Discord (a small browser extension)"
+   "Set it up in Settings → Discord (a small browser extension)"
   ]
  },
  {
@@ -255,7 +264,7 @@
    "The tab highlight glides between tabs and pages slide in from the side",
    "Notifications stack up like cards (hover to fan them out)",
    "Your week counts up and its bars grow in",
-   "New idle screen after 5 quiet minutes (Settings \u2192 Window)"
+   "New idle screen after 5 quiet minutes (Settings → Window)"
   ]
  },
  {
@@ -314,7 +323,7 @@
   "v": "1.8.6",
   "d": "2026-10-24",
   "notes": [
-   "Pick your own accent color and logo in Settings \u2192 Window"
+   "Pick your own accent color and logo in Settings → Window"
   ]
  },
  {

@@ -1758,6 +1758,63 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
 .ft-row .switch { justify-self: center; }
 .ft-row.busy { opacity: .6; pointer-events: none; }
 .ft-sec { font: 700 .74rem var(--f-display); color: var(--accent); padding: 12px 2px 2px; }
+
+/* ---------- Wide layout (Settings → Layout): nav rail on the left, the page in the middle, a side panel on the right ---------- */
+body.wide { --wd-rail: 64px; --dock: 14px; }
+body.wide.wide-labels { --wd-rail: 168px; }
+body.wide .dock-bg { display: none; }
+body.wide .tabs { left: 10px !important; top: 58px; bottom: 10px; transform: none; flex-direction: column; align-items: stretch; width: var(--wd-rail); box-sizing: border-box; padding: 10px 8px; gap: 6px; border-radius: 20px; box-shadow: none; }
+body.wide.splashing .tabs { transform: translateX(-12px); }
+body.wide .tabs .tab { width: 100%; height: 46px; }
+body.wide .tabs.compact .tab, body.wide .tabs.tiny .tab { width: 100%; }
+.tab .wd-l { display: none; }
+body.wide-labels .tabs .tab { justify-content: flex-start; gap: 12px; padding: 0 13px; }
+body.wide-labels .tab .wd-l { display: inline; font: 700 .9rem var(--f-body); white-space: nowrap; color: inherit; }
+body.wide .panels { margin-left: calc(var(--wd-rail) + 16px); transition: margin .25s ease; }
+body.wide.wd-has-side .panels { margin-right: 318px; }
+/* the corner buttons (Claude, sound, Discord, launchers) stack at the foot of the rail */
+body.wide #tabbtn-claude, body.wide.dock-row #tabbtn-claude { left: 22px; bottom: 20px; }
+body.wide .cl-fab.snd-fab, body.wide.dock-row .cl-fab.snd-fab { left: 22px; bottom: 64px; }
+body.wide .cl-fab.dc-fab, body.wide.dock-row .cl-fab.dc-fab { left: 22px; bottom: 108px; }
+body.wide .ln-col, body.wide.dock-row .ln-col { left: 22px; right: auto; bottom: 152px; flex-direction: column-reverse; }
+body.wide.on-music .tabs, body.wide.on-music .cl-fab, body.wide.on-music .ln-col { margin-bottom: 0; }
+body.wide .tb-vol { left: calc(var(--wd-rail) + 40px); right: 340px; bottom: 0; }
+body.wide .snd-pop, body.wide .dc-pop, body.wide.dock-row .snd-pop, body.wide.dock-row .dc-pop { left: calc(var(--wd-rail) + 20px); bottom: 14px; max-height: calc(100% - 80px); margin-bottom: 0; }
+body.wide .col.hm, body.wide .col.statscol { max-width: 680px; }
+body.wide .gm { max-width: none; }
+.wd-side { display: none; }
+body.wd-has-side .wd-side { position: absolute; top: 58px; right: 10px; bottom: 10px; width: 300px; z-index: 3; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; scrollbar-width: none; padding: 2px; box-sizing: border-box; }
+.wd-side::-webkit-scrollbar { display: none; }
+.wd-slot:empty { display: none; }
+.wd-slot { display: flex; flex-direction: column; gap: 10px; }
+.wd-k { font: 700 10px/1 ui-monospace, Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 2px 4px 0; }
+/* now playing, big */
+.wd-side .hm-now { display: grid !important; grid-template-columns: 1fr; grid-template-rows: auto; text-align: left; gap: 12px; padding: 14px; }
+.wd-side .hm-art { width: 100%; height: auto; aspect-ratio: 1; grid-row: auto; border-radius: 14px; }
+.wd-side .hm-ctl { justify-content: center; gap: 18px; }
+.wd-side .hm-ctl .play { width: 48px; height: 48px; }
+body.wd-ly .wd-side .hm-now { grid-template-columns: 64px 1fr; }
+body.wd-ly .wd-side .hm-art { width: 64px; height: 64px; grid-row: span 2; }
+body.wd-ly .wd-side .hm-ctl { grid-column: 1 / -1; }
+body.wd-ly #wdDc, body.wd-ly #wdClip { display: none !important; }
+/* lyrics fill the rest of the panel on Music */
+.wd-side .lyp { position: relative; inset: auto; flex: 1; min-height: 320px; }
+.wd-side #wdExtra:has(.lyp:not([hidden])) { flex: 1; }
+.wd-side .hm-empty { order: 0; margin: 0; opacity: .7; }
+.wd-side .fr-board[hidden] { display: none; }
+/* last clip */
+.wd-clip { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); text-align: left; color: var(--ink); cursor: pointer; }
+.wd-clip[hidden] { display: none; }
+.wd-clip video { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 12px; background: #000; pointer-events: none; }
+.wd-clip b { font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wd-clip span { font-size: .78rem; color: var(--muted); }
+.wd-clip:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+/* Files: an open clip sits in its own column on the right, next to the grid */
+body.wide #tab-clips > .col { max-width: none; }
+body.wide #tab-clips > .col:has(#clPlay:not([hidden])) { display: grid; grid-template-columns: minmax(0, 1fr) 400px; column-gap: 18px; align-items: start; }
+body.wide #tab-clips > .col:has(#clPlay:not([hidden])) > * { grid-column: 1; }
+body.wide #tab-clips > .col:has(#clPlay:not([hidden])) > #clPlay { grid-column: 2; grid-row: 1 / span 30; position: sticky; top: 0; }
+body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
 </style>
 </head>
 <body class="splashing">
@@ -2660,6 +2717,14 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
         </div>
 
         <div class="group">
+          <h2>Layout</h2>
+          <div class="setting">
+            <div class="txt"><div class="name">Wide layout</div><div class="desc">Tabs down the left, the page in the middle and a side panel on the right with what's playing, lyrics, your Discord call, your last clip or your friends' ranks. Sothis opens wider for this; drag the corner to resize (it switches back to the normal layout when the window is narrow).</div></div>
+            <button class="switch" id="setWide" role="switch" aria-checked="false" aria-label="Wide layout"></button>
+          </div>
+        </div>
+
+        <div class="group">
           <h2>Visualizer</h2>
           <div class="setting">
             <div class="txt"><div class="name">Music visualizer</div><div class="desc">The crest pulses with the beat and a ring of bars dances around it while YouTube Music plays.</div></div>
@@ -2708,6 +2773,12 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
     </section>
   </div>
 
+  <aside class="wd-side" id="wdSide" hidden aria-label="Side panel">
+    <div class="wd-slot" id="wdNow"></div>
+    <div class="wd-slot" id="wdExtra"></div>
+    <div class="wd-slot" id="wdDc"></div>
+    <button class="wd-clip" id="wdClip" type="button" hidden aria-label="Open your last clip"><span class="wd-k">Last clip</span><video muted preload="metadata" id="wdClipV"></video><b id="wdClipT"></b><span id="wdClipS"></span></button>
+  </aside>
   <nav class="tabs" role="tablist" aria-label="Sections">
     <button class="tab" role="tab" data-tab="home" id="tabbtn-home" aria-controls="tab-home" aria-label="Home">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9v11h5v-6h4v6h5V9"/></svg>
@@ -2922,6 +2993,7 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
     tab = t === "settings" || t === "clips" ? t : mainTab;
     document.body.classList.toggle("on-home", tab === "home");
     try { $("tbVol").hidden = tab !== "ytm"; document.body.classList.toggle("on-music", tab === "ytm"); } catch {}
+    try { wdApply(); } catch {}
     try { dockRow(); setTimeout(() => { dockRow(); updateDock(); }, 320); } catch {}
     try { if (bellOpen) bellShow(false); } catch {}
     const ORDER = ["home", "ytm", "games", "stats", "switch", "web", "opera", "claude"], fromI = ORDER.indexOf(showTab.prev || ""), toI = ORDER.indexOf(tab);
@@ -2964,6 +3036,7 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
     w_compact = !!w.compact;
     songToast = w.songToast !== false;
     renderWin();
+    try { wdPref = !!w.wideLayout; $("setWide").setAttribute("aria-checked", wdPref); wdApply(); } catch {}
   }
   function renderWin() {
     $("setPin").setAttribute("aria-checked", pinned);
@@ -4563,6 +4636,62 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
 
   }
   setInterval(renderHome, 1000);
+
+  /* ---------- Wide layout: nav rail, the page, and a side panel (Settings → Layout) ---------- */
+  var wdPref = false, wdTab = "", wdLyAuto = false;
+  const wdMarks = {};
+  function wdPut(id, slot) {
+    const el = $(id); if (!el) return;
+    if (!wdMarks[id]) { const m = document.createElement("i"); m.hidden = true; m.className = "wd-mark"; el.before(m); wdMarks[id] = m; }
+    if (slot) { if (el.parentNode !== slot) slot.append(el); }
+    else if (el.previousSibling !== wdMarks[id]) wdMarks[id].after(el);
+  }
+  function wdApply() {
+    const b = document.body, W = window.innerWidth;
+    const on = wdPref && W >= 900 && !b.classList.contains("is-mini") && !b.classList.contains("is-compact");
+    b.classList.toggle("wide", on); b.classList.toggle("wide-labels", on && W >= 1120);
+    const side = on && ["home", "ytm", "games", "stats"].includes(tab);
+    b.classList.toggle("wd-has-side", side); $("wdSide").hidden = !side;
+    // what's playing on top, your Discord call under it
+    wdPut("hmNow", side ? $("wdNow") : null);
+    ["hmDcEmpty", "hmDc", "dcPins"].forEach(id => wdPut(id, side ? $("wdDc") : null));
+    // Music: the lyrics fill the panel
+    const ly = side && tab === "ytm";
+    b.classList.toggle("wd-ly", ly);
+    wdPut("lyPanel", ly ? $("wdExtra") : null);
+    try {
+      if (ly && wdTab !== "ytm" && !lyOpen && !lyPopped) { wdLyAuto = true; lyShow(true); }
+      if (!ly && wdLyAuto) { wdLyAuto = false; if (lyOpen) lyShow(false); }
+    } catch {}
+    // Stats: the friends leaderboard
+    const fr = side && tab === "stats";
+    wdPut("frBoard", fr ? $("wdExtra") : null);
+    try { if (fr && wdTab !== "stats") frBoard(); } catch {}
+    // Home and Games: your newest clip
+    const clip = side && (tab === "home" || tab === "games");
+    if (!clip) $("wdClip").hidden = true; else if (wdTab !== tab) wdClipFill();
+    wdTab = side ? tab : "";
+    try { tabPill(); } catch {}
+  }
+  let wdClipNow = null;
+  async function wdClipFill() {
+    let r = null; try { r = await D.clipsList(); } catch {}
+    const items = (r && r.items) || []; const c = items.slice().sort((a, b) => (b.at || 0) - (a.at || 0))[0];
+    wdClipNow = c || null; $("wdClip").hidden = !c || !document.body.classList.contains("wd-has-side");
+    if (!c) return;
+    const v = $("wdClipV"); if (v.dataset.u !== c.url) { v.dataset.u = c.url; v.src = c.url + "#t=1"; }
+    $("wdClipT").textContent = c.name; $("wdClipS").textContent = [c.game, ago(c.at)].filter(Boolean).join(" · ");
+  }
+  $("wdClip").onclick = () => { const c = wdClipNow; if (!c) return; showTab("clips"); setTimeout(() => { try { playClip(c); } catch {} }, 250); };
+  // tab names, shown next to the icons when the window is wide enough
+  [["home", "Home"], ["ytm", "Music"], ["games", "Games"], ["stats", "Stats"], ["switch", "Switch"], ["web", "Browser"]].forEach(([k, l]) => { const t = $("tabbtn-" + k); if (t && !t.querySelector(".wd-l")) t.append(mk("span", "wd-l", l)); });
+  $("setWide").onclick = async () => {
+    wdPref = !wdPref; $("setWide").setAttribute("aria-checked", wdPref);
+    try { wdPref = await D.wideLayout(wdPref); } catch {}
+    $("setWide").setAttribute("aria-checked", wdPref);
+    setTimeout(wdApply, 60); setTimeout(wdApply, 400);
+  };
+  window.addEventListener("resize", () => { try { wdApply(); } catch {} });
   $("hmPlay").onclick = () => M.mPlay.onclick();
   $("hmPrev").onclick = () => M.mPrev.onclick();
   $("hmNext").onclick = () => M.mNext.onclick();
@@ -7184,6 +7313,7 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
     document.body.classList.toggle("dock-row", row);
     const nav = document.querySelector(".tabs"); if (!nav) return;
     nav.style.left = ""; nav.classList.remove("compact", "tiny");
+    if (document.body.classList.contains("wide")) return;   // the Wide layout keeps the tabs in a rail on the left
     if (!row) {
       // portrait pages: keep the bar clear of the launcher column (Opera etc.) on the right
       const lc = $("launchCol"); if (!lc || !lc.children.length) return;

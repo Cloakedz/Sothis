@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld("desktop", {
   setCompact: on => ipcRenderer.invoke("win:compact", on),
   setStartup: on => ipcRenderer.invoke("win:startup", on),
   setLayout: key => ipcRenderer.send("win:layout", key),
+  wideLayout: on => ipcRenderer.invoke("win:wideLayout", on),
   moveBy: (dx, dy) => ipcRenderer.send("win:move-by", { dx, dy }),
   dragWin: phase => ipcRenderer.send("win:drag", phase),
   resize: size => ipcRenderer.send("win:resize", size),

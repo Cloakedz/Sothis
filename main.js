@@ -8,7 +8,7 @@ const dnsp = require("dns").promises;
 require("electron").protocol.registerSchemesAsPrivileged([{ scheme: "sothisemu", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }]);
 
 const MINI = { w: 400, h: 112 };
-const DEFAULT_SIZES = { main: { w: 560, h: 840 }, wide: { w: 1080, h: 840 } };   // wide enough that Music's bottom row has room for the corner buttons
+const DEFAULT_SIZES = { main: { w: 560, h: 840 }, wide: { w: 1080, h: 840 }, mainWide: { w: 1180, h: 840 } };   // wide enough that Music's bottom row has room for the corner buttons
 const MIN = { main: { w: 420, h: 640 }, wide: { w: 680, h: 560 } };
 
 app.setAppUserModelId("Sothis");
@@ -67,8 +67,10 @@ function trayBaseImage() {
   if (hasCustomLogo()) { try { const im = nativeImage.createFromPath(customLogoFile()); if (!im.isEmpty()) return im.resize({ width: 32, height: 32, quality: "best" }); } catch {} }
   return nativeImage.createFromPath(path.join(__dirname, "tray.png"));
 }
-const sizeFor = key => Object.assign({}, DEFAULT_SIZES[key], (settings.sizes || {})[key]);
-const winState = () => ({ pinned: isPinned(), mini: !!settings.mini, compact: !!settings.compact, compactSide: settings.compactSide === "left" ? "left" : "right", startup: isStartup(), lowAlert: settings.lowAlert !== false, songToast: settings.songToast !== false });
+// the Wide layout (Settings → Layout) keeps its own, wider size for the everyday tabs
+const sizeKey = key => key === "main" && settings && settings.wideLayout ? "mainWide" : key;
+const sizeFor = key => Object.assign({}, DEFAULT_SIZES[sizeKey(key)], (settings.sizes || {})[sizeKey(key)]);
+const winState = () => ({ wideLayout: !!settings.wideLayout, pinned: isPinned(), mini: !!settings.mini, compact: !!settings.compact, compactSide: settings.compactSide === "left" ? "left" : "right", startup: isStartup(), lowAlert: settings.lowAlert !== false, songToast: settings.songToast !== false });
 
 function createWindow() {
   const size = settings.mini ? MINI : sizeFor(currentKey);
@@ -3500,10 +3502,17 @@ ipcMain.on("win:resize", (_e, { w, h }) => {
   const min = MIN[currentKey];
   applySize({ w: Math.max(min.w, w), h: Math.max(min.h, h) });
 });
+ipcMain.handle("win:wideLayout", (_e, on) => {
+  if (typeof on === "boolean" && on !== !!settings.wideLayout) {
+    settings.wideLayout = on; saveSettings();
+    if (win && !win.isDestroyed() && !settings.mini && !preFull && !settings.compact) applySize(sizeFor(currentKey));
+  }
+  return !!settings.wideLayout;
+});
 ipcMain.on("win:resize-done", () => {
   if (settings.mini) return;
   const [w, h] = win.getSize();
-  settings.sizes = Object.assign({}, settings.sizes, { [currentKey]: { w, h } });
+  settings.sizes = Object.assign({}, settings.sizes, { [sizeKey(currentKey)]: { w, h } });
   saveSettings();
 });
 // Fullscreen: fill the whole screen (works with the rounded, frameless window).
