@@ -1,4 +1,6 @@
 {
  "_note": "Which Sothis features the GitHub copy has. Changed from Sothis's own Settings → Features.",
- "github": {}
+ "github": {
+  "switch": false
+ }
 }
