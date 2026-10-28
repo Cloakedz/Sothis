@@ -1780,7 +1780,9 @@ body.wide .ln-col, body.wide.dock-row .ln-col { left: 22px; right: auto; bottom:
 body.wide.on-music .tabs, body.wide.on-music .cl-fab, body.wide.on-music .ln-col { margin-bottom: 0; }
 body.wide .tb-vol { left: calc(var(--wd-rail) + 40px); right: 340px; bottom: 0; }
 body.wide .snd-pop, body.wide .dc-pop, body.wide.dock-row .snd-pop, body.wide.dock-row .dc-pop { left: calc(var(--wd-rail) + 20px); bottom: 14px; max-height: calc(100% - 80px); margin-bottom: 0; }
-body.wide .col.hm, body.wide .col.statscol { max-width: 680px; }
+body.wide .col.hm { max-width: 680px; }
+body.wide .col.statscol { max-width: 560px; margin-inline: auto; align-items: stretch; }
+body.wide .col.statscol > :not(.seg) { margin-inline: auto; }
 body.wide .gm { max-width: none; }
 .wd-side { display: none; }
 body.wd-has-side .wd-side { position: absolute; top: 58px; right: 10px; bottom: 10px; width: 300px; z-index: 3; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; scrollbar-width: none; padding: 2px; box-sizing: border-box; }
