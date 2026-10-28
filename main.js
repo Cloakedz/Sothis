@@ -2113,7 +2113,7 @@ let updWatch = null, updT = null;
 // Windows reports a file "changed" for antivirus scans, timestamp and attribute touches too, so only
 // real content changes count: each file is fingerprinted at launch and re-checked when the watcher fires.
 const updBase = new Map(), updDirty = new Set(), updSeen = new Set();
-const RESTART_RE = /^(main|preload|toast-preload|obs-preload|r6tab-preload|sw-pop-preload|vo-preload|battery-worker|nopasskey-preload|qpop-preload|emu-preload|azahar-preload)\.js$/i;
+const RESTART_RE = /^(main|preload|lyrics-preload|toast-preload|obs-preload|r6tab-preload|sw-pop-preload|vo-preload|battery-worker|nopasskey-preload|qpop-preload|emu-preload|azahar-preload)\.js$/i;
 const updHash = f => { try { return require("crypto").createHash("sha1").update(fs.readFileSync(path.join(__dirname, f))).digest("hex"); } catch { return "gone"; } };
 function updScan(dir = "") {
   let ents = []; try { ents = fs.readdirSync(path.join(__dirname, dir), { withFileTypes: true }); } catch {}
@@ -4966,6 +4966,109 @@ async function relAnime() {
   const seenA = new Set();
   return out.filter(x => x.title && !seenA.has(x.id) && seenA.add(x.id));
 }
+/* ---------- Lyrics: synced lyrics from LRCLIB (free, no account), shown in the Music tab or in their own pop-out window ---------- */
+const lyCache = new Map();
+ipcMain.handle("lyrics:get", async (_e, q) => {
+  const t = String((q && q.title) || "").trim(), a = String((q && q.artist) || "").trim(), d = Math.round(+((q && q.dur) || 0));
+  if (!t) return null;
+  const key = t + "\u0001" + a;
+  if (lyCache.has(key)) return lyCache.get(key);
+  const { net: enet } = require("electron");
+  const clean = x => x.replace(/\s*[([](official|lyrics?|audio|video|visuali[sz]er|remaster(ed)?|hd|4k)[^)\]]*[)\]]/gi, "").replace(/\s+-\s+topic$/i, "").trim();
+  const parse = j => {
+    if (!j) return null;
+    const lines = [];
+    for (const l of String(j.syncedLyrics || "").split(/\r?\n/)) { const m = /^\[(\d+):(\d+(?:\.\d+)?)\](.*)$/.exec(l); if (m) lines.push([+m[1] * 60 + +m[2], m[3].trim()]); }
+    const plain = String(j.plainLyrics || "").trim();
+    if (!lines.length && !plain) return null;
+    return { synced: lines, plain, instrumental: !!j.instrumental };
+  };
+  let out = null;
+  try {
+    const u = "https://lrclib.net/api/get?" + new URLSearchParams(Object.assign({ track_name: clean(t), artist_name: clean(a) }, d ? { duration: String(d) } : {}));
+    const r = await enet.fetch(u, { headers: { "User-Agent": "Sothis (github.com/Cloakedz/Sothis)" } });
+    if (r.ok) out = parse(await r.json());
+    if (!out) {
+      const r2 = await enet.fetch("https://lrclib.net/api/search?" + new URLSearchParams({ q: clean(t) + " " + clean(a) }), { headers: { "User-Agent": "Sothis (github.com/Cloakedz/Sothis)" } });
+      if (r2.ok) { const list = await r2.json(); const best = (Array.isArray(list) ? list : []).sort((x, y) => (!!y.syncedLyrics - !!x.syncedLyrics) || (d ? Math.abs((x.duration || 0) - d) - Math.abs((y.duration || 0) - d) : 0))[0]; out = parse(best); }
+    }
+  } catch { return null; }
+  lyCache.set(key, out);
+  return out;
+});
+let lyWin = null;
+function lyWinOpen() {
+  if (lyWin && !lyWin.isDestroyed()) { lyWin.show(); lyWin.focus(); return; }
+  const b = settings.lyricsPos || {};
+  lyWin = new BrowserWindow(Object.assign({
+    width: b.w || 380, height: b.h || 540, minWidth: 260, minHeight: 240, frame: false, transparent: false, backgroundColor: "#0b0b0f", alwaysOnTop: settings.lyricsTop !== false,
+    title: "Lyrics · Sothis", icon: appIconPath(), skipTaskbar: false, autoHideMenuBar: true,
+    webPreferences: { preload: path.join(__dirname, "lyrics-preload.js"), contextIsolation: true, nodeIntegration: false, sandbox: true }
+  }, typeof b.x === "number" ? { x: b.x, y: b.y } : {}));
+  if (settings.lyricsTop !== false) lyWin.setAlwaysOnTop(true, "floating");
+  lyWin.loadFile(path.join(__dirname, "lyrics.html"));
+  const remember = () => { if (!lyWin || lyWin.isDestroyed()) return; const r = lyWin.getBounds(); settings.lyricsPos = { x: r.x, y: r.y, w: r.width, h: r.height }; saveSettings(); };
+  lyWin.on("moved", remember); lyWin.on("resized", remember);
+  lyWin.on("closed", () => { lyWin = null; if (win && !win.isDestroyed()) win.webContents.send("lyrics:popped", false); });
+  if (win && !win.isDestroyed()) win.webContents.send("lyrics:popped", true);
+}
+ipcMain.handle("lyrics:popout", (_e, on) => { if (on === false) { if (lyWin && !lyWin.isDestroyed()) lyWin.close(); return false; } lyWinOpen(); return true; });
+ipcMain.on("lyrics:push", (_e, d) => { if (lyWin && !lyWin.isDestroyed()) lyWin.webContents.send("lyrics:state", d); });
+ipcMain.on("lyrics:win", (_e, what) => {
+  if (!lyWin || lyWin.isDestroyed()) return;
+  if (what === "close") lyWin.close();
+  else if (what === "top") { settings.lyricsTop = !lyWin.isAlwaysOnTop(); lyWin.setAlwaysOnTop(settings.lyricsTop, "floating"); saveSettings(); lyWin.webContents.send("lyrics:top", settings.lyricsTop); }
+  else if (what === "back") { try { showWindow(); win.webContents.send("lyrics:popped", false); } catch {} lyWin.close(); }
+});
+ipcMain.handle("lyrics:top", () => settings.lyricsTop !== false);
+
+/* ---------- Screenshots: Steam, Xbox Game Bar, Windows, NVIDIA / AMD captures and game photo modes, sorted by game ---------- */
+const SHOT_RE = /\.(png|jpe?g|webp|bmp)$/i;
+async function steamRoot() { let r = await regQuery("HKCU\\Software\\Valve\\Steam", "SteamPath").catch(() => ""); return (r || "C:\\Program Files (x86)\\Steam").replace(/\//g, "\\"); }
+async function steamAppNames(root) {
+  const names = {}, libs = new Set([path.join(root, "steamapps")]);
+  try { const vdf = fs.readFileSync(path.join(root, "steamapps", "libraryfolders.vdf"), "utf8"); for (const mm of vdf.matchAll(/"path"\s+"([^"]+)"/g)) libs.add(path.join(mm[1].replace(/\\\\/g, "\\"), "steamapps")); } catch {}
+  for (const lib of libs) { try { for (const f of fs.readdirSync(lib)) { const m = /^appmanifest_(\d+)\.acf$/.exec(f); if (!m) continue; const t = fs.readFileSync(path.join(lib, f), "utf8"); const n = (/"name"\s+"([^"]+)"/.exec(t) || [])[1]; if (n) names[m[1]] = n; } } catch {} }
+  return names;
+}
+ipcMain.handle("shots:list", async () => {
+  const out = [], seen = new Set();
+  const add = (file, game, st) => { const k = file.toLowerCase(); if (seen.has(k)) return; seen.add(k); out.push({ path: file, url: require("url").pathToFileURL(file).href, name: path.basename(file), game: game || "Other", at: st.mtimeMs, size: st.size }); };
+  const scan = (dir, game, deep) => {
+    let ents; try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of ents) {
+      const f = path.join(dir, e.name);
+      if (e.isFile() && SHOT_RE.test(e.name)) { try { const st = fs.statSync(f); if (st.size > 20000) add(f, typeof game === "function" ? game(e.name) : game, st); } catch {} }
+      else if (deep && e.isDirectory() && !/^(thumbnails?|temp|cache|databases)$/i.test(e.name)) scan(f, typeof deep === "function" ? deep(e.name) : e.name, false);
+    }
+  };
+  // Steam (F12): userdata\<you>\760\remote\<game id>\screenshots
+  try {
+    const root = await steamRoot(), names = await steamAppNames(root);
+    for (const u of fs.readdirSync(path.join(root, "userdata"))) {
+      const rem = path.join(root, "userdata", u, "760", "remote");
+      let apps = []; try { apps = fs.readdirSync(rem); } catch { continue; }
+      for (const id of apps) scan(path.join(rem, id, "screenshots"), names[id] || (/^\d+$/.test(id) && +id > 1e9 ? "Non-Steam game" : "Steam game " + id), false);
+    }
+  } catch {}
+  const pics = app.getPath("pictures"), vids = app.getPath("videos");
+  // Xbox Game Bar (Win+Alt+PrtScn): "Game name 2026-10-27 12-00-00.png"
+  scan(path.join(vids, "Captures"), n => n.replace(/\s+\d{4}[-_.]\d{2}[-_.]\d{2}.*$/, "").replace(/\.[a-z]+$/i, "").trim() || "Game Bar", false);
+  // Windows (Win+PrtScn) and the Snipping Tool
+  scan(path.join(pics, "Screenshots"), "Desktop", false);
+  // game photo modes and capture apps that use a folder per game (Cyberpunk, NVIDIA, AMD, Medal…)
+  scan(path.join(pics, "Cyberpunk 2077"), "Cyberpunk 2077", false);
+  // (only under Videos, where NVIDIA and AMD put them; your own picture folders stay out)
+  for (const d of [vids, path.join(vids, "Radeon ReLive")]) {
+    let ents; try { ents = fs.readdirSync(d, { withFileTypes: true }); } catch { continue; }
+    for (const e of ents) if (e.isDirectory() && !/^(screenshots|captures|camera roll|saved pictures|sothis|cyberpunk 2077|radeon relive|clips)$/i.test(e.name)) scan(path.join(d, e.name), e.name, false);
+  }
+  // Medal's own screenshots, a folder per game
+  scan(path.join(clipsDir()), null, n => n);
+  out.sort((a, b) => b.at - a.at);
+  return out.filter(x => x.game).slice(0, 800);
+});
+
 /* ---------- Mod Organizer 2: every modded setup on this PC in one list (Games → Mods), opened with one click ---------- */
 // Finds MO2's own instances (Local\ModOrganizer\<name>) and portable setups (a folder with ModOrganizer.exe + portable.txt,
 // like Wabbajack lists) on each drive, two folders deep.

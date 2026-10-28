@@ -1727,6 +1727,27 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
 .mo2-go { font: 700 .78rem var(--f-body); padding: 7px 12px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); }
 
 .bb-sel { flex: none; padding: 7px 10px; border-radius: 10px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); font: 600 .82rem var(--f-body); }
+
+/* Lyrics (Music tab) */
+.ly-btn[aria-pressed="true"] { color: var(--accent); }
+.lyp { position: absolute; left: 10px; right: 10px; top: 42px; bottom: var(--dock, 82px); z-index: 6; display: flex; flex-direction: column; border-radius: 14px; overflow: hidden;
+  background: radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--song-glow, var(--accent)) 60%, transparent), transparent 65%), #0b0b0f; color: #f1f2f6; border: 1px solid rgba(255, 255, 255, .1); }
+.lyp-h { display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 14px; border-bottom: 1px solid rgba(255, 255, 255, .1); }
+.lyp-h b { font: 700 14px var(--f-display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.lyp-h span { flex: 1; min-width: 0; font-size: 12px; color: #a7abb9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lyp-h .ib { color: #a7abb9; } .lyp-h .ib:hover { color: #fff; background: rgba(255, 255, 255, .08); }
+.lyp-h .ib svg { width: 17px; height: 17px; }
+.lyp-b { flex: 1; overflow-y: auto; padding: 35% 22px 50%; scroll-behavior: smooth; mask-image: linear-gradient(transparent, #000 15%, #000 70%, transparent); scrollbar-width: none; }
+.lyp-b::-webkit-scrollbar { display: none; }
+.lyp-b p { margin: 0 0 14px; font: 700 22px/1.3 var(--f-display); color: rgba(255, 255, 255, .3); transition: color .3s, transform .3s; transform-origin: left center; cursor: default; }
+.lyp-b p.on { color: #fff; transform: scale(1.04); text-shadow: 0 0 18px rgba(255, 255, 255, .25); }
+.lyp-b p.past { color: rgba(255, 255, 255, .5); }
+.lyp-b.plain p { color: rgba(255, 255, 255, .85); font-size: 17px; }
+.lyp-msg { color: #a7abb9 !important; font: 500 14px var(--f-body) !important; text-align: center; transform: none !important; }
+/* Screenshots */
+.sh-games { grid-column: 1 / -1; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.sh-games .chip { flex: none; }
+.sh-h { grid-column: 1 / -1; font: 700 .85rem var(--f-display); margin: 8px 2px 0; color: var(--ink); }
 </style>
 </head>
 <body class="splashing">
@@ -2017,12 +2038,20 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
           <button type="button" role="radio" data-yv="spot" aria-checked="false">Songspot</button>
         </div>
         <span class="ytbar-sp"></span>
+        <button class="ib ytnav ly-btn" id="lyBtn" type="button" title="Lyrics" aria-label="Lyrics" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M4 11h9M4 16h6"/><path d="M17 18V8l4-1v9"/><circle cx="15.5" cy="18" r="1.8"/><circle cx="19.5" cy="16" r="1.8"/></svg></button>
         <button class="ms-chip" id="msChip" type="button" title="Change music service" aria-label="Change music service"><img id="msChipImg" src="logos/svc-ytm.png" alt=""></button>
         <button class="ib ytnav" id="ytSite" type="button" aria-label="Open the YouTube Music website" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></button>
       </div>
       <div class="webwrap" id="ytWrap"><div class="loadline" id="ytLoad"></div></div>
       <div class="webwrap" id="spotWrap"><div class="loadline" id="spotLoad"></div></div>
       <div class="webwrap" id="msWrap"><div class="loadline" id="msLoad"></div></div>
+      <div class="lyp" id="lyPanel" hidden>
+        <div class="lyp-h"><b id="lyT">Lyrics</b><span id="lyA"></span>
+          <button class="ib" id="lyPop" type="button" title="Pop out" aria-label="Pop out lyrics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-8 8"/><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg></button>
+          <button class="ib" id="lyX" type="button" title="Close" aria-label="Close lyrics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <div class="lyp-b" id="lyBody"><p class="lyp-msg">Play a song to see its lyrics.</p></div>
+      </div>
       <div class="ms-pick" id="msPick" hidden>
         <div class="ms-pick-in">
           <h2>Your music</h2>
@@ -2251,6 +2280,7 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
           <button type="button" role="radio" data-k="mp3" aria-checked="false">MP3</button>
           <button type="button" role="radio" data-k="mp4" aria-checked="false">MP4</button>
           <button type="button" role="radio" data-k="photos" aria-checked="false">Photos</button>
+          <button type="button" role="radio" data-k="shots" aria-checked="false">Screenshots</button>
         </div>
         <div class="ph-bar" id="phBar" hidden><span>Drop pictures here, or</span><button class="btn" type="button" id="phAdd">Add photos</button></div>
         <form class="fl-dl" id="flDl" hidden autocomplete="off">
@@ -3201,6 +3231,7 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
     const wv = musWv();
     if (!wv) { ytState = null; renderMiniYT(); return; }
     try { ytState = await wv.executeJavaScript(musicSvc === "ytm" ? YT_READ : MS_READ); } catch { ytState = null; }
+    try { lyStateAt = Date.now(); } catch {}
     renderMiniYT();
   }
   function renderMiniYT() {
@@ -4267,6 +4298,55 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
     ytv.addEventListener("did-stop-loading", () => $("ytLoad").classList.remove("on"));
     watchNav(ytv);
   }
+  /* ---------- Lyrics: synced lyrics for whatever's playing, in the Music tab or popped out into their own window ---------- */
+  let lyOpen = false, lyPopped = false, lyKey = "", lyData = null, lyLoading = false, lyCur = -2, lyStateAt = 0;
+  async function lyFetch() {
+    const y = ytState && ytState.has ? ytState : null;
+    const key = y ? y.title + "\u0001" + y.artist : "";
+    if (key === lyKey) return;
+    lyKey = key; lyData = null; lyCur = -2;
+    if (!y) { lyRender(); return; }
+    lyLoading = true; lyRender();
+    let r = null; try { r = await D.lyricsGet({ title: y.title, artist: y.artist, dur: y.dur }); } catch {}
+    if (lyKey !== key) return;
+    lyData = r; lyLoading = false; lyRender();
+  }
+  function lyRender() {
+    const y = ytState && ytState.has ? ytState : null, box = $("lyBody");
+    $("lyT").textContent = y ? y.title : "Lyrics"; $("lyA").textContent = y ? y.artist : "";
+    box.className = "lyp-b"; box.replaceChildren(); lyCur = -2;
+    const say = t => box.append(mk("p", "lyp-msg", t));
+    if (!y) return say("Play a song to see its lyrics.");
+    if (lyLoading) return say("Finding lyrics…");
+    if (!lyData) return say("No lyrics found for this song.");
+    if (lyData.instrumental) return say("Instrumental ♪");
+    if (!lyData.synced.length) { box.className = "lyp-b plain"; for (const l of String(lyData.plain).split(/\n/)) box.append(mk("p", "", l || " ")); return; }
+    for (const [, l] of lyData.synced) box.append(mk("p", "", l || "♪"));
+  }
+  function lyPos() { const y = ytState; if (!y) return 0; return (y.pos || 0) + (y.playing ? (Date.now() - lyStateAt) / 1000 : 0) + 0.25; }
+  function lyTick() {
+    requestAnimationFrame(lyTick);
+    if (!lyOpen || !lyData || !lyData.synced.length) return;
+    const pos = lyPos(), L = lyData.synced; let i = -1;
+    for (let n = 0; n < L.length; n++) { if (L[n][0] <= pos) i = n; else break; }
+    if (i === lyCur) return; lyCur = i;
+    const ps = $("lyBody").children;
+    for (let n = 0; n < ps.length; n++) { ps[n].classList.toggle("on", n === i); ps[n].classList.toggle("past", n < i); }
+    if (i >= 0 && ps[i]) { const b = $("lyBody"); b.scrollTop = ps[i].offsetTop - b.clientHeight * 0.38; }
+  }
+  requestAnimationFrame(lyTick);
+  function lyShow(on) { lyOpen = on; $("lyPanel").hidden = !on; $("lyBtn").setAttribute("aria-pressed", String(on || lyPopped)); if (on) { lyFetch(); lyRender(); } }
+  $("lyBtn").onclick = () => { if (lyPopped) { D.lyricsPopout(true); return; } lyShow(!lyOpen); };
+  $("lyX").onclick = () => lyShow(false);
+  $("lyPop").onclick = () => { lyShow(false); D.lyricsPopout(true); };
+  D.onLyricsPopped(v => { lyPopped = !!v; $("lyBtn").setAttribute("aria-pressed", String(lyOpen || lyPopped)); if (!v && tab === "ytm") lyShow(true); });
+  // keep the lyrics (and the pop-out) in step with the song
+  setInterval(() => {
+    if (!lyOpen && !lyPopped) return;
+    lyFetch();
+    if (lyPopped) { const y = ytState && ytState.has ? ytState : null; D.lyricsPush({ title: y ? y.title : "", artist: y ? y.artist : "", art: y ? y.art : "", pos: y ? lyPos() - 0.25 : 0, playing: !!(y && y.playing), lyrics: lyData, loading: lyLoading }); }
+  }, 500);
+
   /* ---------- Music service: pick YouTube Music, Spotify or Apple Music; only the one you pick shows ---------- */
   var MS = { ytm: { name: "YouTube Music" }, spotify: { name: "Spotify", url: "https://open.spotify.com/", part: "persist:spotify" }, apple: { name: "Apple Music", url: "https://music.apple.com/", part: "persist:applemusic" } };
   var musicSvc = MS[store.get("music.svc")] ? store.get("music.svc") : "", msv = null, msvFor = "", msDrm = { engine: true, ok: true };
@@ -6602,20 +6682,22 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
   const fmtSize = b => b > 1e9 ? (b / 1e9).toFixed(1) + " GB" : Math.round(b / 1e6) + " MB";
   const fmtDur = s => !isFinite(s) ? "" : Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
   let clipsLast = null;
-  let flKind = ["clips", "roms", "mp3", "mp4", "photos"].includes(store.get("fl.kind")) ? store.get("fl.kind") : "clips";
+  let flKind = ["clips", "roms", "mp3", "mp4", "photos", "shots"].includes(store.get("fl.kind")) ? store.get("fl.kind") : "clips";
   function loadClips() {
     document.querySelectorAll("#flMode button").forEach(b => b.setAttribute("aria-checked", b.dataset.k === flKind));
-    const vids = flKind === "clips" || flKind === "mp4", pics = flKind === "photos";
-    $("clGrid").hidden = !vids; $("fmList").hidden = vids || pics; $("phGrid").hidden = !pics; $("phBar").hidden = !pics;
+    const vids = flKind === "clips" || flKind === "mp4", shots = flKind === "shots", pics = flKind === "photos" || shots;
+    $("clGrid").hidden = !vids; $("fmList").hidden = vids || pics; $("phGrid").hidden = !pics; $("phBar").hidden = flKind !== "photos";
+    $("phDel").hidden = shots; $("clChoose").hidden = shots; $("clOpen").hidden = shots;
     if (!pics) phClose();
     if (!vids && !$("clPlay").hidden) $("clClose").click();
     $("flDl").hidden = !(flKind === "mp3" || flKind === "mp4");
     $("dlGo").textContent = flKind === "mp3" ? "Download MP3" : "Download MP4";
     $("fmPlay").hidden = flKind !== "mp3" || !fmNow;
-    $("clWhere").textContent = flKind === "clips" ? "Clips are saved here." : flKind === "roms" ? "These come from your Retro game folders." : flKind === "mp3" ? "Music downloads go here." : pics ? "Your photos live here." : "Video downloads go here.";
-    $("clDiff").hidden = flKind === "roms";
+    $("clWhere").textContent = shots ? "From Steam, Xbox Game Bar, Windows, NVIDIA / AMD and game photo modes." : flKind === "clips" ? "Clips are saved here." : flKind === "roms" ? "These come from your Retro game folders." : flKind === "mp3" ? "Music downloads go here." : pics ? "Your photos live here." : "Video downloads go here.";
+    $("clDiff").hidden = flKind === "roms" || flKind === "shots";
     if (vids) return loadClipGrid();
     if (flKind === "mp3") return loadMusic();
+    if (shots) return loadShots();
     if (pics) return loadPhotos();
     return loadRomList();
   }
@@ -6636,12 +6718,40 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
     });
     if (phAt >= 0) { if (phItems.length) phOpen(Math.min(phAt, phItems.length - 1)); else phClose(); }
   }
+  // Screenshots: every game screenshot on this PC, newest first, grouped by game (same viewer as Photos)
+  let shotGame = "";
+  async function loadShots() {
+    const grid = $("phGrid"); grid.replaceChildren(mk("p", "lyp-msg", "Looking for screenshots…"));
+    let list = null; try { list = await D.shotsList(); } catch {}
+    if (flKind !== "shots") return;
+    grid.replaceChildren(); $("clDir").textContent = "";
+    const all = list || [];
+    const games = [...new Set(all.map(x => x.game))];
+    if (shotGame && !games.includes(shotGame)) shotGame = "";
+    phItems = shotGame ? all.filter(x => x.game === shotGame) : all;
+    const msg = !list ? "Couldn't look for screenshots." : !all.length ? "No screenshots yet. Take one in a game (Steam: F12, Xbox Game Bar: Win+Alt+PrtScn) and press refresh." : "";
+    $("clMsg").textContent = msg; $("clMsg").hidden = !msg;
+    if (games.length > 1) {
+      const bar = mk("div", "sh-games");
+      const chip = (label, g) => { const c = mk("button", "chip" + (shotGame === g ? " on" : ""), label); c.type = "button"; c.onclick = () => { shotGame = g; loadShots(); }; return c; };
+      bar.append(chip("All (" + all.length + ")", ""), ...games.map(g => chip(g + " (" + all.filter(x => x.game === g).length + ")", g)));
+      grid.append(bar);
+    }
+    let last = "";
+    phItems.forEach((p, i) => {
+      if (!shotGame && p.game !== last) { last = p.game; grid.append(mk("div", "sh-h", p.game)); }
+      const b = mk("button", "phc"); b.type = "button"; b.title = p.game + " · " + p.name; b.setAttribute("aria-label", p.name);
+      const im = mk("img"); im.loading = "lazy"; im.decoding = "async"; im.alt = ""; im.src = p.url;
+      b.append(im); b.onclick = () => phOpen(i); fileDrag(b, p.path);
+      grid.append(b);
+    });
+  }
   function phOpen(i) {
     if (!phItems.length) return phClose();
     phAt = (i + phItems.length) % phItems.length;
     const p = phItems[phAt];
     $("phImg").src = p.url; $("phName").textContent = p.name;
-    $("phMeta").textContent = [ago(p.at), p.size < 1e6 ? Math.max(1, Math.round(p.size / 1e3)) + " KB" : fmtSize(p.size), (phAt + 1) + " of " + phItems.length].filter(Boolean).join(" · ");
+    $("phMeta").textContent = [p.game || "", ago(p.at), p.size < 1e6 ? Math.max(1, Math.round(p.size / 1e3)) + " KB" : fmtSize(p.size), (phAt + 1) + " of " + phItems.length].filter(Boolean).join(" · ");
     $("phPrev").hidden = $("phNext").hidden = phItems.length < 2;
     $("phDel").dataset.sure = ""; $("phDel").textContent = "Delete";
     $("phBox").hidden = false;
