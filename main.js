@@ -808,6 +808,53 @@ function cpLines(c) {
   const tip = [c.lifePath, eddies, time + (wx ? " · " + wx : ""), c.quest ? "Tracking: " + c.quest : ""].filter(Boolean).join(" · ");
   return { map: place + (doing ? " · " + doing : "") + stars, rank, tip };
 }
+/* ---------- Skyrim: your character from the newest save (the save file's header holds name, level, race and where you
+   saved). Updates every time the game saves, autosaves included, so no mod is needed. ---------- */
+let skNow = null, skDirs = null, skDirsAt = 0, skFile = "", skAt = 0;
+function skParse(file) {
+  const fd = fs.openSync(file, "r");
+  try {
+    const b = Buffer.alloc(4096); const n = fs.readSync(fd, b, 0, 4096, 0);
+    if (n < 40 || b.toString("latin1", 0, 13) !== "TESV_SAVEGAME") return null;
+    let o = 13 + 4;   // magic, header size
+    const u32 = () => { const v = b.readUInt32LE(o); o += 4; return v; };
+    const u16 = () => { const v = b.readUInt16LE(o); o += 2; return v; };
+    const str = () => { const l = u16(); const v = b.toString("utf8", o, o + l); o += l; return v; };
+    const version = u32(); u32();   // version, save number
+    const name = str(), level = u32(), location = str(), gameDate = str(), race = str(), sex = u16();
+    return { version, name, level, location, gameDate, race: race.replace(/Race(Vampire)?$/i, "").replace(/([a-z])([A-Z])/g, "$1 $2"), sex: sex === 1 ? "female" : "male" };
+  } finally { fs.closeSync(fd); }
+}
+function skFindDirs() {
+  const out = [];
+  const docs = app.getPath("documents");
+  for (const g of ["Skyrim Special Edition", "Skyrim Special Edition GOG", "Skyrim VR", "Skyrim"]) out.push(path.join(docs, "My Games", g, "Saves"));
+  // Mod Organizer setups that keep saves per profile (most Wabbajack lists do)
+  try {
+    for (const it of mo2Cache || []) {
+      if (!/skyrim|enderal/i.test(it.game)) continue;
+      let base = it.dir; try { const ini = fs.readFileSync(path.join(it.dir, "ModOrganizer.ini"), "utf8"); base = mo2Val(ini, "base_directory") || it.dir; } catch {}
+      try { for (const p of fs.readdirSync(path.join(base, "profiles"))) out.push(path.join(base, "profiles", p, "saves")); } catch {}
+    }
+  } catch {}
+  return out.filter(d => { try { return fs.statSync(d).isDirectory(); } catch { return false; } });
+}
+async function skPoll() {
+  if (!dcGame || !/skyrim|enderal/i.test(dcGame.name)) { skNow = null; return; }
+  if (!skDirs || Date.now() - skDirsAt > 120000) { if (!mo2Cache) await mo2List(false).catch(() => {}); skDirs = skFindDirs(); skDirsAt = Date.now(); }
+  let best = "", bestAt = 0;
+  for (const d of skDirs) { try { for (const f of fs.readdirSync(d)) { if (!/\.ess$/i.test(f)) continue; const st = fs.statSync(path.join(d, f)); if (st.mtimeMs > bestAt) { bestAt = st.mtimeMs; best = path.join(d, f); } } } catch {} }
+  if (!best || (best === skFile && bestAt === skAt)) return;
+  // only a save made since the game started counts (an older one is a different playthrough or last week)
+  if (bestAt < (dcGameAt || 0) - 60000) return;
+  skFile = best; skAt = bestAt;
+  let h = null; try { h = skParse(best); } catch {}
+  if (!h) return;
+  const changed = JSON.stringify(h) !== JSON.stringify(skNow);
+  skNow = h;
+  if (changed) dcPresence();
+}
+setInterval(() => { skPoll().catch(() => {}); }, 8000);
 function mapPicture(game) {
   if (game === "Rainbow Six Siege" && r6MapNow && /^[a-z0-9-]+$/.test(r6MapNow.slug || "")) return `https://static.stats.cc/siege/maps/${r6MapNow.slug}_thumbnail.webp`;
   if (game === "Counter-Strike 2" && csLive && /^[a-z0-9_]+$/.test(csLive.raw || "")) return `https://raw.githubusercontent.com/ghostcap-gaming/cs2-map-images/main/cs2/${csLive.raw}.png`;
@@ -820,7 +867,7 @@ function dcPresenceNow() {
   const song = dcPresOn() && player.connected && player.playing && player.title ? { t: String(player.title), a: String(player.artist || "") } : null;
   let game = dcPresOn() ? dcGame : null;
   const gr = settings.gameRanks || {};
-  let rank = "", map = "", small = null, cpTip = "";   // small: the little picture (your hero / operator / side) instead of the game logo
+  let rank = "", map = "", small = null, cpTip = "", skTip = "";   // small: the little picture (your hero / operator / side) instead of the game logo
   if (game && game.name === "Rainbow Six Siege") {
     rank = settings.r6RankName ? String(settings.r6RankName).replace(/^(no rank|not ranked)$/i, "Unranked") + (settings.r6RP ? " · " + Number(settings.r6RP).toLocaleString("en-US") + " RP" : "") : "";
     if (r6MapNow && Date.now() - r6MapNow.at < 45 * 60000) map = r6MapNow.name;
@@ -847,6 +894,10 @@ function dcPresenceNow() {
     if (ph === "menu") map = "In the main menu";
     else if (ph === "queue") map = "In queue";
     else if (owMapNow && Date.now() - owMapNow.at < 45 * 60000) map = owMapNow.name + (owMapNow.mode ? " · " + owMapNow.mode : "");
+  } else if (game && /skyrim|enderal/i.test(game.name) && skNow) {
+    map = skNow.location || "Skyrim";
+    rank = "Level " + skNow.level + (skNow.race ? " " + skNow.race : "");
+    skTip = [skNow.name, skNow.race ? skNow.race + " " + (skNow.sex || "") : "", (/^(\d+)\./.exec(skNow.gameDate || "") ? "Day " + (+/^(\d+)\./.exec(skNow.gameDate)[1] + 1) + " in Skyrim" : "")].filter(Boolean).join(" · ");
   } else if (game && game.name === "Cyberpunk 2077" && cpNow) {
     if (cpNow.inGame) {
       const l = cpLines(cpNow); rank = l.rank; map = l.map; cpTip = l.tip;
@@ -860,14 +911,15 @@ function dcPresenceNow() {
   const logo = game ? gameLogo(game) : "";
   const mapName = map ? map.split(" · ")[0] : "";
   // the timer on Discord counts the current match (a new map, or a Wardogs match with cash on screen); in menus it counts the whole game
-  const realMap = map && !/^In (the main menu|queue)$/.test(map) && !(game && /^(wardogs|cyberpunk)\b/i.test(game.name)) ? mapName : "";
+  const realMap = map && !/^In (the main menu|queue)$/.test(map) && !(game && /^(wardogs|cyberpunk)\b|skyrim|enderal/i.test(game.name)) ? mapName : "";
   const wdOn = game && /^wardogs\b/i.test(game.name) && wdCash && Date.now() - wdCash.at < 10 * 60000;
   const mKey = game ? game.name + "|" + realMap + (wdOn ? "|match" : "") : "";
   if (mKey !== matchKey) { matchKey = mKey; matchAt = Date.now(); }
   const startTs = game && (realMap || wdOn) ? matchAt : (dcGameAt || Date.now());
   const cut = (x, n) => x.length > n ? x.slice(0, n - 1) + "…" : x;
   // Cyberpunk with the Sothis Presence mod: the location is the headline (the game's logo already says Cyberpunk)
-  const cpOn = !!(game && game.name === "Cyberpunk 2077" && cpNow && cpNow.inGame && map);
+  const cpOn = !!(game && ((game.name === "Cyberpunk 2077" && cpNow && cpNow.inGame) || (/skyrim|enderal/i.test(game.name) && skNow)) && map);
+  if (skTip && !cpTip) cpTip = skTip;
   if (game && song) {
     act = {
       type: 0, status_display_type: 2,

@@ -1,5 +1,12 @@
 [
  {
+  "v": "1.17.0",
+  "d": "2026-10-27",
+  "notes": [
+   "Skyrim in your Discord status: where you are, your level and race, and (on hover) your character's name and day \u2014 read from your saves, no mod needed (works with Wabbajack lists too)"
+  ]
+ },
+ {
   "v": "1.16.7",
   "d": "2026-10-27",
   "notes": [
