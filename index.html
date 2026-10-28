@@ -1397,7 +1397,11 @@ body.on-home #bellBtn { display: none; }
 @keyframes glowPulse { 0%, 100% { opacity: 1; } 50% { opacity: .65; } }
 .titlebar, .panels, .tabs { transition: opacity .8s cubic-bezier(.4, 0, .2, 1), transform .8s cubic-bezier(.16, 1, .3, 1); }
 .panels { transition-delay: .08s; } .tabs { transition-delay: .16s; }
-body.splashing .titlebar, body.splashing .panels, body.splashing .tabs { opacity: 0; }
+body.splashing .titlebar, body.splashing .panels, body.splashing .tabs, body.splashing .wd-side { opacity: 0; }
+/* only the splash while Sothis opens: no side panel, visualizer or music on top of it */
+.wd-side { transition: opacity .8s cubic-bezier(.4, 0, .2, 1) .12s; }
+body.splashing .viz, body.splashing .viz-glow, body.splashing .lyp, body.splashing .mini, body.splashing .grip { visibility: hidden !important; }
+body.splashing .panels webview { visibility: hidden !important; }
 body.splashing .titlebar { transform: translateY(-6px); }
 body.splashing .panels { transform: translateY(8px); }
 body.splashing .tabs { transform: translateY(12px); }
