@@ -1748,6 +1748,16 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
 .sh-games { grid-column: 1 / -1; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .sh-games .chip { flex: none; }
 .sh-h { grid-column: 1 / -1; font: 700 .85rem var(--f-display); margin: 8px 2px 0; color: var(--ink); }
+
+/* Settings → Features (your own copy only) */
+.ft-head, .ft-row { display: grid; grid-template-columns: minmax(0, 1fr) 54px 54px; gap: 8px; align-items: center; }
+.ft-head { font: 700 .66rem var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 2px 4px; }
+.ft-head span:not(:first-child) { text-align: center; }
+.ft-row { padding: 8px 2px; border-top: 1px solid var(--line); }
+.ft-row .txt b { display: block; font-size: .86rem; } .ft-row .txt span { display: block; font-size: .72rem; color: var(--muted); line-height: 1.35; }
+.ft-row .switch { justify-self: center; }
+.ft-row.busy { opacity: .6; pointer-events: none; }
+.ft-sec { font: 700 .74rem var(--f-display); color: var(--accent); padding: 12px 2px 2px; }
 </style>
 </head>
 <body class="splashing">
@@ -2348,6 +2358,16 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
       <div class="col">
         <div class="sethead"><h2>Settings</h2><button class="btn ghost" id="setDone" type="button">Done</button></div>
         <nav class="set-nav" id="setNav" aria-label="Settings sections"></nav>
+        <div class="group ft-group" id="ftGroup" hidden>
+          <h2>Features</h2>
+          <p class="hint">Only on your own copy. <b>Mine</b> turns a feature on or off for you. <b>GitHub</b> decides whether everyone who installs Sothis from GitHub gets it (their Sothis checks every few hours).</p>
+          <div class="ft-head"><span>Feature</span><span>Mine</span><span>GitHub</span></div>
+          <div class="ft-list" id="ftList"></div>
+          <div class="setting">
+            <div class="txt"><div class="name">GitHub token</div><div class="desc" id="ftTokDesc">Needed for the GitHub switches. Make a fine-grained token on github.com (Settings → Developer settings) with <b>Contents: Read and write</b> on your Sothis repo, and paste it here. It's stored encrypted on this PC only.</div></div>
+            <div class="ck-volc"><input type="password" id="ftTok" placeholder="github_pat_…" autocomplete="off" spellcheck="false" style="width:150px"><button class="btn ghost" id="ftTokSave" type="button">Save</button></div>
+          </div>
+        </div>
         <div class="group">
           <h2>Window</h2>
           <div class="setting">
@@ -4298,6 +4318,77 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
     ytv.addEventListener("did-stop-loading", () => $("ytLoad").classList.remove("on"));
     watchNav(ytv);
   }
+  /* ---------- Features: what's switched on. Off features are hidden everywhere; your own copy has a list in Settings ---------- */
+  const FEATS = [
+    ["Music", [
+      ["music", "Music tab", "YouTube Music, Spotify or Apple Music inside Sothis", ["#tabbtn-ytm"]],
+      ["spotifyApple", "Spotify and Apple Music", "The other two sign-in boxes in Music", ['.ms-box[data-svc="spotify"]', '.ms-box[data-svc="apple"]']],
+      ["lyrics", "Lyrics", "Synced lyrics and the pop-out window", ["#lyBtn", "#lyPanel"]],
+      ["visualizer", "Visualizer", "The ring of bars around the crest", [".viz", ".viz-glow", ".setting:has(#setViz)"]]]],
+    ["Games", [
+      ["games", "Games tab", "Your PC games and game news", ["#tabbtn-games"]],
+      ["retro", "Retro", "Old console games inside Sothis", ['#gmMode [data-m="retro"]']],
+      ["releases", "Releases", "Upcoming anime and games", ['#gmMode [data-m="rel"]']],
+      ["mods", "Mods", "Your Mod Organizer setups", ['#gmMode [data-m="mods"]']],
+      ["stats", "Stats tab", "Overwatch, CS2 and Siege ranks", ["#tabbtn-stats"]],
+      ["switch", "Switch tab", "The Switch emulator page", ["#tabbtn-switch"]]]],
+    ["Apps", [
+      ["claude", "Claude button", "Claude inside Sothis", ["#tabbtn-claude"]],
+      ["opera", "Opera GX button", "Opera GX docked in Sothis", [".op-fab"]],
+      ["discord", "Discord call", "The call card, Discord button and voice overlay", ["#dcBtn", "#hmDc"]],
+      ["dcStatus", "Discord status", "Your song or game in your Discord status", [".setting:has(#setDcPres)", ".setting:has(#setDcIdle)", ".setting:has(#setDcName)"]],
+      ["gameDetails", "Game details in status", "Cyberpunk and Skyrim details in your Discord status", []],
+      ["crunchyroll", "Crunchyroll status", "What you watch on Crunchyroll in your status", [".setting:has(#setCrExt)"]],
+      ["sound", "Sound mixer", "The sound button and per-app volume", ["#sndBtn"]]]],
+    ["Clips and files", [
+      ["clips", "Clips", "Records your games so you can save the last moments", ["#hmClip", ".setting:has(#ckOn)"]],
+      ["files", "Files page", "Clips, ROMs, MP3, MP4 and photos", ["#hmClipDir", "#hmFiles"]],
+      ["screenshots", "Screenshots", "Every game screenshot, by game", ['#flMode [data-k="shots"]']]]],
+    ["Home and extras", [
+      ["phone", "Phone remote", "Control Sothis from your phone", ["#phGroup"]],
+      ["battery", "Mouse battery", "The battery badge and alerts", ["#battBadge", "#mBatt"]],
+      ["weather", "Weather", "The weather chip", ["#wxBadge"]],
+      ["minecraft", "Minecraft server", "Your server's player count", ["#mcBadge"]],
+      ["week", "Your week", "The weekly recap", ["#hmWeek"]],
+      ["daily", "Daily start screen", "Weather, releases and yesterday each morning", [".ds", ".setting:has(#setDaily)"]],
+      ["notes", "Notes", "The notes box on Home", ["#hmNotes"]],
+      ["patchNotes", "Patch notes", "What's new when you hover the bell", [".pn-pop"]]]]
+  ];
+  let ftState = D.features || { owner: false, on: {}, list: {} };
+  function ftApply() {
+    let css = "";
+    for (const [, items] of FEATS) for (const [id, , , sel] of items) if (ftState.on && ftState.on[id] === false && sel.length) css += sel.join(", ") + " { display: none !important; }\n";
+    let st = document.getElementById("ftStyle"); if (!st) { st = document.createElement("style"); st.id = "ftStyle"; document.head.append(st); }
+    st.textContent = css;
+    // a switched-off tab you're on: back to Home
+    const tabFeat = { ytm: "music", games: "games", stats: "stats", switch: "switch", claude: "claude" };
+    try { if (tabFeat[tab] && ftState.on[tabFeat[tab]] === false) showTab("home"); } catch {}
+  }
+  function ftRender() {
+    $("ftGroup").hidden = !ftState.owner;
+    if (!ftState.owner) return;
+    const list = $("ftList"); list.replaceChildren();
+    for (const [sec, items] of FEATS) {
+      list.append(mk("div", "ft-sec", sec));
+      for (const [id, name, desc] of items) {
+        const row = mk("div", "ft-row"), tx = mk("div", "txt"); tx.append(mk("b", "", name), mk("span", "", desc));
+        const v = (ftState.list && ftState.list[id]) || { private: true, github: true };
+        const sw = which => { const b = mk("button", "switch"); b.type = "button"; b.setAttribute("role", "switch"); b.setAttribute("aria-checked", String(!!v[which])); b.setAttribute("aria-label", name + (which === "private" ? " on my copy" : " on the GitHub copy"));
+          b.onclick = async () => { row.classList.add("busy"); let r = null; try { r = await D.featuresSet(id, which, !v[which]); } catch {} row.classList.remove("busy");
+            if (r && r.state) { ftState = r.state; ftApply(); ftRender(); }
+            if (r && !r.ok && r.err) toast(r.err); else if (which === "github") toast(name + (v[which] ? " removed from" : " added to") + " the GitHub copy"); };
+          return b; };
+        row.append(tx, sw("private"), sw("github"));
+        list.append(row);
+      }
+    }
+    $("ftTokDesc").lastChild && 0;
+    $("ftTok").placeholder = ftState.token ? "Saved (paste a new one to replace)" : "github_pat_…";
+  }
+  $("ftTokSave").onclick = async () => { const t = $("ftTok").value.trim(); let r = null; try { r = await D.featuresToken(t); } catch {} $("ftTok").value = ""; if (r) { ftState = r; ftRender(); } toast(t ? "GitHub token saved on this PC" : "GitHub token removed"); };
+  D.onFeatures(d => { ftState = d; ftApply(); ftRender(); });
+  ftApply(); ftRender();
+
   /* ---------- Lyrics: synced lyrics for whatever's playing, in the Music tab or popped out into their own window ---------- */
   let lyOpen = false, lyPopped = false, lyKey = "", lyData = null, lyLoading = false, lyCur = -2, lyStateAt = 0;
   async function lyFetch() {

@@ -6,7 +6,7 @@
 const path = require("path"), fs = require("fs"), { spawn, execFile } = require("child_process");
 
 module.exports = function makeClipper(ctx) {
-  const { app, screen, DATA_DIR, log, getSettings, clipsDir, VID_RE, currentGame, onState, requestAudio, setAudio, notify, gameRect, gameMonitor } = ctx;
+  const { app, screen, DATA_DIR, log, getSettings, clipsDir, VID_RE, currentGame, onState, requestAudio, setAudio, notify, gameRect, gameMonitor, featOn } = ctx;
   const FF_DIR = path.join(DATA_DIR, "ffmpeg");
   const BUF = path.join(DATA_DIR, "clipbuf");
   const SEG = 2, WRAP = 70;   // 2 s pieces, 140 s kept at most
@@ -109,7 +109,7 @@ module.exports = function makeClipper(ctx) {
   }
   function start(keep) {
     want = true;
-    if (ff || process.platform !== "win32" || !cfg().on) return;
+    if (ff || process.platform !== "win32" || !cfg().on || (typeof featOn === "function" && !featOn("clips"))) return;
     if (!ffExe()) { ffEnsure().then(ok => { if (ok && want) start(); }); return; }
     if (keep && wallOff != null && segs.length) {
       // keep the last run's pieces (by wall-clock time) for clips that reach back past the restart

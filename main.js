@@ -28,6 +28,16 @@ const DATA_DIR = path.join(app.getPath("appData"), "Sothis");
 // so the app code that's shared with friends has none of them.
 let personal = {};
 try { personal = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "personal.json"), "utf8")) || {}; } catch {}
+/* ---------- Features: your own copy (the PC with personal.json) picks what's on for you, and what the GitHub copy
+   everyone else installs gets. The GitHub choices live in features.json in the repo; everyone else's Sothis re-reads it
+   from GitHub every few hours, so a change reaches them without a new version. ---------- */
+const isOwner = fs.existsSync(path.join(DATA_DIR, "personal.json"));
+const FEAT_REMOTE = () => path.join(DATA_DIR, "features-github.json");
+function featGithub() {
+  for (const f of [FEAT_REMOTE(), path.join(__dirname, "features.json")]) { try { const j = JSON.parse(fs.readFileSync(f, "utf8")); if (j && j.github) return j.github; } catch {} }
+  return {};
+}
+function featOn(id) { const m = isOwner ? ((typeof settings === "object" && settings && settings.featPrivate) || {}) : featGithub(); return m[id] !== false; }
 app.setPath("userData", DATA_DIR);
 try { fs.rmSync(path.join(DATA_DIR, "Partitions", "nintendo"), { recursive: true, force: true }); } catch {}
 
@@ -863,6 +873,7 @@ function mapPicture(game) {
 }
 function dcPresenceNow() {
   if (!dc.sock || dc.status !== "ok") { presLog("not sent: Discord connection is " + (dc.status || "off")); return; }
+  if (!featOn("dcStatus")) { if (dcPresKey !== "off") { dcPresKey = "off"; dcCmd("SET_ACTIVITY", { pid: process.pid, activity: null }).catch(() => {}); } return; }
   let act = null;
   const song = dcPresOn() && player.connected && player.playing && player.title ? { t: String(player.title), a: String(player.artist || "") } : null;
   let game = dcPresOn() ? dcGame : null;
@@ -894,11 +905,11 @@ function dcPresenceNow() {
     if (ph === "menu") map = "In the main menu";
     else if (ph === "queue") map = "In queue";
     else if (owMapNow && Date.now() - owMapNow.at < 45 * 60000) map = owMapNow.name + (owMapNow.mode ? " · " + owMapNow.mode : "");
-  } else if (game && /skyrim|enderal/i.test(game.name) && skNow) {
+  } else if (game && /skyrim|enderal/i.test(game.name) && skNow && featOn("gameDetails")) {
     map = skNow.location || "Skyrim";
     rank = "Level " + skNow.level + (skNow.race ? " " + skNow.race : "");
     skTip = [skNow.name, skNow.race ? skNow.race + " " + (skNow.sex || "") : "", (/^(\d+)\./.exec(skNow.gameDate || "") ? "Day " + (+/^(\d+)\./.exec(skNow.gameDate)[1] + 1) + " in Skyrim" : "")].filter(Boolean).join(" · ");
-  } else if (game && game.name === "Cyberpunk 2077" && cpNow) {
+  } else if (game && game.name === "Cyberpunk 2077" && cpNow && featOn("gameDetails")) {
     if (cpNow.inGame) {
       const l = cpLines(cpNow); rank = l.rank; map = l.map; cpTip = l.tip;
     }
@@ -931,7 +942,7 @@ function dcPresenceNow() {
         : logo ? Object.assign({ large_image: logo, large_text: cut(cpTip || game.name, 120) }, (small && small.img) ? { small_image: small.img, small_text: cut(small.text || rank || game.name, 120) } : {})
         : art ? { large_image: art, large_text: cut(song.t, 120) } : undefined
     };
-  } else if ((crExt || crNow) && dcPresOn() && settings.dcWatch !== false) {
+  } else if ((crExt || crNow) && dcPresOn() && settings.dcWatch !== false && featOn("crunchyroll")) {
     // Crunchyroll: "S1 E4 · Episode title", with the episode's time bar when the extension tells us where you are
     const c = crExt || crNow, CR_ICON = "https://www.google.com/s2/favicons?domain=crunchyroll.com&sz=256";
     const se = (c.season ? "S" + c.season + " " : "") + (c.ep ? "E" + c.ep : "");
@@ -1675,6 +1686,7 @@ function clipper() {
     log: t => { try { presLog(t); } catch {} },
     getSettings: () => settings,
     gameRect: () => gameWindowRect(),
+    featOn: id => featOn(id),
     gameMonitor: () => (sess ? clipGameMon : -1),
     currentGame: () => (sess && sess.game) || (dcGame && dcGame.name !== "a Steam game" ? dcGame.name : "") || "",
     onState: st => { try { clipHideApply(); } catch {} if (win && !win.isDestroyed()) win.webContents.send("clip:state", Object.assign({}, st, { ready: !!clipperObj && !!clipperObj.ffExe() })); },
@@ -2661,7 +2673,7 @@ ipcMain.on("tray:icon", (_e, imgs) => {
 ipcMain.handle("battery:get", () => battery);
 // which mouse to read: auto (try them all), gwolves, logitech, razer, bluetooth, or off
 const BATT_BRANDS = ["auto", "gwolves", "logitech", "razer", "bluetooth", "off"];
-const battBrand = () => BATT_BRANDS.includes(settings.battBrand) ? settings.battBrand : "auto";
+const battBrand = () => !featOn("battery") ? "off" : BATT_BRANDS.includes(settings.battBrand) ? settings.battBrand : "auto";
 ipcMain.handle("battery:brand", (_e, b) => {
   if (BATT_BRANDS.includes(b) && b !== battBrand()) { settings.battBrand = b; saveSettings(); battery = { state: b === "off" ? "off" : "checking" }; sendBattery(); refreshBattery(); }
   return battBrand();
@@ -4407,6 +4419,7 @@ async function phCmd(cmd, value) {
   return { ok: false, err: "Unknown command" };
 }
 function phStart() {
+  if (!featOn("phone")) return;
   if (phSrv || !phCfg().on) return;
   const http = require("http");
   phSrv = http.createServer((req, res) => {
@@ -4493,6 +4506,65 @@ ipcMain.handle("brand:pickLogo", async () => {
 ipcMain.handle("brand:resetLogo", () => { delete settings.customLogo; saveSettings(); try { fs.rmSync(customLogoFile(), { force: true }); } catch {} brandApplyNative(); return brandInfo(); });
 ipcMain.handle("app:changelog", () => { try { return JSON.parse(fs.readFileSync(path.join(__dirname, "changelog.json"), "utf8")); } catch { return []; } });
 ipcMain.on("app:has", e => { e.returnValue = { rgb: hasFile("rgb.ps1"), chime: hasFile("queue-chime.wav"), sw: hasFile("sw-pop.html") }; });
+const FEATURE_IDS = ["music", "spotifyApple", "lyrics", "visualizer", "games", "retro", "releases", "mods", "stats", "switch", "claude", "opera", "discord", "dcStatus", "gameDetails", "crunchyroll", "sound", "clips", "files", "screenshots", "phone", "battery", "weather", "minecraft", "week", "daily", "notes", "patchNotes"];
+function featState() {
+  const gh = featGithub(), pv = (settings && settings.featPrivate) || {};
+  const o = {}; for (const id of FEATURE_IDS) o[id] = { private: pv[id] !== false, github: gh[id] !== false };
+  return { owner: isOwner, on: Object.fromEntries(FEATURE_IDS.map(id => [id, featOn(id)])), list: o, token: isOwner && !!(settings && settings.ghToken) };
+}
+function featApply() {
+  try { if (win && !win.isDestroyed()) win.webContents.send("features:changed", featState()); } catch {}
+  // things that run in the background follow right away
+  try { if (!featOn("clips") && clipperObj) clipperObj.stop(); else if (featOn("clips") && sess && (settings.clips || {}).on !== false) { const st = clipper().state(); if (!st.recording && st.phase !== "setup") clipper().start(); } } catch {}
+  try { if (!featOn("phone")) phStop(); else if (phCfg().on) phStart(); } catch {}
+  try { refreshBattery(); } catch {}
+  try { dcPresKey = "x"; dcPresence(); } catch {}
+}
+ipcMain.on("features:get", e => { try { e.returnValue = featState(); } catch { e.returnValue = { owner: false, on: {}, list: {} }; } });
+ipcMain.handle("features:set", async (_e, { id, which, on }) => {
+  if (!isOwner || !FEATURE_IDS.includes(id)) return { ok: false, err: "Only your own copy can change this." };
+  if (which === "private") {
+    settings.featPrivate = Object.assign({}, settings.featPrivate, { [id]: !!on }); saveSettings(); featApply();
+    return { ok: true, state: featState() };
+  }
+  // GitHub: update features.json in the repo (needs your GitHub token, kept encrypted on this PC only)
+  const tok = decSecret(settings.ghToken);
+  if (!tok) return { ok: false, err: "Add your GitHub token first (just below the list).", state: featState() };
+  const gh = Object.assign({}, featGithub(), { [id]: !!on });
+  const body = JSON.stringify({ _note: "Which Sothis features the GitHub copy has. Changed from Sothis's own Settings → Features.", github: gh }, null, 1) + "\n";
+  try {
+    const { net: enet } = require("electron");
+    const api = `https://api.github.com/repos/${UPD_REPO || "Cloakedz/Sothis"}/contents/features.json`;
+    const H = { Authorization: "Bearer " + tok, Accept: "application/vnd.github+json", "User-Agent": "Sothis", "X-GitHub-Api-Version": "2022-11-28" };
+    let sha; try { const g = await enet.fetch(api + "?ref=main", { headers: H }); if (g.ok) sha = (await g.json()).sha; } catch {}
+    const r = await enet.fetch(api, { method: "PUT", headers: Object.assign({ "Content-Type": "application/json" }, H), body: JSON.stringify({ message: "Features: " + id + " " + (on ? "on" : "off") + " for the GitHub copy", content: Buffer.from(body).toString("base64"), branch: "main", sha }) });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); return { ok: false, err: "GitHub said no (" + r.status + (j.message ? ": " + j.message : "") + ").", state: featState() }; }
+    try { fs.writeFileSync(path.join(__dirname, "features.json"), body); } catch {}
+    try { fs.writeFileSync(FEAT_REMOTE(), body); } catch {}
+    return { ok: true, state: featState() };
+  } catch (e) { return { ok: false, err: "Couldn't reach GitHub (" + e.message + ").", state: featState() }; }
+});
+ipcMain.handle("features:token", (_e, t) => {
+  if (!isOwner) return featState();
+  t = String(t || "").trim();
+  if (!t) delete settings.ghToken; else { const e = encSecret(t); if (e) settings.ghToken = e; }
+  saveSettings(); return featState();
+});
+// everyone else: pick up the GitHub choices without waiting for a new version
+async function featFetch() {
+  if (isOwner || !UPD_REPO) return;
+  try {
+    const { net: enet } = require("electron");
+    const r = await enet.fetch(`https://raw.githubusercontent.com/${UPD_REPO}/main/features.json?t=${Date.now()}`, { headers: { "Cache-Control": "no-cache" } });
+    if (!r.ok) return;
+    const txt = await r.text(); const j = JSON.parse(txt);
+    if (!j || !j.github) return;
+    const before = JSON.stringify(featGithub());
+    fs.writeFileSync(FEAT_REMOTE(), txt);
+    if (JSON.stringify(j.github) !== before) featApply();
+  } catch {}
+}
+app.whenReady().then(() => { setTimeout(featFetch, 20000); setInterval(featFetch, 3 * 3600000); });
 ipcMain.on("personal:get", e => { e.returnValue = { dcServers: Array.isArray(personal.dcServers) ? personal.dcServers.map(String).slice(0, 10) : [], mcAddr: typeof personal.mcAddr === "string" ? personal.mcAddr : "", owReminder: personal.owReminder === true }; });
 ipcMain.handle("phone:set", (_e, on) => { phCfg().on = !!on; saveSettings(); if (on) phStart(); else phStop(); return phInfo(); });
 ipcMain.handle("phone:newCode", () => { phCfg().code = ""; saveSettings(); phCfg(); return phInfo(); });

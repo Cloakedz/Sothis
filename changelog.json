@@ -1,5 +1,12 @@
 [
  {
+  "v": "1.19.0",
+  "d": "2026-10-27",
+  "notes": [
+   "Settings \u2192 Features (your own copy only): every feature with a switch for you and a switch for the GitHub copy"
+  ]
+ },
+ {
   "v": "1.18.0",
   "d": "2026-10-27",
   "notes": [
