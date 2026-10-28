@@ -4547,17 +4547,36 @@ ipcMain.handle("features:set", async (_e, { id, which, on }) => {
     const H = { Authorization: "Bearer " + tok, Accept: "application/vnd.github+json", "User-Agent": "Sothis", "X-GitHub-Api-Version": "2022-11-28" };
     let sha; try { const g = await enet.fetch(api + "?ref=main", { headers: H }); if (g.ok) sha = (await g.json()).sha; } catch {}
     const r = await enet.fetch(api, { method: "PUT", headers: Object.assign({ "Content-Type": "application/json" }, H), body: JSON.stringify({ message: "Features: " + id + " " + (on ? "on" : "off") + " for the GitHub copy", content: Buffer.from(body).toString("base64"), branch: "main", sha }) });
-    if (!r.ok) { const j = await r.json().catch(() => ({})); return { ok: false, err: "GitHub said no (" + r.status + (j.message ? ": " + j.message : "") + ").", state: featState() }; }
+    if (!r.ok) { const j = await r.json().catch(() => ({})); const why = r.status === 401 ? " Your token was rejected; paste a new one below." : r.status === 403 || r.status === 404 ? " Your token needs Contents: Read and write on the Sothis repo." : ""; return { ok: false, err: "GitHub said no (" + r.status + (j.message ? ": " + j.message : "") + ")." + why, state: featState() }; }
     try { fs.writeFileSync(path.join(__dirname, "features.json"), body); } catch {}
     try { fs.writeFileSync(FEAT_REMOTE(), body); } catch {}
     return { ok: true, state: featState() };
   } catch (e) { return { ok: false, err: "Couldn't reach GitHub (" + e.message + ").", state: featState() }; }
 });
-ipcMain.handle("features:token", (_e, t) => {
-  if (!isOwner) return featState();
-  t = String(t || "").trim();
-  if (!t) delete settings.ghToken; else { const e = encSecret(t); if (e) settings.ghToken = e; }
-  saveSettings(); return featState();
+// the token is checked with GitHub before it's kept, so a bad one says why instead of failing later
+async function ghTokenCheck(tok) {
+  const repo = UPD_REPO || "Cloakedz/Sothis";
+  const { net: enet } = require("electron");
+  const H = { Authorization: "Bearer " + tok, Accept: "application/vnd.github+json", "User-Agent": "Sothis", "X-GitHub-Api-Version": "2022-11-28" };
+  let r; try { r = await enet.fetch(`https://api.github.com/repos/${repo}`, { headers: H }); } catch (e) { return { ok: false, msg: "Couldn't reach GitHub (" + e.message + ")." }; }
+  if (r.status === 401) return { ok: false, msg: "GitHub didn't accept that token. It may be mistyped, expired or deleted." };
+  if (r.status === 403) return { ok: false, msg: "GitHub blocked that token (403). If it's a fine-grained token, check it's been approved and hasn't expired." };
+  if (r.status === 404) return { ok: false, msg: `That token can't see ${repo}. Edit it on GitHub and add the ${repo.split("/")[1]} repository under Repository access.` };
+  if (!r.ok) return { ok: false, msg: "GitHub said " + r.status + "." };
+  const j = await r.json().catch(() => ({}));
+  if (j.permissions && j.permissions.push === false) return { ok: false, msg: "That token can only read. Set Repository permissions → Contents to Read and write (or tick \"repo\" on a classic token)." };
+  return { ok: true, msg: "GitHub token works and is saved on this PC" };
+}
+ipcMain.handle("features:token", async (_e, t) => {
+  if (!isOwner) return Object.assign(featState(), { ok: false, msg: "Only your own copy uses a token." });
+  t = String(t || "").trim().replace(/^(bearer|token)\s+/i, "").replace(/\s+/g, "");
+  if (!t) { delete settings.ghToken; saveSettings(); return Object.assign(featState(), { ok: true, msg: "GitHub token removed" }); }
+  const chk = await ghTokenCheck(t);
+  if (!chk.ok) return Object.assign(featState(), chk);
+  const e = encSecret(t);
+  if (!e) return Object.assign(featState(), { ok: false, msg: "Windows couldn't encrypt the token, so it wasn't saved." });
+  settings.ghToken = e; saveSettings();
+  return Object.assign(featState(), chk);
 });
 // everyone else: pick up the GitHub choices without waiting for a new version
 async function featFetch() {

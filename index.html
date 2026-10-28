@@ -2956,7 +2956,7 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
   function toast(text) {
     const t = document.getElementById("toast"); if (!t) return;
     t.textContent = String(text || ""); t.classList.add("on");
-    clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.remove("on"), 2400);
+    clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.remove("on"), Math.max(2400, String(text || "").length * 60));
   }
     const store = {
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -4464,7 +4464,14 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
     $("ftTokDesc").lastChild && 0;
     $("ftTok").placeholder = ftState.token ? "Saved (paste a new one to replace)" : "github_pat_…";
   }
-  $("ftTokSave").onclick = async () => { const t = $("ftTok").value.trim(); let r = null; try { r = await D.featuresToken(t); } catch {} $("ftTok").value = ""; if (r) { ftState = r; ftRender(); } toast(t ? "GitHub token saved on this PC" : "GitHub token removed"); };
+  $("ftTokSave").onclick = async () => {
+    const t = $("ftTok").value.trim(), btn = $("ftTokSave"); btn.disabled = true; btn.textContent = "Checking…";
+    let r = null; try { r = await D.featuresToken(t); } catch {}
+    btn.disabled = false; btn.textContent = "Save";
+    if (r && r.ok !== false) $("ftTok").value = "";
+    if (r) { ftState = r; ftRender(); }
+    toast(r && r.msg ? r.msg : "Couldn't save the token");
+  };
   D.onFeatures(d => { ftState = d; ftApply(); ftRender(); });
   ftApply(); ftRender();
 
