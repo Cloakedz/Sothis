@@ -364,6 +364,7 @@ module.exports = function makeClipper(ctx) {
     state: () => Object.assign({}, st, { ready: !!ffExe(), recording: !!ff, keys: hookActive(), cfg: cfg() }),
     keyName: () => cfg().key,
     hookActive, hookStart, followGame,
+    recDisplay: () => (ff ? curIdx : -1),
     _inject: evs => { inputs = evs; hookOk = true; hook = hook || { fake: true }; },
     applyAudio: () => { if (ff) setAudio(audioCfg()); },
     restart: () => { if (ff) { const was = want; stop(); setTimeout(() => { if (was) start(); }, 2000); } }

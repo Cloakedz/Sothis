@@ -1771,15 +1771,25 @@ function aaSet(on) {
   else for (const k of Object.keys(aa.procs)) { try { aa.procs[k].kill(); } catch {} delete aa.procs[k]; }
 }
 app.on("will-quit", () => aaSet(false));
-// Sothis's own windows stay out of clips while the recorder runs (Windows leaves them out of screen captures)
+// Sothis's own windows stay out of clips while the recorder runs. Windows can only hide a window from every capture at once
+// (Discord screen share too), so only the windows on the screen being recorded are hidden; on your other screen Sothis shares normally.
 let clipHidden = false;
+const clipProt = new WeakMap();
 function clipHideApply() {
-  const want = !!(clipperObj && clipperObj.state().recording) && ((settings.clips || {}).hideSothis !== false);
-  if (want === clipHidden) return;
+  const st = clipperObj ? clipperObj.state() : null;
+  const want = !!(st && st.recording) && ((settings.clips || {}).hideSothis !== false);
+  let rec = null;
+  if (want) { try { const i = clipperObj.recDisplay ? clipperObj.recDisplay() : -1; rec = i >= 0 ? screen.getAllDisplays()[i] : null; } catch {} }
   clipHidden = want;
-  for (const w of BrowserWindow.getAllWindows()) { try { if (!w.isDestroyed()) w.setContentProtection(want); } catch {} }
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (w.isDestroyed()) continue;
+    let on = want;
+    if (on && rec) { try { on = screen.getDisplayMatching(w.getBounds()).id === rec.id; } catch {} }
+    if (clipProt.get(w) !== on) { try { w.setContentProtection(on); clipProt.set(w, on); } catch {} }
+  }
 }
-app.on("browser-window-created", (_e, w) => { if (clipHidden) { try { w.setContentProtection(true); } catch {} } });
+setInterval(() => { try { if (clipHidden || BrowserWindow.getAllWindows().some(w => clipProt.get(w))) clipHideApply(); } catch {} }, 2000);
+app.on("browser-window-created", (_e, w) => { if (clipHidden) setTimeout(() => { try { clipHideApply(); } catch {} }, 300); try { w.on("moved", () => { try { if (clipHidden) clipHideApply(); } catch {} }); } catch {} });
 // where the game's window is (its inside, without the title bar), in real screen pixels, plus the screen it's on
 // the folder a Steam game is installed in (to find its window)
 async function steamInstallDir(appid) {
