@@ -73,9 +73,6 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
   background: var(--accent); color: #fff; font-weight: 800; font-size: .8rem; box-shadow: 0 10px 30px var(--glow), 0 4px 14px rgba(0,0,0,.5); transition: transform .12s, opacity .2s, background .2s; }
 .cfab svg { width: 26px; height: 26px; flex: none; display: block; }
 .cfab span { display: block; }
-.cfab i { position: absolute; top: -3px; right: -3px; width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); box-sizing: border-box; opacity: 0; }
-.cfab.rec i { opacity: 1; animation: cfp 1.4s ease-in-out infinite; }
-@keyframes cfp { 50% { opacity: .25; } }
 .cfab:active { transform: scale(.92); }
 .cfab.off { opacity: .55; }
 .cfab.busy { pointer-events: none; opacity: .7; }
@@ -176,7 +173,7 @@ main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 </section>
 
 <main id="mainView" class="hide">
-  <button class="cfab" id="cfab" type="button" aria-label="Clip the last moments"><i></i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/></svg><span>Clip</span></button>
+  <button class="cfab" id="cfab" type="button" aria-label="Clip the last moments"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/></svg><span>Clip</span></button>
   <div class="off-note hide" id="offNote">Can't reach your PC. Is Sothis open and are you on the same Wi-Fi?</div>
 
   <div class="pg" data-pg="now">
