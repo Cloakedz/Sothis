@@ -68,10 +68,12 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
 .clip i { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--glow); }
 .clip:active { transform: scale(.96); }
 .clip.off { opacity: .5; }
-.cfab { position: fixed; right: 18px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 30; width: 78px; height: 78px; border-radius: 50%; display: grid; place-items: center; align-content: center; gap: 2px;
-  background: var(--accent); color: #fff; font-weight: 800; font-size: .78rem; box-shadow: 0 10px 30px var(--glow), 0 4px 14px rgba(0,0,0,.5); transition: transform .12s, opacity .2s; }
-.cfab svg { width: 30px; height: 30px; }
-.cfab i { position: absolute; top: 10px; right: 12px; width: 9px; height: 9px; border-radius: 50%; background: #fff; opacity: 0; }
+.cfab { position: fixed; right: 16px; bottom: calc(102px + env(safe-area-inset-bottom)); z-index: 30; height: 56px; min-width: 112px; box-sizing: border-box; padding: 0 22px 0 18px; border-radius: 28px;
+  display: flex; align-items: center; justify-content: center; gap: 9px; -webkit-appearance: none; appearance: none; overflow: visible; white-space: nowrap; line-height: 1;
+  background: var(--accent); color: #fff; font-weight: 800; font-size: 1rem; box-shadow: 0 10px 30px var(--glow), 0 4px 14px rgba(0,0,0,.5); transition: transform .12s, opacity .2s, background .2s; }
+.cfab svg { width: 24px; height: 24px; flex: none; display: block; }
+.cfab span { display: block; }
+.cfab i { position: absolute; top: -3px; right: -3px; width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); box-sizing: border-box; opacity: 0; }
 .cfab.rec i { opacity: 1; animation: cfp 1.4s ease-in-out infinite; }
 @keyframes cfp { 50% { opacity: .25; } }
 .cfab:active { transform: scale(.92); }

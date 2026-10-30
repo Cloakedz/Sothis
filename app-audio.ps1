@@ -152,7 +152,8 @@ namespace SothisAudio {
             }
           }
           cap.ReleaseBuffer(frames);
-          BitConverter.GetBytes((long)qpos).CopyTo(hdr, 0); BitConverter.GetBytes((int)frames).CopyTo(hdr, 8);
+          long ts = (qpos == 0 || (flags & 4) != 0) ? Now100ns() : (long)qpos;   // no (or a bad) timestamp: use the time it arrived
+          BitConverter.GetBytes(ts).CopyTo(hdr, 0); BitConverter.GetBytes((int)frames).CopyTo(hdr, 8);
           outp.Write(hdr, 0, 12); outp.Write(buf, 0, bytes);
         }
         outp.Flush();

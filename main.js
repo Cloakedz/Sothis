@@ -1719,7 +1719,12 @@ const AA_RATE = 48, AA_FRAMES = 48000 * 130;   // 48 samples per ms, 130 s kept
 const aa = { want: false, procs: {}, rings: {}, fails: { game: 0, voice: 0 }, timers: {} };
 function aaRing() { return { buf: new Int16Array(AA_FRAMES * 2), hi: -1, ok: false, at: 0 }; }
 function aaWrite(ring, wallMs, data, n) {
-  const f0 = Math.round(wallMs * AA_RATE), b = ring.buf;
+  // Packets go end to end by their sample count. The timestamp only places the first one and re-anchors after a real gap
+  // (the app went quiet, the helper restarted) or slow clock drift; per-app recording's timestamps jitter, and placing every
+  // packet by them overlapped and gapped the sound (choppy, and it seemed sped up).
+  const ts = Math.round(wallMs * AA_RATE), b = ring.buf;
+  const f0 = ring.next != null && Math.abs(ts - ring.next) < AA_RATE * 120 ? ring.next : ts;
+  ring.next = f0 + n;
   if (ring.hi >= 0 && f0 > ring.hi + 1) for (let f = ring.hi + 1, e = Math.min(f0, ring.hi + 1 + AA_FRAMES); f < e; f++) { const p = (f % AA_FRAMES) * 2; b[p] = b[p + 1] = 0; }
   for (let i = 0; i < n; i++) { const p = ((f0 + i) % AA_FRAMES) * 2; b[p] = data.readInt16LE(i * 4); b[p + 1] = data.readInt16LE(i * 4 + 2); }
   ring.hi = Math.max(ring.hi, f0 + n - 1); ring.at = Date.now();
@@ -1738,6 +1743,7 @@ function aaSpawn(key) {
   let p; try { p = require("child_process").spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-MTA", "-ExecutionPolicy", "Bypass", "-File", path.join(__dirname, "app-audio.ps1"), "-Mode", mode, "-Target", "Discord"], { windowsHide: true }); } catch { aa.fails[key]++; return; }
   aa.procs[key] = p;
   const ring = aa.rings[key] || (aa.rings[key] = aaRing());
+  ring.next = null;
   let pend = Buffer.alloc(0), map = null, err = "";
   p.stdout.on("data", d => {
     pend = pend.length ? Buffer.concat([pend, d]) : d;
