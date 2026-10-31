@@ -1405,6 +1405,13 @@ body.splashing .panels webview { visibility: hidden !important; }
 body.splashing .titlebar { transform: translateY(-6px); }
 body.splashing .panels { transform: translateY(8px); }
 body.splashing .tabs { transform: translateY(12px); }
+/* the background crest breathes with a soft glow in your accent colour */
+@keyframes crestBgGlow {
+  0%, 100% { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 25%, transparent)) brightness(.94); }
+  50% { filter: drop-shadow(0 0 16px color-mix(in srgb, var(--accent) 70%, transparent)) drop-shadow(0 0 40px color-mix(in srgb, var(--accent) 35%, transparent)) brightness(1.1); }
+}
+.shell::before { animation: crestBgGlow 4.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .shell::before { animation: none; } }
 body.splashing .shell::before { opacity: .25 !important; transition: opacity .9s cubic-bezier(.4, 0, .2, 1); }
 .sp-word { position: absolute; left: 50%; top: calc(50% + var(--cw) * .62); height: min(56px, 8vh); width: auto; overflow: visible; transform: translateX(-50%);
   filter: drop-shadow(0 0 8px rgba(255, 30, 50, .75)) drop-shadow(0 0 22px rgba(200, 0, 20, .45)); }
