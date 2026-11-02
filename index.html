@@ -4484,6 +4484,41 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
 
   /* ---------- Lyrics: synced lyrics for whatever's playing, in the Music tab or popped out into their own window ---------- */
   let lyOpen = false, lyPopped = false, lyKey = "", lyData = null, lyLoading = false, lyCur = -2, lyStateAt = 0;
+
+  // YouTube Music's own lyrics for the song playing, asked for from inside the YouTube Music page
+  const YTM_LYRICS = `(async () => {
+    const cfg = (window.ytcfg && (ytcfg.data_ || {})) || {};
+    const key = cfg.INNERTUBE_API_KEY, web = cfg.INNERTUBE_CONTEXT;
+    const mp = document.getElementById("movie_player");
+    let vid = ""; try { vid = mp.getVideoData().video_id; } catch (e) {}
+    if (!key || !web || !vid) return null;
+    const post = async (ep, body, ctx) => { const r = await fetch("/youtubei/v1/" + ep + "?prettyPrint=false&key=" + key, { method: "POST", credentials: "omit", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.assign({ context: ctx || web }, body)) }); return r.ok ? r.json() : null; };
+    const find = (o, k, out) => { out = out || []; if (o && typeof o === "object") { if (k in o) out.push(o[k]); for (const v of Object.values(o)) find(v, k, out); } return out; };
+    const nx = await post("next", { videoId: vid, isAudioOnly: true });
+    const bid = find(nx, "browseId").find(b => typeof b === "string" && b.startsWith("MPLY"));
+    if (!bid) return { none: true, vid };
+    // the phone app's request returns timed lines when YouTube Music has them
+    let timed = [];
+    try {
+      const an = await post("browse", { browseId: bid }, { client: { clientName: "ANDROID_MUSIC", clientVersion: "7.21.50", androidSdkVersion: 30, hl: (web.client && web.client.hl) || "en", gl: (web.client && web.client.gl) || "US" } });
+      const d = find(an, "timedLyricsData")[0] || [];
+      timed = d.map(x => [((x.cueRange && +x.cueRange.startTimeMilliseconds) || 0) / 1000, String(x.lyricLine || "").trim()]);
+    } catch (e) {}
+    let plain = "", src = "";
+    try {
+      const wb = await post("browse", { browseId: bid });
+      const sh = find(wb, "musicDescriptionShelfRenderer")[0];
+      if (sh) { plain = ((sh.description && sh.description.runs) || []).map(r => r.text).join(""); src = ((sh.footer && sh.footer.runs) || []).map(r => r.text).join(""); }
+    } catch (e) {}
+    return { vid, timed, plain: plain.trim(), src: src.trim() };
+  })()`;
+  async function ytmLyrics() {
+    const r = await yt.executeJavaScript(YTM_LYRICS);
+    if (!r || r.none) return null;
+    const synced = (r.timed || []).filter(x => Array.isArray(x) && isFinite(x[0]));
+    if (!synced.length && !r.plain) return null;
+    return { synced, plain: r.plain || synced.map(x => x[1]).join("\n"), instrumental: false, source: "YouTube Music" + (r.src ? " · " + r.src.replace(/^source:\s*/i, "") : "") };
+  }
   async function lyFetch() {
     const y = ytState && ytState.has ? ytState : null;
     const key = y ? y.title + "\u0001" + y.artist : "";
@@ -4491,7 +4526,11 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
     lyKey = key; lyData = null; lyCur = -2;
     if (!y) { lyRender(); return; }
     lyLoading = true; lyRender();
-    let r = null; try { r = await D.lyricsGet({ title: y.title, artist: y.artist, dur: y.dur }); } catch {}
+    let r = null;
+    // your own copy, on YouTube Music: the lyrics YouTube Music itself shows (timed when it has them), else LRCLIB
+    try { if (ftState && ftState.owner && musicSvc === "ytm" && yt) r = await ytmLyrics(); } catch {}
+    if (lyKey !== key) return;
+    if (!r) { try { r = await D.lyricsGet({ title: y.title, artist: y.artist, dur: y.dur }); } catch {} }
     if (lyKey !== key) return;
     lyData = r; lyLoading = false; lyRender();
   }
