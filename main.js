@@ -1662,7 +1662,33 @@ async function doClip() {
 }
 ipcMain.handle("medal:clip", () => doClip());
 /* Clips page: your Medal clips folder, inside Sothis */
-const clipsDir = () => settings.clipsDir && fs.existsSync(settings.clipsDir) ? settings.clipsDir : path.join(app.getPath("videos"), "Medal");
+const SOTHIS_CLIPS = () => path.join(app.getPath("videos"), "Sothis Clips");
+const clipsDir = () => settings.clipsDir && fs.existsSync(settings.clipsDir) ? settings.clipsDir : SOTHIS_CLIPS();
+// once: Sothis's clips get their own folder in Videos (they used to sit in Medal's folder). Only clips Sothis made move,
+// "<Game>/<Game> N.mp4" (or "Clip N.mp4"); Medal's own clips stay where they are.
+function clipsMoveOnce() {
+  if (settings.clipsMovedV1) return;
+  const to = SOTHIS_CLIPS();
+  const from = settings.clipsDir && fs.existsSync(settings.clipsDir) ? settings.clipsDir : path.join(app.getPath("videos"), "Medal");
+  let moved = 0;
+  const mv = (src, dst) => { fs.mkdirSync(path.dirname(dst), { recursive: true }); let d = dst, n = 2; while (fs.existsSync(d)) d = dst.replace(/(\.\w+)$/, ` (${n++})$1`); try { fs.renameSync(src, d); } catch { fs.copyFileSync(src, d); fs.unlinkSync(src); } moved++; };
+  try {
+    if (path.resolve(from).toLowerCase() !== path.resolve(to).toLowerCase() && fs.existsSync(from)) {
+      for (const e of fs.readdirSync(from, { withFileTypes: true })) {
+        const f = path.join(from, e.name);
+        if (e.isFile() && /^Clip \d+\.mp4$/i.test(e.name)) { try { mv(f, path.join(to, e.name)); } catch {} continue; }
+        if (!e.isDirectory()) continue;
+        const esc = e.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), re = new RegExp("^" + esc + " \\d+\\.mp4$", "i");
+        let ents = []; try { ents = fs.readdirSync(f, { withFileTypes: true }); } catch {}
+        for (const c of ents) if (c.isFile() && re.test(c.name)) { try { mv(path.join(f, c.name), path.join(to, e.name, c.name)); } catch {} }
+      }
+    }
+    fs.mkdirSync(to, { recursive: true });
+    settings.clipsDir = to; settings.clipsMovedV1 = true; saveSettings();
+    try { presLog("clips: moved " + moved + " clip(s) from " + from + " to " + to); } catch {}
+  } catch (e) { try { presLog("clips: couldn't move the clips folder: " + e.message); } catch {} }
+}
+app.whenReady().then(() => setTimeout(() => { try { clipsMoveOnce(); } catch {} }, 1500));
 const VID_RE = /\.(mp4|mkv|webm|mov|m4v)$/i;
 /* Sothis's own clips (clipper.js): records the last 15-120 s while you play and saves on your clip key */
 let clipperObj = null, audioReqs = {}, audioReqN = 0;
