@@ -3358,7 +3358,17 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
       const mp = document.getElementById("movie_player");
       const q = s => document.querySelector(s);
       const cmd = ${JSON.stringify(cmd)}, value = ${JSON.stringify(value ?? null)};
-      if (cmd === "playpause") { const b = q("ytmusic-player-bar #play-pause-button"); if (b) b.click(); else { const v = q("video"); if (v) v.paused ? v.play() : v.pause(); } }
+      if (cmd === "playpause") {
+        // press the page's own button, then make sure it took: YouTube Music sometimes ignores a press while it's busy
+        const v = q("video"), was = v ? v.paused : null;
+        const b = q("ytmusic-player-bar #play-pause-button");
+        if (b) b.click(); else if (v) { if (was) v.play().catch(() => {}); else v.pause(); }
+        if (v) setTimeout(() => {
+          if (v.paused !== was) return;
+          try { if (was) { mp && mp.playVideo ? mp.playVideo() : v.play().catch(() => {}); } else { mp && mp.pauseVideo ? mp.pauseVideo() : v.pause(); } } catch (e) {}
+          setTimeout(() => { if (v.paused === was) { if (was) v.play().catch(() => {}); else v.pause(); } }, 250);
+        }, 350);
+      }
       else if (cmd === "next") { const b = q("ytmusic-player-bar .next-button"); if (b) b.click(); else if (mp && mp.nextVideo) mp.nextVideo(); }
       else if (cmd === "prev") { const b = q("ytmusic-player-bar .previous-button"); if (b) b.click(); else if (mp && mp.previousVideo) mp.previousVideo(); }
       else if (cmd === "seek") { const v = q("video"); if (v && isFinite(v.duration)) v.currentTime = Math.max(0, Math.min(1, value)) * v.duration; }
@@ -3368,7 +3378,8 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
         try { mp.setVolume(n); if (n > 0 && mp.isMuted && mp.isMuted()) mp.unMute(); } catch (e) { const v = q("video"); if (v) v.volume = n / 100; }
       }
     })()`;
-    yt.executeJavaScript(js).then(() => setTimeout(() => pollYT().then(report), 250)).catch(() => {});
+    // run it as if you clicked, so the page is allowed to start playback
+    yt.executeJavaScript(js, true).then(() => { setTimeout(() => pollYT().then(report), 250); if (cmd === "playpause") setTimeout(() => pollYT().then(report), 900); }).catch(() => {});
   }
   let lastReport = "";
   function report() {
