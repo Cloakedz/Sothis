@@ -4719,7 +4719,7 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
   function wdApply() {
     const b = document.body, W = window.innerWidth;
     const on = wdPref && W >= 900 && !b.classList.contains("is-mini") && !b.classList.contains("is-compact");
-    b.classList.toggle("wide", on); b.classList.toggle("wide-labels", on && W >= 1120);
+    b.classList.toggle("wide", on); b.classList.remove("wide-labels");   // icons only in the rail
     const side = on && ["home", "ytm", "games", "stats"].includes(tab);
     b.classList.toggle("wd-has-side", side); $("wdSide").hidden = !side;
     // what's playing on top, your Discord call under it
