@@ -162,6 +162,11 @@ h1 { display: flex; align-items: center; }
 .clplay { width: 100%; border-radius: 14px; overflow: hidden; background: #000; border: 1px solid var(--line); }
 .clplay[hidden] { display: none; }
 .clplay video { width: 100%; max-height: 52vh; display: block; background: #000; }
+/* the clip editor in fullscreen: the video fills the screen, the editor stays along the bottom */
+.clplay:fullscreen { display: flex; flex-direction: column; border: 0; border-radius: 0; background: #000; padding: 0 0 8px; }
+.clplay:fullscreen video { flex: 1; min-height: 0; max-height: none; height: auto; object-fit: contain; }
+.clplay:fullscreen .ed, .clplay:fullscreen .clpi { flex: none; max-width: 1400px; width: 100%; margin: 0 auto; box-sizing: border-box; }
+.ed-full svg { width: 18px; height: 18px; }
 .ed { padding: 10px 10px 4px; background: var(--surface); display: flex; flex-direction: column; gap: 8px; }
 .ed-tl { position: relative; height: 34px; border-radius: 8px; background: rgba(255, 255, 255, .05); cursor: pointer; overflow: hidden; }
 .ed-segs { position: absolute; inset: 0; }
@@ -2388,6 +2393,7 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
               <button class="ib" id="edPlay" type="button" aria-label="Play (Space)"><svg viewBox="0 0 24 24" fill="currentColor"><path id="edPlayI" d="M8 5v14l11-7z"/></svg></button>
               <span class="ed-t" id="edTime">0:00.0</span>
               <span class="ed-sp"></span>
+              <button class="ib ed-full" id="edFull" type="button" title="Fullscreen (F)" aria-label="Fullscreen" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path id="edFullI" d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>
               <button class="btn ghost ed-b" id="edIn" type="button" title="Start here (I)">Start</button>
               <button class="btn ghost ed-b" id="edOut" type="button" title="End here (O)">End</button>
               <button class="btn ghost ed-b" id="edSplit" type="button" title="Split here (S)">Split</button>
@@ -7190,9 +7196,21 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
     if (k === " ") { e.preventDefault(); $("edPlay").click(); }
     else if (k === "i") $("edIn").click(); else if (k === "o") $("edOut").click(); else if (k === "s") $("edSplit").click();
     else if (k === "delete" || k === "backspace") $("edDel").click();
+    else if (k === "f") $("edFull").click();
     else if (k === "arrowleft") { ev.currentTime = Math.max(0, ev.currentTime - (e.shiftKey ? 1 : 1 / 30)); edRender(); }
     else if (k === "arrowright") { ev.currentTime = Math.min(edDur, ev.currentTime + (e.shiftKey ? 1 : 1 / 30)); edRender(); }
   });
+  // fullscreen for the clip editor (F, or the button; Esc leaves)
+  let edFullWin = false;
+  $("edFull").onclick = () => { const el = $("clPlay"); try { if (document.fullscreenElement) document.exitFullscreen(); else el.requestFullscreen().catch(() => toast("Couldn't go fullscreen")); } catch {} };
+  document.addEventListener("fullscreenchange", () => {
+    const on = document.fullscreenElement === $("clPlay");
+    // the Sothis window itself fills the screen too (it can't go fullscreen on its own)
+    if (on !== !!edFullWin) { edFullWin = on; try { D.fullscreen(on); } catch {} }
+    $("edFull").setAttribute("aria-pressed", on); $("edFull").title = on ? "Exit fullscreen (F or Esc)" : "Fullscreen (F)";
+    $("edFullI").setAttribute("d", on ? "M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" : "M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5");
+  });
+  $("clClose").addEventListener("click", () => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); });
   // sound in the editor: game and mic volume (separately on Sothis clips that kept a mic track)
   const edA = { game: 100, mic: 100, voice: 100, gameMute: false, micMute: false, voiceMute: false, tracks: [""] };
   const edVol = k => edA[k + "Mute"] ? 0 : edA[k] / 100;
