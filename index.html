@@ -5844,7 +5844,7 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
   function gmTogglePin(g) {
     const i = gmPins.findIndex(p => p.key === g.key);
     if (i >= 0) gmPins.splice(i, 1);
-    else { if (gmPins.length >= 3) { toast("You can pin 3 games. Unpin one first"); return; } gmPins.push({ key: g.key, name: g.name, art: g.artAlt || g.art || "", launch: g.launch }); }
+    else { if (gmPins.length >= 3) { toast("You can pin 3 games. Unpin one first"); return; } gmPins.push({ key: g.key, name: g.name, art: g.artAlt || g.art || "", launch: g.launch, url: g.url || "" }); }
     store.set("gm.pins", JSON.stringify(gmPins)); renderGames(); hxPinsFill();
   }
   function hxPinsFill() {
@@ -5853,7 +5853,7 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
       const b = mk("button", "hx-pin"); b.type = "button"; b.title = "Launch " + p.name;
       if (p.art) { const im = mk("img"); im.alt = ""; im.referrerPolicy = "no-referrer"; im.src = p.art; im.onerror = () => im.remove(); b.append(im); }
       b.append(mk("span", "", String(p.name || "").replace(/[®™©]/g, "").trim()));
-      b.onclick = async () => { const ok = await D.gameLaunch(p.launch); toast(ok ? "Launching " + p.name : "Couldn't launch " + p.name); };
+      b.onclick = () => gameOpen(p);
       box.append(b);
     });
   }
@@ -5863,12 +5863,19 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
     if (i >= 0) { gmHidden.splice(i, 1); toast("Showing " + g.name); } else { gmHidden.push(g.key); toast("Hid " + g.name); }
     gmSaveHidden(); renderGames();
   }
+  // games that run in the browser: listed with your PC games, opened in Sothis's Browser tab
+  const WEB_GAMES = [{ key: "web:pokebonk", name: "PokéBonk", store: "Web game", url: "https://pokebonk.com/", art: "https://pokebonk.com/social/card-es.jpg" }];
+  function webGameOpen(g) {
+    try { showTab("web"); wbEnsure(); const t = wbTabs.find(x => x.url && x.url.startsWith(g.url)); if (t) wbSelect(t.id); else wbNewTab(g.url); toast("Opening " + g.name); } catch { D.openExternal(g.url); }
+  }
+  const gameOpen = async g => { if (g && g.url) return webGameOpen(g); const ok = await D.gameLaunch(g.launch); toast(ok ? "Launching " + g.name : "Couldn't launch " + g.name); };
   async function loadGames(force) {
     gmStatusLoad();
     if (gmBusy || (gmAll && !force)) return renderGames();
     gmBusy = true; $("gmRef").classList.add("spin");
     if (!gmAll) $("gmMsg").textContent = "Looking for your games…";
     try { gmAll = await D.gamesList(!!force); } catch { gmAll = []; }
+    gmAll = (gmAll || []).filter(g => !String(g.key).startsWith("web:")).concat(WEB_GAMES.map(g => Object.assign({}, g)));
     gmBusy = false; $("gmRef").classList.remove("spin");
     renderGames();
   }
@@ -5914,7 +5921,7 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
       const gs = gmStatusFor(g);
       if (gs) { const d = mk("span", "gm-st " + gs.s); d.title = "Servers: " + (gs.s === "ok" ? "up" : gs.s === "maint" ? "maintenance" : gs.s === "warn" ? "having problems" : "down") + (gs.t ? " (" + gs.t + ")" : ""); art.append(d); }
       c.append(x, pn, art, mk("div", "gm-name", g.name), mk("div", "gm-store", g.store));
-      c.onclick = async () => { const ok = await D.gameLaunch(g.launch); toast(ok ? "Launching " + g.name : "Couldn't launch " + g.name); };
+      c.onclick = () => gameOpen(g);
       grid.append(c);
     });
     if (!$("gmRetro").hidden) $("gmShowHidden").hidden = true;
