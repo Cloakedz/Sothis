@@ -39,6 +39,11 @@ header .pc { margin-left: auto; display: flex; align-items: center; gap: 7px; fo
 header .pc { max-width: calc(50% - 74px); min-width: 0; } header .pc span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 header .dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
 header .dot.on { background: var(--good); box-shadow: 0 0 8px var(--good); }
+.pnav button[hidden] { display: none; }
+.card.nt-card { padding: 0; overflow: hidden; }
+#nt { display: block; width: 100%; min-height: 44vh; box-sizing: border-box; padding: 16px; border: 0; outline: none; resize: none; background: transparent; color: var(--ink, #f1f2f6); font: 500 1rem/1.5 inherit; font-family: inherit; }
+#nt::placeholder { color: var(--muted); }
+.nt-st { float: right; font: 600 .78rem inherit; font-family: inherit; color: var(--muted); margin-top: 8px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 16px; margin-bottom: 12px; }
 .k { font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: 10px; }
 
@@ -83,7 +88,7 @@ main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 .pg.on { display: block; }
 @keyframes pgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .pg-h { font: 800 1.35rem/1.2 "Nunito", sans-serif; margin: 2px 2px 12px; }
-.pnav { position: fixed; left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 40; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 6px;
+.pnav { position: fixed; left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); z-index: 40; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 6px;
   border-radius: 24px; background: rgba(22, 22, 28, .92); border: 1px solid var(--line); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
 .pnav button { position: relative; display: grid; justify-items: center; gap: 3px; padding: 8px 0 6px; border-radius: 18px; color: var(--muted); font-size: .68rem; font-weight: 700; }
 .pnav button svg { width: 23px; height: 23px; }
@@ -205,6 +210,12 @@ main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
     </div>
   </section>
   </div>
+  <div class="pg" data-pg="notes">
+    <h2 class="pg-h">Notes<span class="nt-st" id="ntSt"></span></h2>
+    <section class="card nt-card">
+      <textarea id="nt" placeholder="Codes, squad names, reminders… shows up on Home in Sothis on your PC" spellcheck="false"></textarea>
+    </section>
+  </div>
   <div class="pg" data-pg="files">
     <h2 class="pg-h">Files</h2>
   <section class="card">
@@ -220,6 +231,7 @@ main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
 <nav class="pnav hide" id="pnav" aria-label="Sections">
   <button type="button" data-pg="now"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Now</button>
   <button type="button" data-pg="call"><i></i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 15a2 2 0 0 1-2 2h-1v-6h1a2 2 0 0 1 2 2zM3 15a2 2 0 0 0 2 2h1v-6H5a2 2 0 0 0-2 2z"/></svg>Discord</button>
+  <button type="button" data-pg="notes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>Notes</button>
   <button type="button" data-pg="files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>Files</button>
 </nav>
 
@@ -237,7 +249,7 @@ main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
   function view(paired) { $("pairView").classList.toggle("hide", paired); $("mainView").classList.toggle("hide", !paired); $("pnav").classList.toggle("hide", !paired); $("lock").classList.toggle("hide", !paired); }
   // pages: Now (music, game, quick call buttons), Discord, Files, PC (lights, lock); the last one opened is remembered
   function page(p) {
-    if (!["now", "call", "files"].includes(p)) p = "now";
+    if (!["now", "call", "notes", "files"].includes(p)) p = "now";
     document.querySelectorAll(".pg").forEach(el => el.classList.toggle("on", el.dataset.pg === p));
     document.querySelectorAll(".pnav button").forEach(b => b.classList.toggle("on", b.dataset.pg === p));
     store.set("sothis.pg", p); window.scrollTo(0, 0);
@@ -245,6 +257,15 @@ main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
   document.querySelectorAll(".pnav button").forEach(b => b.onclick = () => page(b.dataset.pg));
   page(store.get("sothis.pg") || "now");
 
+  // Notes: the same note as Home on your PC; typing here saves it there
+  let ntDirty = false, ntT = null;
+  const ntSt = m => { $("ntSt").textContent = m; clearTimeout(ntSt.t); if (m && m !== "…") ntSt.t = setTimeout(() => { $("ntSt").textContent = ""; }, 1800); };
+  function ntRender(n) {
+    document.querySelector('.pnav button[data-pg="notes"]').hidden = !n;
+    if (!n || ntDirty) return;
+    const ta = $("nt"); if (ta.value !== n.text) ta.value = n.text || "";
+  }
+  $("nt").addEventListener("input", () => { ntDirty = true; ntSt("…"); clearTimeout(ntT); ntT = setTimeout(async () => { const r = await cmd("notes", $("nt").value.slice(0, 20000)); ntDirty = false; ntSt(r && r.ok ? "Saved" : "Not saved"); }, 600); });
   async function cmd(c, value) {
     try {
       const r = await fetch("/api/cmd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ t: tok, cmd: c, value }) });
@@ -287,6 +308,7 @@ main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
   function render() {
     if (!st) return;
     fxRender(st.files);
+    ntRender(st.notes);
     $("pcName").textContent = st.pc || "Your PC";
     const p = st.player || {};
     $("title").textContent = p.connected && p.title ? p.title : "Nothing playing";

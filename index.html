@@ -1943,7 +1943,7 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
             <button class="ib" id="hmNext" aria-label="Next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
           </div>
         </div>
-        <section class="hm-notes" aria-label="Quick notes"><div class="hm-notes-h">Notes<span id="hmNotesSaved"></span></div><textarea id="hmNotes" placeholder="Codes, squad names, reminders… saved on this PC" spellcheck="false"></textarea></section>
+        <section class="hm-notes" aria-label="Quick notes"><div class="hm-notes-h">Notes<span id="hmNotesSaved"></span></div><textarea id="hmNotes" placeholder="Codes, squad names, reminders… syncs with your phone" spellcheck="false"></textarea></section>
       </div>
     </section>
 
@@ -7887,8 +7887,16 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
     el.hidden = !el.childElementCount;
   }
   // Quick notes on Home (kept in this PC's app storage)
-  { const ta = $("hmNotes"); ta.value = store.get("home.notes") || ""; let t = null;
-    ta.addEventListener("input", () => { clearTimeout(t); $("hmNotesSaved").textContent = "…"; t = setTimeout(() => { store.set("home.notes", ta.value.slice(0, 20000)); $("hmNotesSaved").textContent = "Saved"; setTimeout(() => { $("hmNotesSaved").textContent = ""; }, 1500); }, 500); }); }
+  // Notes: shared with the phone remote (kept in a file on this PC, so both sides see the same note)
+  { const ta = $("hmNotes"); let t = null, dirty = false;
+    const flash = m => { $("hmNotesSaved").textContent = m; clearTimeout(flash.t); flash.t = setTimeout(() => { $("hmNotesSaved").textContent = ""; }, 1800); };
+    ta.value = store.get("home.notes") || "";
+    D.notesGet().then(n => {
+      if (n && n.fresh && ta.value) D.notesSet(ta.value).catch(() => {});   // first run: move the note that was kept in this window
+      else if (n && !dirty) ta.value = n.text || "";
+    }).catch(() => {});
+    ta.addEventListener("input", () => { dirty = true; clearTimeout(t); $("hmNotesSaved").textContent = "…"; t = setTimeout(async () => { const v = ta.value.slice(0, 20000); store.set("home.notes", v); try { await D.notesSet(v); } catch {} dirty = false; flash("Saved"); }, 500); });
+    D.onNotes(n => { if (!n || dirty) return; if (ta.value !== n.text) { const a = ta.selectionStart, b = ta.selectionEnd; ta.value = n.text || ""; store.set("home.notes", ta.value); if (document.activeElement === ta) { try { ta.setSelectionRange(Math.min(a, ta.value.length), Math.min(b, ta.value.length)); } catch {} } flash("Updated from phone"); } }); }
   // Backup / restore (passwords and secrets are left out by Sothis itself)
   $("bkSave").onclick = async () => {
     const local = {}; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); local[k] = localStorage.getItem(k); } } catch {}

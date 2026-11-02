@@ -4419,10 +4419,25 @@ function phState() {
     dc: { ok: dc.status === "ok", mute: !!(dc.vs && dc.vs.mute), deaf: !!(dc.vs && dc.vs.deaf),
       channel: ch ? { name: ch.name, guild: ch.guild || "", members: [...ch.members.values()].slice(0, 12).map(m => ({ id: m.id, name: m.name || "", avatar: m.avatar || "", speaking: dc.speaking.has(m.id), mute: !!m.muted, deaf: !!m.deaf, me: !!m.me })) } : null },
     clip: { recording: clipRec },
+    notes: featOn("notes") ? { text: notesGet().text, at: notesGet().at } : null,
     files: (() => { try { return shInfo().out; } catch { return []; } })(),
     rgb: (() => { try { if (!hasFile("rgb.ps1")) return null; const c = rgbCfg(); return { on: c.on, mode: c.mode, color: c.color, ok: rgb.status === "ready" }; } catch { return null; } })()
   };
 }
+/* ---------- Notes: one note shared by Home and the phone remote, kept in a file on this PC ---------- */
+const NOTES_FILE = () => path.join(DATA_DIR, "notes.json");
+let notesCache = null;
+function notesGet() { if (!notesCache) { try { notesCache = JSON.parse(fs.readFileSync(NOTES_FILE(), "utf8")); } catch {} if (!notesCache || typeof notesCache.text !== "string") notesCache = { text: "", at: 0, fresh: true }; } return notesCache; }
+function notesSet(text, from) {
+  text = String(text || "").slice(0, 20000);
+  notesCache = { text, at: Date.now() };
+  try { fs.writeFileSync(NOTES_FILE(), JSON.stringify(notesCache)); } catch {}
+  if (from !== "pc") try { if (win && !win.isDestroyed()) win.webContents.send("notes:changed", notesCache); } catch {}
+  try { phPush(); } catch {}
+  return notesCache;
+}
+ipcMain.handle("notes:get", () => notesGet());
+ipcMain.handle("notes:set", (_e, text) => notesSet(text, "pc"));
 function phSend(res, ev, data) { try { res.write(`event: ${ev}\ndata: ${JSON.stringify(data)}\n\n`); } catch {} }
 function phEvent(ev, data) { for (const c of phClients) phSend(c, ev, data); }
 function phPush(force) {
@@ -4438,6 +4453,7 @@ async function phCmd(cmd, value) {
   if (cmd === "vol") { const v = Math.max(0, Math.min(1, +value || 0)); remote("vol", v); return { ok: true }; }
   if (cmd === "mute" || cmd === "deaf") { if (dc.status !== "ok") return { ok: false, err: "Discord isn't connected on your PC." }; await dcToggle(cmd); return { ok: true }; }
   if (cmd === "clip") { const r = await doClip().catch(() => ({ ok: false })); return r && r.ok !== false ? { ok: true } : { ok: false, err: (r && r.err) || "Couldn't save a clip." }; }
+  if (cmd === "notes") { if (!featOn("notes")) return { ok: false, err: "Notes are switched off." }; const n = notesSet(typeof value === "string" ? value : "", "phone"); return { ok: true, at: n.at }; }
   if (cmd === "show") { try { showWindow(); } catch {} return { ok: true }; }
   if (cmd === "rgb") { const v = value && typeof value === "object" ? value : {}; rgbSet(v); return { ok: true }; }
   if (cmd === "lock") { return new Promise(res => execFile("rundll32.exe", ["user32.dll,LockWorkStation"], { windowsHide: true }, e => res(e ? { ok: false, err: "Couldn't lock the PC." } : { ok: true }))); }
