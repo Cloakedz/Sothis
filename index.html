@@ -5203,7 +5203,7 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
         const im = mk("img", "yts-th" + (ytsKind === "videos" ? " wide" : "")); im.alt = ""; im.loading = "lazy"; im.referrerPolicy = "no-referrer"; if (it.thumb) im.src = it.thumb;
         const tx = mk("div", "yts-tx"); tx.append(mk("b", "", it.title), mk("span", "", [it.by, it.dur].filter(Boolean).join(" · ")));
         const play = mk("button", "ib yts-b"); play.type = "button"; play.innerHTML = PLAY_S; play.setAttribute("aria-label", "Play " + it.title);
-        play.onclick = () => { ensureYTM(); try { yt.loadURL("https://music.youtube.com/watch?v=" + it.id); toast("Playing " + it.title); } catch { toast("YouTube Music isn't ready yet"); } };
+        play.onclick = () => { playOnYTM(it.id); toast("Playing " + it.title); };
         const add = mk("button", "ib yts-b add"); add.type = "button"; add.innerHTML = PLUS; add.setAttribute("aria-label", "Add " + it.title + " to a playlist");
         add.onclick = () => { atpVid = null; atpOpen("https://www.youtube.com/watch?v=" + it.id); };
         row.append(im, tx, play, add);
@@ -5249,10 +5249,23 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
     if (on) t.click();
     return true;
   })()`;
+  // play a song: switch inside YouTube Music's own page first (works while something is playing); a full page load if that didn't take
+  const ytmGoJs = (vid, list) => `(() => {
+    const app = document.querySelector("ytmusic-app"); if (!app) return false;
+    const ep = { watchEndpoint: Object.assign({ videoId: ${JSON.stringify(vid)} }, ${JSON.stringify(list || "")} ? { playlistId: ${JSON.stringify(list || "")} } : {}) };
+    try { if (typeof app.navigate === "function") { app.navigate(ep); return true; } } catch (e) {}
+    try { app.dispatchEvent(new CustomEvent("yt-navigate", { bubbles: true, composed: true, detail: { endpoint: ep } })); return true; } catch (e) {}
+    return false;
+  })()`;
+  const ytmVidJs = `(() => { try { return document.getElementById("movie_player").getVideoData().video_id || ""; } catch (e) { return ""; } })()`;
+  const ytmHard = (vid, list) => { try { yt.executeJavaScript("window.onbeforeunload = null", true).catch(() => {}); yt.loadURL("https://music.youtube.com/watch?v=" + vid + (list ? "&list=" + encodeURIComponent(list) : "")).catch(() => {}); } catch { toast("YouTube Music isn't ready yet"); } };
   const playOnYTM = (vid, list) => {
     ensureYTM();
-    try { yt.loadURL("https://music.youtube.com/watch?v=" + vid + (list ? "&list=" + encodeURIComponent(list) : "")); }
-    catch { toast("YouTube Music isn't ready yet"); return; }
+    if (!yt) { toast("YouTube Music isn't ready yet"); return; }
+    yt.executeJavaScript(ytmGoJs(vid, list), true).then(ok => {
+      if (!ok) return ytmHard(vid, list);
+      setTimeout(() => yt.executeJavaScript(ytmVidJs).then(cur => { if (cur !== vid) ytmHard(vid, list); }).catch(() => ytmHard(vid, list)), 1800);
+    }).catch(() => ytmHard(vid, list));
     if (list) { let n = 0; const off = () => yt.executeJavaScript(AUTOPLAY_OFF).then(ok => { if (!ok && ++n < 8) setTimeout(off, 1200); }).catch(() => {}); setTimeout(off, 2000); }
   };
   function trackRow(it, listId, wide) {

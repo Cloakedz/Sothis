@@ -3257,6 +3257,8 @@ app.whenReady().then(() => {
   });
   ds.webRequest.onErrorOccurred({ urls: ["*://*/*"] }, d => dlog(`FAILED ${d.error} ${d.method} ${cleanUrl(d.url)}`));
 });
+// a page that asks "leave this page?" (YouTube Music does while a song plays) would silently block Sothis from switching songs
+app.on("web-contents-created", (_e, c) => { try { if (c.getType() === "webview") c.on("will-prevent-unload", ev => ev.preventDefault()); } catch {} });
 app.on("web-contents-created", (_e, c) => {
   setTimeout(() => {
     if (c.isDestroyed() || c.getType() !== "webview") return;
