@@ -592,6 +592,7 @@ input::selection, textarea::selection { background: rgba(255, 77, 115, .4); }
 .hm-title { font: 700 1rem/1.25 var(--f-display); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hm-artist { font-size: .8rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hm-bar { height: 4px; border-radius: 4px; background: var(--track); margin-top: 8px; overflow: hidden; cursor: pointer; }
+.hm-tm { display: flex; justify-content: space-between; margin-top: 4px; font: 600 .7rem/1 var(--f-body); color: var(--muted); font-variant-numeric: tabular-nums; }
 .hm-bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 4px; }
 .hm-ctl { display: flex; align-items: center; gap: 4px; }
 .hm-ctl .ib { width: 34px; height: 34px; border-radius: 10px; }
@@ -1941,6 +1942,7 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
             <div class="hm-title" id="hmTitle">Nothing playing</div>
             <div class="hm-artist" id="hmArtist">Open YouTube Music to start</div>
             <div class="hm-bar" id="hmBar"><i id="hmFill"></i></div>
+            <div class="hm-tm" aria-hidden="true"><span id="hmCur">0:00</span><span id="hmDur">0:00</span></div>
           </div>
           <div class="hm-ctl">
             <button class="ib" id="hmPrev" aria-label="Previous"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
@@ -4706,6 +4708,8 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
     const art = n && n.art;
     if (art) { if ($("hmArt").getAttribute("src") !== art) $("hmArt").src = art; } else $("hmArt").removeAttribute("src");
     $("hmFill").style.width = (n && n.dur ? Math.min(100, n.pos / n.dur * 100) : 0) + "%";
+    { const t = x => { x = Math.max(0, Math.floor(+x || 0)); const h = Math.floor(x / 3600), m = Math.floor(x % 3600 / 60), sec = String(x % 60).padStart(2, "0"); return h ? h + ":" + String(m).padStart(2, "0") + ":" + sec : m + ":" + sec; };
+      $("hmCur").textContent = t(n && n.dur ? Math.min(n.pos, n.dur) : 0); $("hmDur").textContent = n && n.dur ? t(n.dur) : "0:00"; }
     $("hmPlayIcon").innerHTML = n && n.playing ? PAUSE : PLAY;
     $("hmPlay").setAttribute("aria-label", n && n.playing ? "Pause" : "Play");
     ["hmPrev", "hmPlay", "hmNext"].forEach(id => $(id).disabled = !n);
