@@ -5883,7 +5883,7 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
     gmSaveHidden(); renderGames();
   }
   // games that run in the browser: listed with your PC games, opened in Sothis's Browser tab
-  const WEB_GAMES = [{ key: "web:pokebonk", name: "PokéBonk", store: "Web game", url: "https://pokebonk.com/", art: "https://pokebonk.com/social/card-es.jpg" }];
+  const WEB_GAMES = [{ key: "web:pokebonk", name: "PokéBonk", store: "Web game", url: "https://pokebonk.com/", art: "logos/web-pokebonk.jpg" }];
   function webGameOpen(g) {
     try { showTab("web"); wbEnsure(); const t = wbTabs.find(x => x.url && x.url.startsWith(g.url)); if (t) wbSelect(t.id); else wbNewTab(g.url); toast("Opening " + g.name); } catch { D.openExternal(g.url); }
   }
