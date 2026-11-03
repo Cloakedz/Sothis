@@ -4685,7 +4685,7 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
     return null;
   }
   function renderHome() {
-    if (tab !== "home") return;
+    if (tab !== "home" && !document.body.classList.contains("wd-has-side")) return;   // the wide layout's side panel shows what's playing on every tab
     const d = new Date();
     const tt = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
     if ($("hmTime").dataset.t !== tt) {
