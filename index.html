@@ -1754,7 +1754,7 @@ body.is-mini .dock-bg, body.is-compact .dock-bg, body.splashing .dock-bg, body.i
 .lyp-h span { flex: 1; min-width: 0; font-size: 12px; color: #a7abb9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lyp-h .ib { color: #a7abb9; } .lyp-h .ib:hover { color: #fff; background: rgba(255, 255, 255, .08); }
 .lyp-h .ib svg { width: 17px; height: 17px; }
-.lyp-b { flex: 1; overflow-y: auto; padding: 35% 22px 50%; scroll-behavior: smooth; mask-image: linear-gradient(transparent, #000 15%, #000 70%, transparent); scrollbar-width: none; }
+.lyp-b { flex: 1; min-height: 0; overflow-y: auto; padding: 35% 22px 50%; scroll-behavior: smooth; mask-image: linear-gradient(transparent, #000 15%, #000 70%, transparent); scrollbar-width: none; }
 .lyp-b::-webkit-scrollbar { display: none; }
 .lyp-b p { margin: 0 0 14px; font: 700 22px/1.3 var(--f-display); color: rgba(255, 255, 255, .3); transition: color .3s, transform .3s; transform-origin: left center; cursor: default; }
 .lyp-b p.on { color: #fff; transform: scale(1.04); text-shadow: 0 0 18px rgba(255, 255, 255, .25); }
@@ -1817,8 +1817,8 @@ body.wd-ly .wd-side .hm-art { width: 64px; height: 64px; grid-row: span 2; }
 body.wd-ly .wd-side .hm-ctl { grid-column: 1 / -1; }
 body.wd-ly #wdDc, body.wd-ly #wdClip { display: none !important; }
 /* lyrics fill the rest of the panel on Music */
-.wd-side .lyp { position: relative; inset: auto; flex: 1; min-height: 320px; }
-.wd-side #wdExtra:has(.lyp:not([hidden])) { flex: 1; }
+.wd-side .lyp { position: relative; inset: auto; flex: 1 1 0; min-height: 320px; }
+.wd-side #wdExtra:has(.lyp:not([hidden])) { flex: 1 1 0; min-height: 320px; }
 .wd-side .hm-empty { order: 0; margin: 0; opacity: .7; }
 .wd-side .fr-board[hidden] { display: none; }
 /* last clip */
@@ -4574,7 +4574,7 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
     if (i === lyCur) return; lyCur = i;
     const ps = $("lyBody").children;
     for (let n = 0; n < ps.length; n++) { ps[n].classList.toggle("on", n === i); ps[n].classList.toggle("past", n < i); }
-    if (i >= 0 && ps[i]) { const b = $("lyBody"); b.scrollTop = ps[i].offsetTop - b.clientHeight * 0.38; }
+    if (i >= 0 && ps[i]) { const b = $("lyBody"); b.scrollTop = ps[i].getBoundingClientRect().top - b.getBoundingClientRect().top + b.scrollTop - b.clientHeight * 0.38; }
   }
   requestAnimationFrame(lyTick);
   function lyShow(on) { lyOpen = on; $("lyPanel").hidden = !on; $("lyBtn").setAttribute("aria-pressed", String(on || lyPopped)); if (on) { lyFetch(); lyRender(); } }
