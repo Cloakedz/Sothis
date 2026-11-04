@@ -88,7 +88,7 @@ webview.off { visibility: hidden; pointer-events: none; }
 .start > * { position: relative; }
 .word { font: 800 56px/1 var(--f-head); color: var(--accent); text-shadow: 0 0 24px var(--glow); letter-spacing: .16em; margin-right: -.16em; }
 .word small { display: block; text-align: center; font: 800 11px var(--f-head); letter-spacing: .4em; color: var(--muted); text-shadow: none; margin-top: 8px; }
-.sbox { width: min(620px, 100%); margin-top: 30px; display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 18px; border-radius: 26px; background: rgba(20, 20, 26, .92); border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0, 0, 0, .45); }
+.sbox { width: min(620px, 100%); margin-top: 12vh; display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 18px; border-radius: 26px; background: rgba(20, 20, 26, .92); border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0, 0, 0, .45); }
 .sbox:focus-within { border-color: color-mix(in srgb, var(--accent) 60%, transparent); box-shadow: 0 0 0 4px rgba(227, 25, 47, .12), 0 16px 40px rgba(0, 0, 0, .45); }
 .sbox svg { width: 18px; height: 18px; color: var(--muted); }
 .sbox input { flex: 1; background: none; border: 0; outline: none; color: var(--ink); font: 16px var(--f-body); user-select: text; }
@@ -192,7 +192,6 @@ body.full .top, body.full .bar, body.full .bms, body.full .prog { display: none;
   <div class="bms" id="bms" hidden></div>
   <div class="view" id="view">
     <div class="start" id="start">
-      <div class="word">BLACKWALL<small>BROWSER</small></div>
       <form class="sbox" id="sForm" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="sq" type="text" spellcheck="false" placeholder="Search the web or type an address"></form>
       <div class="quick" id="quick"></div>
       <div class="recent" id="recent"></div>
