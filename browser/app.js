@@ -113,7 +113,7 @@
     $("urlIc").classList.toggle("lock", secure);
     $("urlIc").innerHTML = t.url ? (secure ? '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>' : '<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>') : '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>';
     $("urlIc").setAttribute("title", t.url ? (secure ? "Connection is secure" : "This page isn't using a secure connection") : "");
-    const bm = bms.some(b => b.u === t.url);
+    const bm = !!bmFindUrl(t.url);
     $("bStar").classList.toggle("on", bm); $("bStarI").setAttribute("fill", bm ? "currentColor" : "none");
     $("bStar").disabled = !t.url;
     $("shieldN").textContent = cfg.adBlock && t.blocked ? (t.blocked > 99 ? "99+" : String(t.blocked)) : "";
@@ -131,9 +131,10 @@
 
   /* ---------- bookmarks, shortcuts, history ---------- */
   const QUICK_DEF = [["YouTube", "https://www.youtube.com/"], ["Google", "https://www.google.com/"], ["Reddit", "https://www.reddit.com/"], ["Twitch", "https://www.twitch.tv/"],
-    ["Nexus Mods", "https://www.nexusmods.com/"], ["Modrinth", "https://modrinth.com/"], ["PokéBonk", "https://pokebonk.com/"], ["Gmail", "https://mail.google.com/"]].map(([n, u]) => ({ n, u }));
+    ["Nexus Mods", "https://www.nexusmods.com/"], ["Modrinth", "https://modrinth.com/"], ["Gmail", "https://mail.google.com/"]].map(([n, u]) => ({ n, u }));
   let quick = store.get("quick", null); if (!Array.isArray(quick)) quick = QUICK_DEF.slice();
   let bms = store.get("bookmarks", []); if (!Array.isArray(bms)) bms = [];
+  (function fix(list) { list.forEach(n => { if (n.f && !Array.isArray(n.items)) n.items = []; if (n.f) fix(n.items); }); })(bms);
   let hist = store.get("history", []); if (!Array.isArray(hist)) hist = [];
   let bmBar = store.get("bmBar", true);
   function addHistory(t) {
@@ -142,24 +143,132 @@
     if (hist.length > 1500) hist.length = 1500; store.set("history", hist);
   }
   function updHistoryTitle(t) { const h = hist.find(x => x.u === t.url); if (h && t.title) { h.t = t.title; store.set("history", hist); } }
+  /* bookmarks: links and folders, and folders can hold more folders. Saved as a tree: { u, t } for a link, { f: true, t, items } for a folder */
+  const FOLDER_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
+  const CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+  const bmSave = () => { store.set("bookmarks", bms); bmRender(); paintBar(); };
+  function bmWalk(list, fn, parent) { for (const n of list) { if (fn(n, list, parent) === false) return false; if (n.f && bmWalk(n.items, fn, n) === false) return false; } }
+  function bmFindUrl(url) { let hit = null; bmWalk(bms, (n, list) => { if (!n.f && n.u === url) { hit = { n, list }; return false; } }); return hit; }
+  function bmListOf(node) { let hit = null; bmWalk(bms, (n, list) => { if (n === node) { hit = list; return false; } }); return hit; }
+  function bmRemove(node) { const l = bmListOf(node); if (l) l.splice(l.indexOf(node), 1); }
+  const bmInside = (folder, node) => { let yes = false; if (folder === node) return true; bmWalk(node.f ? node.items : [], n => { if (n === folder) { yes = true; return false; } }); return yes; };
+  function bmFolders() { const out = [{ t: "Bookmarks bar", items: bms, depth: 0, root: true }]; const rec = (list, d) => list.forEach(n => { if (n.f) { out.push({ node: n, t: n.t, items: n.items, depth: d }); rec(n.items, d + 1); } }); rec(bms, 1); return out; }
+  function bmMove(node, toList, before) {
+    if (node.f && toList !== bms) { const owner = bmFolders().find(x => x.items === toList); if (owner && owner.node && bmInside(owner.node, node)) { toast("A folder can't go inside itself"); return; } }
+    bmRemove(node);
+    const i = before ? toList.indexOf(before) : -1;
+    if (i >= 0) toList.splice(i, 0, node); else toList.push(node);
+    bmSave();
+  }
   function bmToggle() {
     const t = now(); if (!t || !t.url) return;
-    const i = bms.findIndex(b => b.u === t.url);
-    if (i >= 0) { bms.splice(i, 1); toast("Bookmark removed"); } else { bms.push({ u: t.url, t: t.title || host(t.url) }); toast("Bookmarked"); }
-    store.set("bookmarks", bms); bmRender(); paintBar();
+    const hit = bmFindUrl(t.url);
+    if (hit) { hit.list.splice(hit.list.indexOf(hit.n), 1); toast("Bookmark removed"); }
+    else { bms.push({ u: t.url, t: t.title || host(t.url) }); toast("Bookmarked. Right-click it to move it into a folder"); }
+    bmSave();
+  }
+  async function bmNewFolder(intoList) {
+    const name = ((await window.__askAsync("Folder name", "New folder")) || "").trim().slice(0, 40); if (!name) return;
+    (intoList || bms).push({ f: true, t: name, items: [] }); bmSave(); toast("Folder made. Drag bookmarks or folders onto it");
+  }
+  // one small menu at a time: right-click menus and folder drop-downs (with fly-outs for folders inside folders)
+  let menus = [];
+  function menuClose(fromLevel) { menus.filter(m => m.level >= (fromLevel || 0)).forEach(m => m.el.remove()); menus = menus.filter(m => m.level < (fromLevel || 0)); }
+  document.addEventListener("mousedown", e => { if (!e.target.closest(".cm, .bm")) menuClose(0); });
+  window.addEventListener("blur", () => menuClose(0));
+  function menuAt(x, y, level, rows) {
+    menuClose(level);
+    const m = mk("div", "cm"); m.setAttribute("role", "menu");
+    rows.forEach(r => {
+      if (r === "-") { m.append(mk("div", "cm-sep")); return; }
+      const b = mk("button", "cm-r" + (r.dim ? " dim" : "")); b.type = "button";
+      if (r.icon) { const ic = r.icon === "folder" ? mk("span", "cm-i") : mk("img", "cm-i"); if (r.icon === "folder") ic.innerHTML = FOLDER_SVG; else { ic.alt = ""; ic.src = r.icon; ic.onerror = () => ic.remove(); } b.append(ic); }
+      b.append(mk("span", "cm-t", r.label));
+      if (r.sub) { const c = mk("span", "cm-c"); c.innerHTML = CHEV; b.append(c); }
+      if (r.sub) { const open = () => { const rc = b.getBoundingClientRect(); menuAt(rc.right - 4, rc.top - 6, level + 1, r.sub()); }; b.onmouseenter = open; b.onclick = e => { e.stopPropagation(); open(); }; }
+      else { b.onmouseenter = () => menuClose(level + 1); b.onclick = e => { menuClose(0); r.act && r.act(e); }; }
+      if (r.node) bmDragHooks(b, r.node, r.list);
+      if (r.dropInto) bmDropInto(b, r.dropInto);
+      m.append(b);
+    });
+    document.body.append(m);
+    const w = m.offsetWidth, h = m.offsetHeight;
+    m.style.left = Math.max(6, Math.min(x, innerWidth - w - 6)) + "px"; m.style.top = Math.max(6, Math.min(y, innerHeight - h - 6)) + "px";
+    menus.push({ el: m, level });
+    return m;
+  }
+  // a folder's contents as menu rows (sub-folders open to the side)
+  function bmRows(list) {
+    const rows = list.map(n => n.f
+      ? { label: n.t || "Folder", icon: "folder", sub: () => bmRows(n.items), node: n, list, dropInto: n.items }
+      : { label: n.t || host(n.u), icon: favi(n.u), act: e => (e.ctrlKey ? newTab(n.u, true) : go(n.u)), node: n, list });
+    if (!rows.length) rows.push({ label: "Empty. Drag bookmarks here", dim: true, act: () => {} });
+    const links = list.filter(n => !n.f);
+    if (links.length > 1) rows.push("-", { label: "Open all (" + links.length + ") in new tabs", act: () => links.forEach(n => newTab(n.u, true)) });
+    return rows;
+  }
+  function bmMoveRows(node) {
+    return bmFolders().filter(f => !(node.f && f.node && bmInside(f.node, node))).map(f => ({ label: " ".repeat(f.depth * 3) + f.t, icon: "folder", act: () => { bmMove(node, f.items); toast("Moved to " + f.t); } }));
+  }
+  function bmContext(e, node, list) {
+    e.preventDefault(); e.stopPropagation();
+    const rows = node.f ? [
+      { label: "Open all in new tabs", act: () => { let n = 0; bmWalk(node.items, x => { if (!x.f) { newTab(x.u, true); n++; } }); if (!n) toast("Nothing in this folder yet"); } },
+      { label: "New folder inside", act: () => bmNewFolder(node.items) },
+      "-",
+      { label: "Rename", act: async () => { const v = ((await window.__askAsync("Folder name", node.t)) || "").trim().slice(0, 40); if (v) { node.t = v; bmSave(); } } },
+      { label: "Move to", sub: () => bmMoveRows(node) },
+      { label: "Delete folder", act: () => { let n = 0; bmWalk(node.items, x => { n++; }); bmRemove(node); bmSave(); toast(n ? "Folder and " + n + " item" + (n === 1 ? "" : "s") + " in it deleted" : "Folder deleted"); } }
+    ] : [
+      { label: "Open in new tab", act: () => newTab(node.u, true) },
+      "-",
+      { label: "Rename", act: async () => { const v = ((await window.__askAsync("Bookmark name", node.t)) || "").trim().slice(0, 80); if (v) { node.t = v; bmSave(); } } },
+      { label: "Move to", sub: () => bmMoveRows(node) },
+      { label: "New folder", act: () => bmNewFolder(list) },
+      { label: "Delete", act: () => { bmRemove(node); bmSave(); toast("Bookmark removed"); } }
+    ];
+    menuAt(e.clientX, e.clientY, 0, rows);
+  }
+  // drag a bookmark or folder: drop it on a folder to put it inside, or on another bookmark to place it there
+  let bmDrag = null;
+  function bmDragHooks(el, node, list) {
+    el.draggable = true;
+    el.addEventListener("dragstart", e => { bmDrag = node; e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", node.u || node.t); } catch {} el.classList.add("dragging"); });
+    el.addEventListener("dragend", () => { bmDrag = null; el.classList.remove("dragging"); document.querySelectorAll(".drop-in, .drop-before").forEach(x => x.classList.remove("drop-in", "drop-before")); });
+    el.addEventListener("contextmenu", e => bmContext(e, node, list));
+    if (!node.f) el.addEventListener("dragover", e => { if (!bmDrag || bmDrag === node) return; e.preventDefault(); el.classList.add("drop-before"); });
+    if (!node.f) el.addEventListener("dragleave", () => el.classList.remove("drop-before"));
+    if (!node.f) el.addEventListener("drop", e => { e.preventDefault(); el.classList.remove("drop-before"); if (bmDrag && bmDrag !== node) bmMove(bmDrag, list, node); });
+  }
+  function bmDropInto(el, items) {
+    let t = null;
+    el.addEventListener("dragover", e => { if (!bmDrag || bmDrag.items === items) return; e.preventDefault(); el.classList.add("drop-in"); if (!t) t = setTimeout(() => { if (el.isConnected && bmDrag) el.click(); }, 700); });   // hover a folder to open it while dragging
+    el.addEventListener("dragleave", () => { el.classList.remove("drop-in"); clearTimeout(t); t = null; });
+    el.addEventListener("drop", e => { e.preventDefault(); e.stopPropagation(); el.classList.remove("drop-in"); clearTimeout(t); t = null; const f = bmFolders().find(x => x.items === items); if (bmDrag) { const nm = f ? f.t : "folder"; bmMove(bmDrag, items); toast("Moved into " + nm); menuClose(0); } });
   }
   function bmRender() {
-    const box = $("bms"); box.replaceChildren(); box.hidden = !bmBar || !bms.length;
+    const box = $("bms"); box.replaceChildren(); box.hidden = !bmBar;
     $("bmbarT").textContent = bmBar ? "Hide bookmarks bar" : "Show bookmarks bar";
-    bms.forEach((b, i) => {
-      const e = mk("button", "bm"); e.type = "button"; e.title = b.u;
-      const im = mk("img"); im.alt = ""; im.src = favi(b.u); im.onerror = () => im.remove();
-      e.append(im, mk("span", "", b.t || host(b.u)));
-      e.onclick = ev => { if (ev.ctrlKey) newTab(b.u, true); else go(b.u); };
-      e.onauxclick = ev => { if (ev.button === 1) newTab(b.u, true); };
-      e.oncontextmenu = ev => { ev.preventDefault(); bms.splice(i, 1); store.set("bookmarks", bms); bmRender(); paintBar(); toast("Bookmark removed"); };
+    bms.forEach(b => {
+      const e = mk("button", "bm" + (b.f ? " fold" : "")); e.type = "button"; e.title = b.f ? b.t : b.u;
+      if (b.f) {
+        const ic = mk("span", "bm-f"); ic.innerHTML = FOLDER_SVG; e.append(ic, mk("span", "", b.t || "Folder"));
+        e.onclick = ev => { ev.stopPropagation(); const r = e.getBoundingClientRect(); if (menus.some(m => m.level === 0 && m.for === b)) { menuClose(0); return; } const m = menuAt(r.left, r.bottom + 4, 0, bmRows(b.items)); menus[menus.length - 1].for = b; };
+        bmDropInto(e, b.items);
+      } else {
+        const im = mk("img"); im.alt = ""; im.src = favi(b.u); im.onerror = () => im.remove();
+        e.append(im, mk("span", "", b.t || host(b.u)));
+        e.onclick = ev => { if (ev.ctrlKey) newTab(b.u, true); else go(b.u); };
+        e.onauxclick = ev => { if (ev.button === 1) newTab(b.u, true); };
+      }
+      bmDragHooks(e, b, bms);
       box.append(e);
     });
+    if (!bms.length) box.append(mk("span", "bm-hint", "Press the star to bookmark a page. Right-click here for a new folder."));
+    // the empty part of the bar: drop at the end, or right-click for a new folder
+    box.ondragover = e => { if (bmDrag && e.target === box) e.preventDefault(); };
+    box.ondrop = e => { if (bmDrag && e.target === box) { e.preventDefault(); bmMove(bmDrag, bms); } };
+    box.oncontextmenu = e => { if (e.target !== box && !e.target.classList.contains("bm-hint")) return; e.preventDefault(); menuAt(e.clientX, e.clientY, 0, [{ label: "New folder", act: () => bmNewFolder(bms) }]); };
   }
   function startRender() {
     const q = $("quick"); q.replaceChildren();
