@@ -122,11 +122,14 @@ webview.off { visibility: hidden; pointer-events: none; }
 
 /* start page */
 .start { position: absolute; inset: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 24px 12vh;
-  background: radial-gradient(ellipse 60% 45% at 50% 50%, rgba(7, 7, 10, .55), rgba(7, 7, 10, .15) 70%), url("assets/matrix-red.gif") center / cover no-repeat, var(--bg); }
+  background: radial-gradient(ellipse 60% 45% at 50% 50%, rgba(7, 7, 10, .55), rgba(7, 7, 10, .15) 70%), url("assets/tribal-bg.jpg") center / cover no-repeat, #000; }
 .start[hidden] { display: none; }
-.start::before { content: none; display: none; background: none; opacity: 0; pointer-events: none; animation: cbg 5s ease-in-out infinite; }
+/* the red lines pulse: a blurred, brighter copy of the picture fades in and out on top (screen blend = only the lines light up) */
+.start::before { content: ""; position: absolute; inset: 0; pointer-events: none; display: block; background: url("assets/tribal-bg.jpg") center / cover no-repeat; filter: blur(10px) brightness(1.9) saturate(1.3); mix-blend-mode: screen; opacity: .15; animation: linePulse 3.2s ease-in-out infinite; }
+.start::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: url("assets/tribal-bg.jpg") center / cover no-repeat; filter: blur(2px) brightness(1.4); mix-blend-mode: screen; opacity: 0; animation: linePulse 3.2s ease-in-out infinite; }
+@keyframes linePulse { 0%, 100% { opacity: .12; } 50% { opacity: .85; } }
 @keyframes cbg { 50% { opacity: .17; filter: drop-shadow(0 0 30px rgba(227, 25, 47, .6)); } }
-.start > * { position: relative; }
+.start > * { position: relative; z-index: 1; }
 .word { font: 800 56px/1 var(--f-head); color: var(--accent); text-shadow: 0 0 24px var(--glow); letter-spacing: .16em; margin-right: -.16em; }
 .word small { display: block; text-align: center; font: 800 11px var(--f-head); letter-spacing: .4em; color: var(--muted); text-shadow: none; margin-top: 8px; }
 .sbox { width: min(640px, 100%); margin: auto 0; display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 18px; border-radius: 26px; background: rgba(20, 20, 26, .92); border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0, 0, 0, .45); }
@@ -200,7 +203,7 @@ select { background: var(--surface2); color: var(--ink); border: 1px solid var(-
 .upd .x { width: 26px; height: 26px; border-radius: 8px; color: var(--muted); font-size: 12px; }
 .upd .x:hover { background: var(--surface2); color: var(--ink); }
 body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog { display: none; }
-@media (prefers-reduced-motion: reduce) { .crest, .name, .start::before { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .crest, .name, .start::before, .start::after { animation: none; } }
 </style>
 </head>
 <body>
