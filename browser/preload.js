@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld("sb", {
   adCount: id => ipcRenderer.invoke("ad:count", id),
   onBlocked: cb => ipcRenderer.on("web:blocked", (_e, d) => cb(d)),
   onOpen: cb => ipcRenderer.on("web:open", (_e, d) => cb(d)),
+  onPerm: cb => ipcRenderer.on("perm:ask", (_e, d) => cb(d)), permAnswer: a => ipcRenderer.invoke("perm:answer", a),
+  siteGet: u => ipcRenderer.invoke("site:get", u), siteSet: o => ipcRenderer.invoke("site:set", o), siteClear: u => ipcRenderer.invoke("site:clear", u),
   onPopup: cb => ipcRenderer.on("web:popup", (_e, d) => cb(d)),
   onKey: cb => ipcRenderer.on("web:key", (_e, k) => cb(k)),
   onDl: cb => ipcRenderer.on("dl:update", (_e, d) => cb(d)),

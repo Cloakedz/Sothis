@@ -40,6 +40,9 @@ const AD_BUILTIN = ["doubleclick.net", "googlesyndication.com", "googleadservice
   "ads.yahoo.com", "ads.twitter.com", "ads-twitter.com", "static.ads-twitter.com", "ads.linkedin.com", "adsymptotic.com", "hotjar.com", "mouseflow.com", "zergnet.com",
   "onclickads.net", "onclkds.com", "adsterra.com", "hilltopads.net", "clickadu.com", "admaven.com", "a-ads.com", "coinzilla.com", "bitmedia.io", "ad.plus", "adskeeper.com"];
 let adHosts = new Set(AD_BUILTIN);
+// the ones that follow you around (analytics, session recording, data brokers) rather than show ads
+const TRACK_RX = /(analytics|metric|telemetry|stats|track|pixel|beacon|collect|insight|hotjar|mouseflow|scorecardresearch|quantserve|quantcount|moatads|doubleverify|adsafeprotected|chartbeat|newrelic|nr-data|segment|mixpanel|amplitude|heap|fullstory|clarity|bluekai|demdex|omtrdc|krxd|rlcdn|bounceexchange|tapad|crwdcntrl|agkn|exelator|addthis|sharethis|optimizely|branch\.io|appsflyer|adjust\.com|kochava)/i;
+const isTracker = h => TRACK_RX.test(h);
 const adCounts = new Map();
 function adIsBlocked(host) { for (let h = host; h && h.includes("."); h = h.slice(h.indexOf(".") + 1)) if (adHosts.has(h)) return true; return false; }
 async function adLoad() {
@@ -55,18 +58,50 @@ async function adLoad() {
   } catch {}
 }
 
+/* ---------- site permissions ---------- */
+const siteOf = u => { try { const x = new URL(String(u)); return /^https?:$/.test(x.protocol) ? x.hostname.replace(/^www\./, "") : ""; } catch { return ""; } };
+function permKinds(perm, det) {
+  if (perm === "media") { const t = (det && det.mediaTypes) || []; const out = []; if (!t.length || t.includes("video")) out.push("camera"); if (!t.length || t.includes("audio")) out.push("mic"); return out; }
+  if (perm === "geolocation") return ["location"];
+  if (perm === "notifications") return ["notifications"];
+  return [];
+}
+const permGet = (site, k) => ((settings.perms || {})[site] || {})[k] || "ask";
+function permSet(site, k, v) { settings.perms = settings.perms || {}; const p = settings.perms[site] = settings.perms[site] || {}; if (v === "ask") delete p[k]; else p[k] = v; if (!Object.keys(p).length) delete settings.perms[site]; saveSettings(); }
+let permSeq = 0; const permWait = new Map();
+
 let win = null;
 const send = (ch, d) => { try { if (win && !win.isDestroyed()) win.webContents.send(ch, d); } catch {} };
 
 function setupSession() {
   const ses = session.fromPartition("persist:web");
   ses.setUserAgent(CHROME_UA);
-  ses.setPermissionRequestHandler((_wc, perm, cb) => cb(["fullscreen", "clipboard-sanitized-write", "notifications", "media", "pointerLock", "keyboardLock"].includes(perm)));
+  // camera, microphone, location and notifications: asked per site, and your answer is kept (change it from the lock in the address bar)
+  ses.setPermissionRequestHandler((wc, perm, cb, det) => {
+    if (["fullscreen", "clipboard-sanitized-write", "pointerLock", "keyboardLock"].includes(perm)) return cb(true);
+    const kinds = permKinds(perm, det); if (!kinds.length) return cb(false);
+    const site = siteOf((det && det.requestingUrl) || (wc && wc.getURL()));
+    if (!site) return cb(false);
+    const got = kinds.map(k => permGet(site, k));
+    if (got.includes("block")) return cb(false);
+    if (got.every(v => v === "allow")) return cb(true);
+    const id = ++permSeq; permWait.set(id, { cb, site, kinds });
+    send("perm:ask", { id, site, kinds });
+  });
+  ses.setPermissionCheckHandler((wc, perm, origin, det) => {
+    if (["fullscreen", "clipboard-sanitized-write", "pointerLock", "keyboardLock"].includes(perm)) return true;
+    const kinds = permKinds(perm, det || {}); if (!kinds.length) return perm !== "notifications" && perm !== "geolocation" && perm !== "media";
+    const site = siteOf(origin || (wc && wc.getURL()));
+    return !!site && kinds.every(k => permGet(site, k) === "allow");
+  });
   ses.webRequest.onBeforeRequest({ urls: ["http://*/*", "https://*/*"] }, (d, cb) => {
     if (settings.adBlock === false || d.resourceType === "mainFrame") return cb({});
     let host = ""; try { host = new URL(d.url).hostname.toLowerCase(); } catch { return cb({}); }
     if (!adIsBlocked(host)) return cb({});
-    if (d.webContentsId) { const n = (adCounts.get(d.webContentsId) || 0) + 1; adCounts.set(d.webContentsId, n); send("web:blocked", { id: d.webContentsId, n }); }
+    let page = "";
+    if (d.webContentsId) { try { const { webContents } = require("electron"); const w = webContents.fromId(d.webContentsId); page = w ? new URL(w.getURL()).hostname.replace(/^www\./, "") : ""; } catch {} }
+    if (page && (settings.adAllow || []).includes(page)) return cb({});   // you turned the shield off for this site
+    if (d.webContentsId) { const n = (adCounts.get(d.webContentsId) || 0) + 1; adCounts.set(d.webContentsId, n); send("web:blocked", { id: d.webContentsId, n, host, tracker: isTracker(host) }); }
     cb({ cancel: true });
   });
   // downloads go straight to your Downloads folder, with progress in the downloads list
@@ -107,7 +142,7 @@ app.on("web-contents-created", (_e, c) => {
     if (!/^https?:\/\//i.test(url) && url !== "about:blank") return { action: "deny" };
     const signIn = /(accounts\.google|login|signin|sign-in|oauth|auth|sso|appleid|discord\.com\/(api\/)?oauth|paypal|checkout|steamcommunity\.com\/openid)/i.test(url);
     if (disposition === "new-window" && (signIn || features)) {
-      if (!signIn && settings.popBlock !== false) { send("web:popup", { url, from: c.id }); return { action: "deny" }; }
+      if (!signIn && settings.popBlock !== false && !(settings.popAllow || []).includes(siteOf(c.getURL()))) { send("web:popup", { url, from: c.id }); return { action: "deny" }; }
       return { action: "allow", overrideBrowserWindowOptions: { width: 520, height: 680, autoHideMenuBar: true, backgroundColor: "#0b0b0f", icon: path.join(__dirname, "assets", "blackwall.png"), webPreferences: { partition: "persist:web" } } };
     }
     send("web:open", { url, bg: disposition === "background-tab" });
@@ -162,6 +197,15 @@ const darkApply = () => { try { require("electron").nativeTheme.themeSource = se
 app.whenReady().then(darkApply);
 ipcMain.handle("cfg:get", () => cfgOut());
 ipcMain.handle("cfg:set", (_e, o) => { for (const k of ["adBlock", "popBlock", "search", "forceDark"]) if (o && k in o) settings[k] = o[k]; saveSettings(); darkApply(); return cfgOut(); });
+ipcMain.handle("perm:answer", (_e, { id, allow, remember }) => { const w = permWait.get(id); if (!w) return; permWait.delete(id); if (remember) for (const k of w.kinds) permSet(w.site, k, allow ? "allow" : "block"); try { w.cb(!!allow); } catch {} });
+ipcMain.handle("site:get", (_e, u) => { const site = siteOf(u); if (!site) return null; const p = {}; for (const k of ["camera", "mic", "location", "notifications"]) p[k] = permGet(site, k); return { site, perms: p, shield: !(settings.adAllow || []).includes(site), popups: !(settings.popAllow || []).includes(site) }; });
+ipcMain.handle("site:set", (_e, { url, key, val }) => {
+  const site = siteOf(url); if (!site) return null;
+  if (["camera", "mic", "location", "notifications"].includes(key) && ["ask", "allow", "block"].includes(val)) permSet(site, key, val);
+  for (const [k, list] of [["shield", "adAllow"], ["popups", "popAllow"]]) if (key === k) { const s = new Set(settings[list] || []); if (val) s.delete(site); else s.add(site); settings[list] = [...s]; saveSettings(); }
+  return true;
+});
+ipcMain.handle("site:clear", async (_e, u) => { const site = siteOf(u); if (!site) return false; const ses = session.fromPartition("persist:web"); const origins = ["https://" + site, "https://www." + site, "http://" + site, "http://www." + site]; for (const origin of origins) { try { await ses.clearStorageData({ origin }); } catch {} } try { const cs = await ses.cookies.get({ domain: site }); for (const c of cs) { const url = (c.secure ? "https://" : "http://") + c.domain.replace(/^\./, "") + c.path; await ses.cookies.remove(url, c.name).catch(() => {}); } } catch {} return true; });
 ipcMain.handle("ad:count", (_e, id) => adCounts.get(id) || 0);
 ipcMain.handle("dl:open", (_e, f) => { if (typeof f === "string" && fs.existsSync(f)) shell.openPath(f); });
 ipcMain.handle("dl:show", (_e, f) => { if (typeof f === "string" && fs.existsSync(f)) shell.showItemInFolder(f); });

@@ -240,6 +240,71 @@ select { background: var(--surface2); color: var(--ink); border: 1px solid var(-
 .upd .x:hover { background: var(--surface2); color: var(--ink); }
 body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog { display: none; }
 @media (prefers-reduced-motion: reduce) { .crest, .name, .hc-t, .start::before, .start::after { animation: none; } .scan::before { animation-duration: 3s; } }
+
+/* tab: mute button, split marker */
+.tab button.snd { width: 20px; height: 20px; padding: 3px; border-radius: 6px; display: grid; place-items: center; color: var(--accent); }
+.tab button.snd:hover { background: var(--surface2); }
+.tab button.snd.muted { color: var(--muted); }
+.tab button.snd svg { width: 14px; height: 14px; }
+.tab .spi { width: 13px; height: 13px; flex: none; color: var(--accent); opacity: .85; }
+.tab .spi svg { width: 13px; height: 13px; display: block; }
+.tab.spon:not(.on) { background: rgba(227, 25, 47, .07); color: var(--ink); }
+/* split view */
+.splitbar { position: absolute; z-index: 6; top: 0; bottom: 0; width: 6px; cursor: col-resize; background: var(--panel); display: grid; place-items: center; touch-action: none; }
+.splitbar[hidden] { display: none; }
+.splitbar::before { content: ""; width: 2px; height: 40px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 10px var(--glow); }
+.splitbar .x { position: absolute; top: 8px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--panel); border: 1px solid var(--line); color: var(--muted); opacity: 0; transition: opacity .15s; }
+.splitbar:hover .x { opacity: 1; } .splitbar .x:hover { color: var(--ink); border-color: var(--accent); }
+.splitbar .x svg { width: 10px; height: 10px; }
+body.splitting webview.pane { box-shadow: inset 0 2px 0 transparent; }
+body.splitting webview.pane.focus { outline: 2px solid rgba(227, 25, 47, .55); outline-offset: -2px; }
+body.dragsplit webview { pointer-events: none; }
+body.dragsplit { cursor: col-resize; user-select: none; }
+/* tear lines when you switch tabs */
+.tear { position: absolute; inset: 0; z-index: 7; pointer-events: none; overflow: hidden; }
+.tear span { position: absolute; left: 0; right: 0; background: rgba(227, 25, 47, .85); mix-blend-mode: screen; box-shadow: 0 0 14px var(--glow); animation: tear .36s steps(4) forwards; }
+@keyframes tear { 0% { transform: translateX(-30%); opacity: 1; } 50% { transform: translateX(18%); opacity: .8; } 100% { transform: translateX(120%); opacity: 0; } }
+.tearin { animation: tearJit .36s steps(5); }
+@keyframes tearJit { 0% { clip-path: inset(0 0 60% 0); transform: translateX(12px); } 25% { clip-path: inset(30% 0 20% 0); transform: translateX(-10px); } 50% { clip-path: inset(0 0 0 0); transform: translateX(6px); } 100% { transform: none; } }
+/* mini player */
+.mini { position: absolute; z-index: 45; right: 16px; bottom: 16px; width: 330px; display: grid; grid-template-columns: 96px 1fr; gap: 10px; padding: 8px; border-radius: 14px; background: rgba(14, 14, 19, .97); border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0, 0, 0, .6), 0 0 0 1px rgba(227, 25, 47, .12); overflow: hidden; }
+.mini[hidden] { display: none; }
+.mini .th { width: 96px; height: 54px; border-radius: 9px; overflow: hidden; background: #000; display: grid; place-items: center; cursor: pointer; padding: 0; }
+.mini .th img { width: 100%; height: 100%; object-fit: cover; }
+.mini .th img.ico { width: 28px; height: 28px; object-fit: contain; }
+.mini .tx { min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; cursor: pointer; text-align: left; padding: 0; }
+.mini .tx b { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini .tx span { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini .ctl { grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; }
+.mini .ctl .ib { width: 30px; height: 30px; }
+.mini .ctl .play { color: #fff; background: var(--accent); border-radius: 50%; box-shadow: 0 0 12px var(--glow); }
+.mini .ctl .sp { flex: 1; }
+.mini .pb { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--surface2); }
+.mini .pb i { display: block; height: 100%; width: 0; background: var(--accent); box-shadow: 0 0 8px var(--glow); transition: width .9s linear; }
+/* shield, site and sessions panels */
+.pop .sub { color: var(--muted); font: 500 12px var(--f-body); margin: -4px 6px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shn { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 4px 6px; }
+.shn div { padding: 10px 12px; border-radius: 12px; background: var(--surface); }
+.shn b { display: block; font: 800 22px var(--f-head); color: var(--accent); text-shadow: 0 0 12px var(--glow); }
+.shn span { font-size: 12px; color: var(--muted); }
+.shr { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12.5px; }
+.shr .h { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shr b { color: var(--muted); font-weight: 600; }
+.shr .tag { font: 700 10px var(--f-body); text-transform: uppercase; letter-spacing: .05em; padding: 2px 6px; border-radius: 6px; background: var(--surface2); color: var(--muted); }
+.shr .tag.tr { background: rgba(227, 25, 47, .16); color: #ff5a6a; }
+.sisec { margin: 0 6px 6px; font-size: 12.5px; color: #3ccf8e; }
+.sisec.bad { color: #ff5a6a; }
+.set select { background: var(--surface2); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 12.5px; }
+.ses { display: flex; align-items: center; gap: 4px; border-radius: 10px; }
+.ses:hover { background: var(--surface); }
+.ses-o { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 8px 10px; text-align: left; }
+.ses-o .tx { min-width: 0; } .ses-o .tx b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ses-o .tx span { font-size: 12px; color: var(--muted); }
+.ses-i { display: flex; flex: none; width: 44px; }
+.ses-i img { width: 18px; height: 18px; border-radius: 5px; margin-right: -5px; box-shadow: 0 0 0 2px rgba(16, 16, 22, 1); background: var(--surface2); }
+#urlIc { cursor: pointer; pointer-events: auto; }
+.note.perm { top: 140px; }
+.note .pn { color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .tear span, .tearin { animation: none; } }
 </style>
 </head>
 <body>
@@ -271,13 +336,28 @@ body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog
       <input id="url" type="text" spellcheck="false" placeholder="Search or type a web address">
     </form>
     <button class="ib" id="bStar" type="button" title="Bookmark this page (Ctrl+D)" aria-label="Bookmark this page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path id="bStarI" d="M12 3l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8 6.6 19.7l1.1-6.1L3.2 9.4l6.1-.8z"/></svg></button>
-    <button class="ib" id="bShield" type="button" title="Ad blocking" aria-label="Ad blocking"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z"/></svg><span class="n" id="shieldN"></span></button>
+    <button class="ib" id="bShield" type="button" title="Shield: trackers and ads blocked on this page" aria-label="Shield"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z"/></svg><span class="n" id="shieldN"></span></button>
     <button class="ib" id="bDl" type="button" title="Downloads (Ctrl+J)" aria-label="Downloads"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span class="n" id="dlN"></span></button>
     <button class="ib" id="bMenu" type="button" title="Menu" aria-label="Menu"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5.5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="18.5" r="1.7"/></svg></button>
   </div>
   <div class="prog" id="prog"><i id="progI"></i></div>
   <div class="bms" id="bms" hidden></div>
   <div class="view" id="view">
+    <div class="splitbar" id="splitBar" hidden title="Drag to resize · double-click to even out"><button class="x" id="splitX" type="button" aria-label="Exit split view" title="Exit split view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="tear" id="tear" aria-hidden="true"></div>
+    <div class="mini" id="mini" hidden role="region" aria-label="Playing in another tab">
+      <button class="th" id="miniGo" type="button" title="Go to this tab"><img id="miniImg" alt=""></button>
+      <button class="tx" type="button" onclick="document.getElementById('miniGo').click()"><b id="miniT"></b><span id="miniS"></span></button>
+      <div class="ctl">
+        <button class="ib" id="miniBack" type="button" title="Back 10 seconds" aria-label="Back 10 seconds"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/></svg></button>
+        <button class="ib play" id="miniPlay" type="button" aria-label="Play"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" id="miniPlayI"><path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/></svg></button>
+        <button class="ib" id="miniNext" type="button" title="Next" aria-label="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5l9 7-9 7z"/><path d="M19 5v14"/></svg></button>
+        <span class="sp"></span>
+        <button class="ib" id="miniMute" type="button" title="Mute" aria-label="Mute"></button>
+        <button class="ib" id="miniX" type="button" title="Stop and hide" aria-label="Stop and hide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div class="pb"><i id="miniBar"></i></div>
+    </div>
     <div class="start" id="start">
       <div class="hclock" aria-label="Time and date"><div class="hc-t" id="hcT">--:--</div><div class="hc-d" id="hcD"></div></div>
       <form class="sbox" id="sForm" autocomplete="off" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="sq" type="text" spellcheck="false" placeholder="Search the web or type an address"></form>
@@ -292,6 +372,8 @@ body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog
   <button class="mi" data-a="history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>History<kbd>Ctrl+H</kbd></button>
   <button class="mi" data-a="downloads"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Downloads<kbd>Ctrl+J</kbd></button>
   <button class="mi" data-a="bmbar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8 6.6 19.7l1.1-6.1L3.2 9.4l6.1-.8z"/></svg><span id="bmbarT">Show bookmarks bar</span></button>
+  <button class="mi" data-a="split"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14"/></svg>Split view</button>
+  <button class="mi" data-a="sessions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Sessions</button>
   <button class="mi" data-a="find"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Find on page<kbd>Ctrl+F</kbd></button>
   <button class="mi" data-a="zoom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M11 8v6M20 20l-3.5-3.5"/></svg>Zoom <span id="zoomT" style="color:var(--muted)">100%</span><kbd>Ctrl + / −</kbd></button>
   <button class="mi" data-a="full"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>Fullscreen<kbd>F11</kbd></button>
@@ -302,6 +384,25 @@ body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog
 </div>
 <div class="pop" id="dlPop" hidden><h4>Downloads <button type="button" id="dlFolder">Open folder</button></h4><div id="dlList"></div></div>
 <div class="pop" id="hiPop" hidden><h4>History <button type="button" id="hiClear">Clear</button></h4><div id="hiList"></div></div>
+<div class="pop" id="shPop" hidden>
+  <h4>Shield <button type="button" id="shSet">Settings</button></h4>
+  <div class="sub" id="shSite"></div>
+  <div class="shn"><div><b id="shT">0</b><span>trackers blocked</span></div><div><b id="shA">0</b><span>ads blocked</span></div></div>
+  <div class="set" id="shOnRow"><div class="tx"><b>Shield on for this site</b><span id="shNote"></span></div><button class="sw" id="shOn" role="switch" aria-checked="true" aria-label="Shield on for this site"></button></div>
+  <div id="shList"></div>
+</div>
+<div class="pop" id="sitePop" hidden>
+  <h4 id="siHost"></h4>
+  <div class="sisec" id="siSec"></div>
+  <div id="siPerms"></div>
+  <div class="set"><div class="tx"><b>Allow pop-ups</b><span>Only on this site.</span></div><button class="sw" id="siPop" role="switch" aria-checked="false" aria-label="Allow pop-ups on this site"></button></div>
+  <div class="sep"></div>
+  <button class="mi" id="siClear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Clear cookies and data for this site</button>
+</div>
+<div class="pop" id="sesPop" hidden>
+  <h4>Sessions <button type="button" id="sesNew">Save open tabs</button></h4>
+  <div id="sesList"></div>
+</div>
 <div class="pop" id="setPop" hidden>
   <h4>Settings</h4>
   <div class="set"><div class="tx"><b>Block ads and trackers</b><span id="adN">Stops known ad servers from loading.</span></div><button class="sw" id="sAd" role="switch" aria-checked="true" aria-label="Block ads"></button></div>
@@ -309,6 +410,7 @@ body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog
   <div class="set"><div class="tx"><b>Sleep unused tabs</b><span>Tabs you haven't looked at are unloaded to save memory. Tabs playing sound never sleep.</span></div>
     <select id="sSleep"><option value="5">After 5 min</option><option value="15">After 15 min</option><option value="30">After 30 min</option><option value="60">After 1 hour</option><option value="0">Never</option></select></div>
   <div class="set"><div class="tx"><b>Force dark mode</b><span id="darkN">Makes every site dark, even ones without a dark theme.</span><button class="lnk" id="darkR" hidden>Restart now</button></div><button class="sw" id="sDark" role="switch" aria-checked="false" aria-label="Force dark mode"></button></div>
+  <div class="set"><div class="tx"><b>Glitch when switching tabs</b><span>A quick flash of red tear lines.</span></div><button class="sw" id="sGlitch" role="switch" aria-checked="true" aria-label="Glitch when switching tabs"></button></div>
   <div class="set"><div class="tx"><b>Pause videos when you switch tabs</b><span>They carry on when you come back to the tab.</span></div><button class="sw" id="sPause" role="switch" aria-checked="true" aria-label="Pause videos when you switch tabs"></button></div>
   <div class="set"><div class="tx"><b>Search with</b><span>Used for anything that isn't a web address.</span></div>
     <select id="sEng"><option value="google">Google</option><option value="ddg">DuckDuckGo</option><option value="bing">Bing</option><option value="brave">Brave Search</option></select></div>
@@ -319,6 +421,7 @@ body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog
   <div class="empty">Sign-ins, history and bookmarks stay on this PC only.</div>
 </div>
 <div class="note" id="popNote" hidden><b>Pop-up blocked</b><span id="popUrl"></span><button type="button" id="popOpen">Open it</button><button type="button" id="popX" style="color:var(--muted)">✕</button></div>
+<div class="note perm" id="permNote" hidden role="alertdialog"><b id="permTx"></b><button type="button" id="permY">Allow</button><button type="button" id="permN" style="color:var(--muted)">Block</button></div>
 <div class="find" id="find" hidden><input id="findQ" type="text" spellcheck="false" placeholder="Find on page"><span id="findN"></span><button class="ib" id="findUp" type="button" aria-label="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 15l6-6 6 6"/></svg></button><button class="ib" id="findDn" type="button" aria-label="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button><button class="ib" id="findX" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
 <div class="toast" id="toast"></div>
 <div class="upd" id="upd" hidden role="status"><img src="assets/blackwall.png" alt=""><div class="tx"><b>Blackwall update ready</b><span>Restart to finish updating.</span></div><button type="button" id="updGo">Restart</button><button type="button" class="x" id="updX" aria-label="Later">✕</button></div>

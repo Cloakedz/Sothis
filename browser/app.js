@@ -9,6 +9,8 @@
   const favi = u => { const h = host(u); return h ? "https://www.google.com/s2/favicons?sz=64&domain=" + h : ""; };
   const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   const ICON_SND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>';
+  const ICON_MUTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 5 6M21 9l-5 6"/></svg>';
+  const ICON_SPLIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 5v14"/></svg>';
   const RELOAD = "M20 12a8 8 0 1 1-2.3-5.7L20 8.5M20 3.5v5h-5", STOP = "M6 6l12 12M18 6 6 18";
 
   let cfg = { adBlock: true, popBlock: true, search: "google" };
@@ -30,7 +32,7 @@
   let autoPause = store.get("autoPause", true);
   const PAUSE_JS = `(() => { let n = 0; document.querySelectorAll("video, audio").forEach(v => { if (!v.paused && !v.ended) { v.pause(); v.dataset.sbPaused = "1"; n++; } }); return n; })()`;
   const RESUME_JS = `(() => { document.querySelectorAll("video[data-sb-paused], audio[data-sb-paused]").forEach(v => { delete v.dataset.sbPaused; v.play().catch(() => {}); }); })()`;
-  function leaveTab(id) { if (!autoPause || id == null) return; const t = tabs.find(x => x.id === id); if (t && t.wv) { try { t.wv.executeJavaScript(PAUSE_JS).catch(() => {}); } catch {} } }
+  function leaveTab(id) { if (!autoPause || id == null) return; const t = tabs.find(x => x.id === id); if (t && t.wv) { try { t.wv.executeJavaScript(PAUSE_JS).then(n => { if (n) { t.bgPaused = true; setTimeout(miniTick, 200); } }).catch(() => {}); } catch {} } }
   function enterTab(t) { if (!autoPause || !t || !t.wv) return; try { t.wv.executeJavaScript(RESUME_JS, true).catch(() => {}); } catch {} }
   function goHome() {
     { const old = now(); if (old) old.seen = Date.now(); }
@@ -38,7 +40,8 @@
     cur = null;
     tabs.forEach(x => { if (x.wv) x.wv.classList.add("off"); });
     $("start").hidden = false; startRender();
-    renderTabs(); paintBar(); save();
+    layoutSplit(); tear($("start"));
+    renderTabs(); paintBar(); save(); setTimeout(miniTick, 50);
     setTimeout(() => { $("url").focus(); }, 30);   // Home: type in the bar at the top
   }
   function newTab(url, bg) {
@@ -58,10 +61,11 @@
     wv.src = t.url;
     wv.classList.add("off");
     t.wv = wv;
-    wv.addEventListener("dom-ready", () => { try { t.wcId = wv.getWebContentsId(); } catch {} try { wv.setZoomFactor(t.zoom); } catch {} }, { once: false });
+    wv.addEventListener("dom-ready", () => { try { t.wcId = wv.getWebContentsId(); } catch {} try { wv.setZoomFactor(t.zoom); } catch {} try { wv.setAudioMuted(!!t.muted); } catch {} }, { once: false });
+    wv.addEventListener("focus", () => { if (split && cur !== t.id && inSplit(t.id) && splitShown()) select(t.id); });
     wv.addEventListener("did-start-loading", () => { t.loading = true; paint(t); });
     wv.addEventListener("did-stop-loading", () => { t.loading = false; paint(t); });
-    wv.addEventListener("did-navigate", e => { { const v = u => { try { return new URL(u).searchParams.get("v") || u; } catch { return u; } }; if (v(e.url) !== v(t.url)) t.ytAt = 0; } t.url = e.url; t.blocked = 0; addHistory(t); paint(t); save(); });
+    wv.addEventListener("did-navigate", e => { { const v = u => { try { return new URL(u).searchParams.get("v") || u; } catch { return u; } }; if (v(e.url) !== v(t.url)) t.ytAt = 0; } t.url = e.url; t.blocked = 0; t.trackers = 0; t.hosts = {}; addHistory(t); paint(t); save(); });
     wv.addEventListener("did-navigate-in-page", e => { if (e.isMainFrame) { const v = u => { try { return new URL(u).searchParams.get("v") || u; } catch { return u; } }; if (v(e.url) !== v(t.url)) t.ytAt = 0; t.url = e.url; paint(t); save(); } });
     wv.addEventListener("page-title-updated", e => { t.title = e.title; paint(t); updHistoryTitle(t); });
     wv.addEventListener("page-favicon-updated", e => { t.icon = (e.favicons || [])[0] || ""; paint(t); });
@@ -76,14 +80,18 @@
   }
   function select(id) {
     const t = tabs.find(x => x.id === id); if (!t) return;
-    if (cur !== id) { const old = now(); if (old) old.seen = Date.now(); leaveTab(cur); setTimeout(() => enterTab(t), 60); }
-    cur = id; t.seen = Date.now(); t.asleep = false;
+    const paneSwap = split && inSplit(id) && inSplit(cur);   // clicking between the two halves of split view
+    if (cur !== id) { const old = now(); if (old) old.seen = Date.now(); if (!paneSwap) { leaveTab(cur); setTimeout(() => enterTab(t), 60); } }
+    const changed = cur !== id;
+    cur = id; t.seen = Date.now(); t.asleep = false; t.bgPaused = false; t.miniX = false;
     tabs.forEach(x => { if (x.wv) x.wv.classList.toggle("off", x.id !== id); });
     if (t.url && !t.wv) { const r = resumeUrl(t); if (r !== t.url) t.url = r; makeView(t); }
     if (t.wv) t.wv.classList.remove("off");
     $("start").hidden = !!t.url;
     if (!t.url) startRender();
-    renderTabs(); paintBar(); save();
+    layoutSplit();
+    if (changed && !paneSwap) tear(t.wv || $("start"));
+    renderTabs(); paintBar(); save(); setTimeout(miniTick, 50);
     try { clearTimeout(select.pt); select.pt = setTimeout(pingTick, 400); } catch {}
     if (!t.url) setTimeout(() => $("url").focus(), 30);
   }
@@ -92,6 +100,7 @@
     const [t] = tabs.splice(i, 1);
     if (t.url) { closed.push(t.url); if (closed.length > 25) closed.shift(); }
     if (t.wv) t.wv.remove();
+    if (split && inSplit(id)) { split = null; layoutSplit(); }
     groupTidy();
     if (!tabs.length) { goHome(); return; }
     if (cur === id) select(tabs[Math.min(i, tabs.length - 1)].id); else { renderTabs(); save(); }
@@ -149,6 +158,9 @@
       others.length ? { label: "Add tab to group", sub: () => others.map(g => ({ label: g.name || "Unnamed group", dot: GCOL[g.color], act: () => groupAdd(t, g) })) } : null,
       t.g ? { label: "Remove from group", act: () => { const gid = t.g; t.g = 0; tabs.splice(tabs.indexOf(t), 1); const last = tabs.map(x => x.g).lastIndexOf(gid); tabs.splice(last + 1, 0, t); groupTidy(); renderTabs(); save(); } } : null,
       "-",
+      inSplit(t.id) ? { label: "Exit split view", act: () => splitEnd() } : (cur != null && cur !== t.id && t.url && now() && now().url ? { label: "Split view with current tab", act: () => splitStart(cur, t.id) } : null),
+      (t.audible || t.muted) || t.wv ? { label: t.muted ? "Unmute tab" : "Mute tab", act: () => muteTab(t) } : null,
+      "-",
       { label: "Duplicate", act: () => { const d = newTab(t.url, true); if (d && t.g) { d.g = t.g; groupTidy(); renderTabs(); save(); } } },
       { label: "Close other tabs", act: () => tabs.filter(x => x !== t).forEach(x => close(x.id)) },
       { label: "Close tab", act: () => close(t.id) }
@@ -175,12 +187,14 @@
       if (g && g.collapsed) return;
       const b = mk("div", "tab" + (t.id === cur ? " on" : "") + (g ? " ing" : "") + (t.asleep ? " asleep" : "")); b.setAttribute("role", "tab"); b.title = (t.title || t.url || "New tab") + (t.asleep ? " (asleep to save memory; click to wake)" : "");
       if (g) b.style.setProperty("--gc", GCOL[g.color] || GCOL.grey);
+      if (inSplit(t.id)) { b.classList.add("sp"); if (splitShown()) b.classList.add("spon"); }
       b.oncontextmenu = e => tabMenu(e, t);
       if (t.loading) b.append(mk("i", "spin"));
       else if (t.icon || t.url) { const im = mk("img"); im.alt = ""; im.src = t.icon || favi(t.url); im.onerror = () => { im.replaceWith(mk("span", "fi", (host(t.url) || "?")[0].toUpperCase())); }; b.append(im); }
       else { const im = mk("img"); im.alt = ""; im.src = "assets/blackwall.png"; b.append(im); }
       b.append(mk("span", "t", t.title || (t.url ? host(t.url) : "New tab")));
-      if (t.audible) { const s = mk("span", "snd"); s.innerHTML = ICON_SND; b.append(s); }
+      if (inSplit(t.id)) { const s = mk("span", "spi"); s.innerHTML = ICON_SPLIT; s.title = "In split view"; b.append(s); }
+      if (t.audible || t.muted) { const s = mk("button", "snd" + (t.muted ? " muted" : "")); s.type = "button"; s.title = t.muted ? "Unmute tab" : "Mute tab"; s.setAttribute("aria-label", s.title); s.innerHTML = t.muted ? ICON_MUTE : ICON_SND; s.onclick = e => { e.stopPropagation(); muteTab(t); }; s.onmousedown = e => e.stopPropagation(); b.append(s); }
       const x = mk("button", "x"); x.type = "button"; x.setAttribute("aria-label", "Close tab"); x.innerHTML = ICON_X;
       x.onclick = e => { e.stopPropagation(); close(t.id); };
       b.onmousedown = e => { if (e.button === 1) { e.preventDefault(); close(t.id); } };
@@ -431,10 +445,10 @@
   window.__prompt = null;
 
   /* ---------- panels ---------- */
-  const POPS = ["menu", "dlPop", "hiPop", "setPop"];
+  const POPS = ["menu", "dlPop", "hiPop", "setPop", "shPop", "sitePop", "sesPop"];
   function closePops(except) { POPS.forEach(p => { if (p !== except) $(p).hidden = true; }); }
-  function togglePop(id) { const open = $(id).hidden; closePops(); $(id).hidden = !open; if (open && id === "hiPop") histRender(); if (open && id === "dlPop") { dlSeen = dls.length; dlRender(); } }
-  document.addEventListener("mousedown", e => { if (!e.target.closest(".pop") && !e.target.closest("#bMenu, #bDl, #bShield")) closePops(); });
+  function togglePop(id) { const open = $(id).hidden; closePops(); $(id).hidden = !open; if (open && id === "hiPop") histRender(); if (open && id === "dlPop") { dlSeen = dls.length; dlRender(); } if (open && id === "shPop") shRender(); if (open && id === "sitePop") siteRender(); if (open && id === "sesPop") sesRender(); }
+  document.addEventListener("mousedown", e => { if (!e.target.closest(".pop") && !e.target.closest("#bMenu, #bDl, #bShield, #urlIc, .cm")) closePops(); });
   function histRender() {
     const box = $("hiList"); box.replaceChildren();
     if (!hist.length) { box.append(mk("div", "empty", "Nothing here yet.")); return; }
@@ -496,7 +510,7 @@
     toast(n + " bookmark" + (n === 1 ? "" : "s") + " imported into the From Chrome folder");
   };
   $("sClear").onclick = async () => { $("sClear").disabled = true; await B.clearData(); $("sClear").disabled = false; toast("Cookies and site data cleared"); };
-  B.onBlocked(d => { const t = tabs.find(x => x.wcId === d.id); if (t) { t.blocked++; if (t.id === cur) { paintBar(); if (!$("setPop").hidden) paintSettings(); } } });
+  B.onBlocked(d => { const t = tabs.find(x => x.wcId === d.id); if (t) { t.blocked++; if (d.tracker) t.trackers = (t.trackers || 0) + 1; t.hosts = t.hosts || {}; if (d.host) { const h = t.hosts[d.host] || (t.hosts[d.host] = { n: 0, tr: !!d.tracker }); h.n++; } if (t.id === cur) { paintBar(); if (!$("setPop").hidden) paintSettings(); if (!$("shPop").hidden) shRender(); } } });
   let popUrl = "";
   B.onPopup(d => { const t = tabs.find(x => x.wcId === d.from); if (!t || t.id !== cur) return; popUrl = d.url; $("popUrl").textContent = d.url.replace(/^https?:\/\//, "").slice(0, 80); $("popNote").hidden = false; clearTimeout(B._pt); B._pt = setTimeout(() => { $("popNote").hidden = true; }, 10000); });
   $("popOpen").onclick = () => { if (popUrl) newTab(popUrl); $("popNote").hidden = true; };
@@ -508,6 +522,8 @@
     bmbar: () => { bmBar = !bmBar; store.set("bmBar", bmBar); bmRender(); },
     find: () => findOpen(), zoom: () => zoomBy(0), full: () => B.full(),
     sleepall: () => sleepAllNow(),
+    split: () => { if (split && splitShown()) return splitEnd(); const t = now(); if (!t || !t.url) return toast("Open a page first"); const o = tabs.filter(x => x.id !== t.id && x.url).sort((x, y) => (y.seen || 0) - (x.seen || 0))[0]; if (!o) return toast("Open another tab to split with"); splitStart(t.id, o.id); },
+    sessions: () => togglePop("sesPop"),
     update: async () => { toast("Checking for updates…"); const u = await B.updCheck().catch(() => null); if (!u) return toast("Couldn't check for updates"); if (u.state === "ready") { updShow(); toast("Update " + (u.latest || "") + " is ready"); } else if (u.state === "current") toast("Blackwall " + u.version + " is up to date"); else toast("Couldn't update: " + (u.err || "try again later")); }
   };
   document.querySelectorAll("#menu .mi").forEach(b => b.onclick = () => { closePops(); (ACT[b.dataset.a] || (() => {}))(); });
@@ -529,7 +545,8 @@
   $("bHome").onclick = goHome;
   $("homeBtn").onclick = goHome;
   $("bStar").onclick = bmToggle;
-  $("bShield").onclick = () => { togglePop("setPop"); paintSettings(); };
+  $("bShield").onclick = () => togglePop("shPop");
+  $("urlIc").addEventListener("click", () => { if (now() && now().url) togglePop("sitePop"); });
   $("bDl").onclick = () => togglePop("dlPop");
   $("bMenu").onclick = () => togglePop("menu");
   $("urlForm").onsubmit = e => { e.preventDefault(); const v = $("url").value; $("url").blur(); go(v); };
@@ -613,7 +630,7 @@
     if (!sleepMin && !now_) return;
     const cut = now_ ? Infinity : Date.now() - sleepMin * 60e3; let n = 0;
     tabs.forEach(t => {
-      if (t.id === cur || !t.wv || t.audible || t.loading || (!now_ && (t.seen || Date.now()) > cut)) return;
+      if (t.id === cur || !t.wv || t.audible || t.bgPaused || (inSplit(t.id) && splitShown()) || t.loading || (!now_ && (t.seen || Date.now()) > cut)) return;
       try { t.wv.remove(); } catch {}
       t.wv = null; t.wcId = 0; t.asleep = true; n++;
     });
@@ -641,6 +658,189 @@
   }
   $("stRamBox").onclick = sleepAllNow;
   statsTick(); setInterval(statsTick, 1000); setTimeout(pingTick, 2500); setInterval(pingTick, 10000);
+
+  /* ---------- tab switch: tear lines (a quick red glitch, about a third of a second) ---------- */
+  let glitchOn = store.get("glitch", true);
+  function tear(el) {
+    if (!glitchOn || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const box = $("tear"); box.replaceChildren();
+    for (let k = 0; k < 5; k++) { const s = mk("span"); s.style.top = (Math.random() * 95) + "%"; s.style.height = (2 + Math.random() * 9) + "px"; s.style.animationDelay = (k * 30) + "ms"; box.append(s); }
+    clearTimeout(tear.t); tear.t = setTimeout(() => box.replaceChildren(), 520);
+    if (el) { el.classList.remove("tearin"); void el.offsetWidth; el.classList.add("tearin"); setTimeout(() => el.classList.remove("tearin"), 420); }
+  }
+  $("sGlitch").setAttribute("aria-checked", glitchOn);
+  $("sGlitch").onclick = () => { glitchOn = !glitchOn; store.set("glitch", glitchOn); $("sGlitch").setAttribute("aria-checked", glitchOn); if (glitchOn) tear(now() ? now().wv : $("start")); };
+
+  /* ---------- mute a tab ---------- */
+  function muteTab(t) { t.muted = !t.muted; try { t.wv && t.wv.setAudioMuted(t.muted); } catch {} renderTabs(); miniTick(); toast(t.muted ? "Tab muted" : "Tab unmuted"); }
+
+  /* ---------- split view: two tabs side by side; drag the bar in the middle to resize ---------- */
+  let split = null;   // { a, b, r }
+  function inSplit(id) { return !!split && id != null && (split.a === id || split.b === id); }
+  function splitShown() { return !!split && inSplit(cur) && tabs.some(t => t.id === split.a) && tabs.some(t => t.id === split.b); }
+  function splitStart(a, b) { split = { a, b, r: store.get("splitR", .5) }; const o = tabs.find(t => t.id === b); if (o) { o.asleep = false; o.bgPaused = false; } select(a); toast("Split view. Drag the middle bar to resize"); }
+  function splitEnd() { split = null; layoutSplit(); renderTabs(); }
+  function layoutSplit() {
+    const on = splitShown();
+    document.body.classList.toggle("splitting", on);
+    tabs.forEach(t => { if (t.wv) { t.wv.style.left = ""; t.wv.style.width = ""; t.wv.classList.remove("pane", "focus"); } });
+    $("splitBar").hidden = !on;
+    if (!on) return;
+    const A = tabs.find(t => t.id === split.a), Z = tabs.find(t => t.id === split.b);
+    for (const t of [A, Z]) { if (t.url && !t.wv) { const r = resumeUrl(t); if (r !== t.url) t.url = r; makeView(t); } t.asleep = false; t.seen = Date.now(); }
+    const r = split.r;
+    A.wv.classList.remove("off"); Z.wv.classList.remove("off");
+    A.wv.style.left = "0"; A.wv.style.width = `calc(${r * 100}% - 3px)`;
+    Z.wv.style.left = `calc(${r * 100}% + 3px)`; Z.wv.style.width = `calc(${(1 - r) * 100}% - 3px)`;
+    A.wv.classList.add("pane"); Z.wv.classList.add("pane");
+    (cur === A.id ? A : Z).wv.classList.add("focus");
+    $("splitBar").style.left = `calc(${r * 100}% - 3px)`;
+  }
+  $("splitBar").addEventListener("pointerdown", e => {
+    e.preventDefault(); const bar = $("splitBar"); bar.setPointerCapture(e.pointerId); document.body.classList.add("dragsplit");
+    const rect = $("view").getBoundingClientRect();
+    const mv = ev => { if (!split) return; split.r = Math.max(.2, Math.min(.8, (ev.clientX - rect.left) / rect.width)); layoutSplit(); };
+    const up = () => { bar.removeEventListener("pointermove", mv); document.body.classList.remove("dragsplit"); if (split) store.set("splitR", split.r); };
+    bar.addEventListener("pointermove", mv); bar.addEventListener("pointerup", up, { once: true }); bar.addEventListener("pointercancel", up, { once: true });
+  });
+  $("splitBar").ondblclick = () => { if (split) { split.r = .5; store.set("splitR", .5); layoutSplit(); } };
+  $("splitX").onclick = e => { e.stopPropagation(); splitEnd(); };
+
+  /* ---------- mini player: a video or song playing (or paused) in a tab you've left ---------- */
+  const MINI_JS = `(() => { const vs = [...document.querySelectorAll("video, audio")]; const v = vs.find(x => !x.paused && !x.ended) || vs.find(x => x.dataset.sbPaused) || vs.find(x => x.currentTime > 1 && !x.ended); if (!v) return { has: false }; return { has: true, paused: v.paused, cur: v.currentTime || 0, dur: isFinite(v.duration) ? v.duration : 0, yt: !!document.querySelector(".ytp-next-button") }; })()`;
+  const miniDo = (t, js) => { try { t.wv.executeJavaScript(`(() => { const vs = [...document.querySelectorAll("video, audio")]; const v = vs.find(x => !x.paused && !x.ended) || vs.find(x => x.dataset.sbPaused) || vs.find(x => x.currentTime > 1) || vs[0]; if (!v) return; ${js} })()`, true).then(() => setTimeout(miniTick, 150)).catch(() => {}); } catch {} };
+  const ytId = u => { try { const x = new URL(u); if (/youtu\.be$/.test(x.hostname)) return x.pathname.slice(1); return x.searchParams.get("v") || (x.pathname.match(/^\/(shorts|live)\/([\w-]+)/) || [])[2] || ""; } catch { return ""; } };
+  const fmt = s => { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = String(s % 60).padStart(2, "0"); return h ? h + ":" + String(m).padStart(2, "0") + ":" + x : m + ":" + x; };
+  let miniT = null, miniBusy = false;
+  function miniPick() {
+    const shown = new Set([cur]); if (splitShown()) { shown.add(split.a); shown.add(split.b); }
+    return tabs.filter(t => t.wv && !shown.has(t.id) && !t.miniX && (t.audible || t.bgPaused)).sort((x, y) => (y.audible - x.audible) || ((y.seen || 0) - (x.seen || 0)))[0] || null;
+  }
+  async function miniTick() {
+    if (miniBusy) return; miniBusy = true;
+    try {
+      const t = miniPick();
+      if (!t) { $("mini").hidden = true; miniT = null; return; }
+      const st = await t.wv.executeJavaScript(MINI_JS).catch(() => null);
+      if (!st || !st.has) { t.bgPaused = false; if (!t.audible) { $("mini").hidden = true; miniT = null; } return; }
+      if (miniT !== t.id) {
+        miniT = t.id; const id = ytId(t.url);
+        const im = $("miniImg"); im.onerror = () => { im.onerror = () => { im.onerror = null; im.src = "assets/blackwall.png"; }; im.classList.add("ico"); im.src = id && t.icon ? t.icon : "assets/blackwall.png"; };
+        im.classList.toggle("ico", !id); im.src = id ? "https://i.ytimg.com/vi/" + id + "/mqdefault.jpg" : (t.icon || favi(t.url) || "assets/blackwall.png");
+      }
+      $("miniT").textContent = (t.title || host(t.url)).replace(/ - YouTube$/, "");
+      $("miniS").textContent = host(t.url) + (st.dur ? " · " + fmt(st.cur) + " / " + fmt(st.dur) : "");
+      $("miniBar").style.width = st.dur ? Math.min(100, st.cur / st.dur * 100) + "%" : "0";
+      $("miniPlayI").innerHTML = st.paused ? '<path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/>' : '<path d="M8 5v14M16 5v14"/>';
+      $("miniPlay").setAttribute("aria-label", st.paused ? "Play" : "Pause");
+      $("miniNext").title = st.yt ? "Next video" : "Forward 10 seconds";
+      $("miniMute").innerHTML = t.muted ? ICON_MUTE : ICON_SND; $("miniMute").title = t.muted ? "Unmute" : "Mute";
+      $("mini").hidden = false;
+    } finally { miniBusy = false; }
+  }
+  const miniTab = () => tabs.find(t => t.id === miniT);
+  $("miniPlay").onclick = () => { const t = miniTab(); if (t) miniDo(t, `delete v.dataset.sbPaused; if (v.paused) v.play().catch(() => {}); else v.pause();`); };
+  $("miniBack").onclick = () => { const t = miniTab(); if (t) miniDo(t, `v.currentTime = Math.max(0, v.currentTime - 10);`); };
+  $("miniNext").onclick = () => { const t = miniTab(); if (t) miniDo(t, `const n = document.querySelector(".ytp-next-button"); if (n && n.offsetParent !== null) n.click(); else v.currentTime = Math.min(v.duration || 1e9, v.currentTime + 10);`); };
+  $("miniMute").onclick = () => { const t = miniTab(); if (t) muteTab(t); };
+  $("miniGo").onclick = () => { const t = miniTab(); if (t) select(t.id); };
+  $("miniX").onclick = () => { const t = miniTab(); if (t) { t.miniX = true; miniDo(t, `v.pause();`); } $("mini").hidden = true; miniT = null; };
+  setInterval(miniTick, 1000);
+
+  /* ---------- shield: what was blocked on this page ---------- */
+  async function shRender() {
+    const t = now(), box = $("shList"); box.replaceChildren();
+    $("shSite").textContent = t && t.url ? host(t.url) : "Home";
+    $("shT").textContent = t ? (t.trackers || 0) : 0; $("shA").textContent = t ? Math.max(0, (t.blocked || 0) - (t.trackers || 0)) : 0;
+    const info = t && t.url ? await B.siteGet(t.url).catch(() => null) : null;
+    $("shOnRow").hidden = !info; if (info) $("shOn").setAttribute("aria-checked", info.shield && cfg.adBlock);
+    $("shNote").textContent = !cfg.adBlock ? "Ad and tracker blocking is off everywhere (Settings)." : info && !info.shield ? "The shield is off for this site." : "Known ad and tracker servers are stopped before they load.";
+    const rows = Object.entries((t && t.hosts) || {}).sort((x, y) => y[1].n - x[1].n);
+    if (!rows.length) { box.append(mk("div", "empty", t && t.url ? "Nothing blocked on this page yet." : "Open a page to see what gets blocked.")); return; }
+    for (const [h, v] of rows.slice(0, 40)) { const r = mk("div", "shr"); r.append(mk("span", "tag" + (v.tr ? " tr" : ""), v.tr ? "Tracker" : "Ad"), mk("span", "h", h), mk("b", "", String(v.n))); box.append(r); }
+  }
+  $("shOn").onclick = async () => {
+    const t = now(); if (!t || !t.url) return;
+    if (!cfg.adBlock) { cfg = await B.setCfg({ adBlock: true }) || cfg; }
+    const info = await B.siteGet(t.url); await B.siteSet({ url: t.url, key: "shield", val: !info.shield });
+    toast(!info.shield ? "Shield on for " + host(t.url) : "Shield off for " + host(t.url) + ". Reloading");
+    try { t.wv && t.wv.reload(); } catch {} shRender(); paintBar();
+  };
+  $("shSet").onclick = () => { togglePop("setPop"); paintSettings(); };
+
+  /* ---------- this site: permissions, pop-ups, its cookies ---------- */
+  const PERM_NAMES = { camera: "Camera", mic: "Microphone", location: "Location", notifications: "Notifications" };
+  async function siteRender() {
+    const t = now(); if (!t || !t.url) { $("sitePop").hidden = true; return; }
+    const secure = /^https:/.test(t.url);
+    $("siHost").textContent = host(t.url) || t.url;
+    $("siSec").textContent = secure ? "Connection is secure" : "Connection isn't secure: don't enter passwords or card details here";
+    $("siSec").classList.toggle("bad", !secure);
+    const info = await B.siteGet(t.url).catch(() => null);
+    const box = $("siPerms"); box.replaceChildren();
+    if (!info) return;
+    for (const k of Object.keys(PERM_NAMES)) {
+      const r = mk("div", "set"); const tx = mk("div", "tx"); tx.append(mk("b", "", PERM_NAMES[k])); r.append(tx);
+      const s = mk("select"); s.setAttribute("aria-label", PERM_NAMES[k]);
+      for (const [v, l] of [["ask", "Ask"], ["allow", "Allow"], ["block", "Block"]]) { const o = mk("option", "", l); o.value = v; s.append(o); }
+      s.value = info.perms[k]; s.onchange = async () => { await B.siteSet({ url: t.url, key: k, val: s.value }); toast(PERM_NAMES[k] + ": " + s.options[s.selectedIndex].text + ". Reload the page if it's open"); };
+      r.append(s); box.append(r);
+    }
+    $("siPop").setAttribute("aria-checked", !info.popups);
+  }
+  $("siPop").onclick = async () => { const t = now(); if (!t) return; const info = await B.siteGet(t.url); await B.siteSet({ url: t.url, key: "popups", val: !info.popups }); siteRender(); toast(info.popups ? "Pop-ups allowed on " + host(t.url) : "Pop-ups blocked on " + host(t.url)); };
+  $("siClear").onclick = async () => { const t = now(); if (!t) return; $("siClear").disabled = true; await B.siteClear(t.url); $("siClear").disabled = false; toast("Cookies and data cleared for " + host(t.url) + ". Reloading"); try { t.wv && t.wv.reload(); } catch {} };
+  // a site asking for the camera, mic, location or notifications
+  const permQ = [];
+  function permShow() {
+    const d = permQ[0]; if (!d) { $("permNote").hidden = true; return; }
+    const what = d.kinds.map(k => PERM_NAMES[k].toLowerCase()).join(" and ");
+    $("permTx").textContent = d.site + " wants to use your " + what; $("permNote").hidden = false;
+  }
+  const permReply = allow => { const d = permQ.shift(); if (d) B.permAnswer({ id: d.id, allow, remember: true }); permShow(); };
+  B.onPerm(d => { permQ.push(d); permShow(); });
+  $("permY").onclick = () => permReply(true); $("permN").onclick = () => permReply(false);
+
+  /* ---------- sessions: save a set of tabs by name and open them again in one click ---------- */
+  let sessions = store.get("sessions", []); if (!Array.isArray(sessions)) sessions = [];
+  const sesSave = () => store.set("sessions", sessions);
+  const sesSnap = () => { const tl = tabs.filter(t => t.url); return { tabs: tl.map(t => ({ url: resumeUrl(t), title: t.title || "", g: t.g || 0 })), groups: groups.filter(g => tl.some(t => t.g === g.id)).map(g => ({ id: g.id, name: g.name, color: g.color, collapsed: false })), at: Date.now() }; };
+  function sesRender() {
+    const box = $("sesList"); box.replaceChildren();
+    if (!sessions.length) { box.append(mk("div", "empty", "Save the tabs you have open as a session, then open them all again from here.")); return; }
+    for (const s of sessions) {
+      const r = mk("div", "ses"); const b = mk("button", "ses-o"); b.type = "button";
+      const ic = mk("div", "ses-i"); (s.tabs || []).slice(0, 3).forEach(x => { const im = mk("img"); im.alt = ""; im.src = favi(x.url); im.onerror = () => im.remove(); ic.append(im); });
+      const tx = mk("div", "tx"); tx.append(mk("b", "", s.name), mk("span", "", (s.tabs || []).length + " tab" + ((s.tabs || []).length === 1 ? "" : "s") + " · " + new Date(s.at).toLocaleDateString(undefined, { month: "short", day: "numeric" })));
+      b.append(ic, tx); b.title = (s.tabs || []).map(x => x.title || host(x.url)).join("\n"); b.onclick = () => { closePops(); sesOpen(s, false); };
+      const more = mk("button", "ib"); more.type = "button"; more.setAttribute("aria-label", "Session options"); more.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5.5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18.5" cy="12" r="1.7"/></svg>';
+      more.onclick = e => { e.stopPropagation(); const rc = more.getBoundingClientRect(); menuAt(rc.left - 150, rc.bottom + 4, 0, [
+        { label: "Open in new tabs", act: () => { closePops(); sesOpen(s, false); } },
+        { label: "Replace my tabs with this", act: () => { closePops(); sesOpen(s, true); } },
+        "-",
+        { label: "Update with my open tabs", act: () => { const n = sesSnap(); if (!n.tabs.length) return toast("No tabs open"); Object.assign(s, n); sesSave(); sesRender(); toast("Session " + s.name + " updated"); } },
+        { label: "Rename", act: async () => { const n = await window.__askAsync("Session name", s.name); if (n != null && n.trim()) { s.name = n.trim().slice(0, 40); sesSave(); sesRender(); } } },
+        { label: "Delete", act: () => { sessions = sessions.filter(x => x !== s); sesSave(); sesRender(); toast("Session deleted"); } }
+      ]); };
+      r.append(b, more); box.append(r);
+    }
+  }
+  $("sesNew").onclick = async () => {
+    const n = sesSnap(); if (!n.tabs.length) return toast("Open some tabs first");
+    const name = await window.__askAsync("Name this session", "");
+    if (name == null) return;
+    sessions.unshift(Object.assign({ id: Date.now(), name: name.trim().slice(0, 40) || "Session " + (sessions.length + 1) }, n)); sesSave(); sesRender();
+    toast("Saved " + n.tabs.length + " tab" + (n.tabs.length === 1 ? "" : "s") + " as " + sessions[0].name);
+  };
+  function sesOpen(s, replace) {
+    if (!s.tabs || !s.tabs.length) return;
+    if (replace) { split = null; tabs.slice().forEach(t => { if (t.wv) t.wv.remove(); }); tabs.splice(0); groups = []; }
+    const gmap = {}; for (const g of s.groups || []) { const ng = { id: Date.now() + Math.floor(Math.random() * 1e6), name: g.name, color: g.color, collapsed: false }; gmap[g.id] = ng.id; groups.push(ng); }
+    let first = null;
+    for (const x of s.tabs) { const t = { id: ++seq, url: x.url, title: x.title || "", icon: "", loading: false, audible: false, wv: null, blocked: 0, wcId: 0, zoom: 1, g: gmap[x.g] || 0 }; tabs.push(t); if (!first) first = t; }
+    groupTidy(); select(first.id);   // the others load when you open them
+    toast("Opened " + s.name);
+  }
 
   /* ---------- update pill ---------- */
   const updShow = () => { $("updBtn").hidden = false; };
