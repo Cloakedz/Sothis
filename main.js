@@ -20,6 +20,10 @@ app.commandLine.appendSwitch("disable-background-timer-throttling");
 app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
 
 // Look like plain Chrome so websites shown in the app (stats.cc) treat it as a normal browser.
+// a current Firefox version (Google refuses sign-in from old browsers too): Firefox ships every 4 weeks, 148 came out 24 Feb 2026
+function ffVer() { return Math.max(148, 148 + Math.floor((Date.now() - Date.UTC(2026, 1, 24)) / (28 * 864e5))); }
+function ffUA() { const v = ffVer(); return `Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:${v}.0) Gecko/20100101 Firefox/${v}.0`; }
+ipcMain.on("ua:firefox", e => { e.returnValue = ffUA(); });
 app.userAgentFallback = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
 
 // Settings, sign-ins and everything personal live in this folder on each PC (Roaming\Sothis), never in the app itself.
@@ -3661,7 +3665,7 @@ app.whenReady().then(wvReady).then(ok => { wvOk = ok; }).then(() => {
   browserSession.setPermissionRequestHandler((_wc, perm, cb) => cb(browserOk.has(perm)));
   // Browser tab: presents itself as Firefox, like the Music and Claude tabs. Google refuses sign-in from embedded
   // Chrome ("This browser or app may not be secure"); as Firefox, Google, YouTube and the rest let you sign in.
-  const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0";
+  const BROWSER_UA = ffUA();
   try { browserSession.setUserAgent(BROWSER_UA); } catch {}
   browserSession.webRequest.onBeforeSendHeaders((details, cb) => {
     const h = details.requestHeaders;
@@ -3693,7 +3697,7 @@ app.whenReady().then(wvReady).then(ok => { wvOk = ok; }).then(() => {
   });
   const ytmSession = session.fromPartition("persist:ytm");
   // Google refuses sign-in from embedded Chrome windows; present this tab as Firefox (as other YouTube Music desktop apps do).
-  const FIREFOX_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0";
+  const FIREFOX_UA = ffUA();
   ytmSession.setUserAgent(FIREFOX_UA);
   ytmSession.webRequest.onBeforeSendHeaders((details, cb) => {
     const h = details.requestHeaders;

@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("desktop", {
   brandPickLogo: () => ipcRenderer.invoke("brand:pickLogo"),
   brandResetLogo: () => ipcRenderer.invoke("brand:resetLogo"),
   onBrand: cb => ipcRenderer.on("brand:changed", (_e, i) => cb(i)),
+  firefoxUA: (() => { try { return ipcRenderer.sendSync("ua:firefox"); } catch { return ""; } })(),
   personal: (() => { try { return ipcRenderer.sendSync("personal:get"); } catch { return {}; } })(),
   features: (() => { try { return ipcRenderer.sendSync("features:get"); } catch { return { owner: false, on: {}, list: {} }; } })(),
   featuresSet: (id, which, on) => ipcRenderer.invoke("features:set", { id, which, on }),
