@@ -279,7 +279,7 @@
   $("url").addEventListener("keydown", e => { if (e.key === "Escape") { $("url").blur(); paintBar(); } });
   $("sForm").onsubmit = e => { e.preventDefault(); const v = $("sq").value; $("sq").value = ""; go(v); };
   $("wMin").onclick = () => B.min(); $("wMax").onclick = () => B.max(); $("wClose").onclick = () => B.close();
-  document.querySelector(".drag").ondblclick = () => B.max();
+  document.querySelector(".drag").ondblclick = () => B.max(); document.querySelector(".head").ondblclick = e => { if (!e.target.closest(".wbtns")) B.max(); };
   B.onWin(s => { document.body.classList.toggle("full", !!s.full); });
   function key(k) {
     const t = now(), wv = t && t.wv;

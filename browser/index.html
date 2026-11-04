@@ -20,8 +20,11 @@ svg { display: block; }
 .app { display: flex; flex-direction: column; height: 100%; }
 
 /* top bar: crest, tabs, window buttons */
-.top { display: flex; align-items: flex-end; gap: 6px; height: 42px; padding: 0 0 0 10px; background: var(--panel); -webkit-app-region: drag; }
-.crest { width: 26px; height: 26px; margin: 0 4px 8px 2px; flex: none; filter: drop-shadow(0 0 6px var(--glow)); animation: cg 4.5s ease-in-out infinite; }
+.head { position: relative; display: flex; align-items: center; height: 40px; padding: 0 0 0 12px; background: var(--panel); -webkit-app-region: drag; }
+.head .wbtns { margin-left: auto; height: 100%; }
+.name { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 800 13px/1 var(--f-head); letter-spacing: .42em; margin-right: -.42em; color: var(--accent); text-shadow: 0 0 12px var(--glow); pointer-events: none; white-space: nowrap; }
+.top { display: flex; align-items: flex-end; gap: 6px; height: 40px; padding: 0 0 0 10px; background: var(--panel); -webkit-app-region: drag; }
+.crest { width: 24px; height: 24px; margin: 0; flex: none; filter: drop-shadow(0 0 6px var(--glow)); animation: cg 4.5s ease-in-out infinite; }
 @keyframes cg { 50% { filter: drop-shadow(0 0 12px var(--glow)) drop-shadow(0 0 22px rgba(227, 25, 47, .25)); } }
 .tabs { display: flex; align-items: flex-end; gap: 2px; min-width: 0; flex: 0 1 auto; overflow: hidden; height: 100%; padding-top: 6px; }
 .tab { -webkit-app-region: no-drag; position: relative; display: flex; align-items: center; gap: 8px; width: 220px; min-width: 64px; flex: 0 1 220px; height: 34px; padding: 0 8px 0 12px; border-radius: 12px 12px 0 0; color: var(--muted); transition: background .15s, color .15s; }
@@ -113,7 +116,7 @@ webview.off { visibility: hidden; pointer-events: none; }
 .row span { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
 
 /* panels: menu, downloads, history, settings, pop-up note */
-.pop { position: absolute; z-index: 50; top: 92px; right: 10px; width: 340px; max-height: calc(100% - 110px); overflow-y: auto; padding: 10px; border-radius: 16px; background: rgba(16, 16, 22, .98); border: 1px solid var(--line); box-shadow: 0 20px 50px rgba(0, 0, 0, .6); }
+.pop { position: absolute; z-index: 50; top: 132px; right: 10px; width: 340px; max-height: calc(100% - 110px); overflow-y: auto; padding: 10px; border-radius: 16px; background: rgba(16, 16, 22, .98); border: 1px solid var(--line); box-shadow: 0 20px 50px rgba(0, 0, 0, .6); }
 .pop[hidden] { display: none; }
 .pop h4 { margin: 4px 6px 8px; font: 800 14px var(--f-head); display: flex; align-items: center; justify-content: space-between; }
 .pop h4 button { font: 600 12px var(--f-body); color: var(--accent); }
@@ -138,13 +141,13 @@ select { background: var(--surface2); color: var(--ink); border: 1px solid var(-
 .dl .acts { display: flex; gap: 12px; margin-top: 4px; }
 .dl .acts button { color: var(--accent); font-size: 12px; font-weight: 600; }
 .empty { color: var(--muted); padding: 14px 10px; font-size: 13px; }
-.note { position: absolute; z-index: 40; top: 100px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; border-radius: 14px; background: rgba(16, 16, 22, .98); border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(0, 0, 0, .5); font-size: 13px; max-width: calc(100% - 40px); }
+.note { position: absolute; z-index: 40; top: 140px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; border-radius: 14px; background: rgba(16, 16, 22, .98); border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(0, 0, 0, .5); font-size: 13px; max-width: calc(100% - 40px); }
 .note[hidden] { display: none; }
 .note span { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 360px; }
 .note button { font-weight: 600; color: var(--accent); }
 .toast { position: absolute; z-index: 60; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; transition: .25s; padding: 9px 16px; border-radius: 999px; background: rgba(30, 30, 38, .96); border: 1px solid var(--line); font-size: 13px; pointer-events: none; }
 .toast.on { opacity: 1; transform: translate(-50%, 0); }
-.find { position: absolute; z-index: 45; top: 96px; right: 14px; display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 12px; border-radius: 12px; background: rgba(16, 16, 22, .98); border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(0, 0, 0, .5); }
+.find { position: absolute; z-index: 45; top: 136px; right: 14px; display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 12px; border-radius: 12px; background: rgba(16, 16, 22, .98); border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(0, 0, 0, .5); }
 .find[hidden] { display: none; }
 .find input { width: 200px; background: none; border: 0; outline: none; color: var(--ink); font: 13px var(--f-body); user-select: text; }
 .find span { color: var(--muted); font-size: 12px; min-width: 44px; text-align: right; }
@@ -158,21 +161,24 @@ select { background: var(--surface2); color: var(--ink); border: 1px solid var(-
 .upd #updGo:hover { background: #fff; }
 .upd .x { width: 26px; height: 26px; border-radius: 8px; color: var(--muted); font-size: 12px; }
 .upd .x:hover { background: var(--surface2); color: var(--ink); }
-body.full .top, body.full .bar, body.full .bms, body.full .prog { display: none; }
+body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog { display: none; }
 </style>
 </head>
 <body>
 <div class="app">
-  <div class="top">
+  <div class="head">
     <img class="crest" src="assets/blackwall.png" alt="">
-    <div class="tabs" id="tabs" role="tablist" aria-label="Tabs"></div>
-    <button class="newtab" id="newTab" type="button" title="New tab (Ctrl+T)" aria-label="New tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
-    <div class="drag"></div>
+    <div class="name">BLACKWALL</div>
     <div class="wbtns">
       <button class="wb" id="wMin" type="button" aria-label="Minimize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
       <button class="wb" id="wMax" type="button" aria-label="Maximize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="2"/></svg></button>
       <button class="wb close" id="wClose" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
     </div>
+  </div>
+  <div class="top">
+    <div class="tabs" id="tabs" role="tablist" aria-label="Tabs"></div>
+    <button class="newtab" id="newTab" type="button" title="New tab (Ctrl+T)" aria-label="New tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+    <div class="drag"></div>
   </div>
   <div class="bar">
     <button class="ib" id="bBack" type="button" title="Back (Alt+Left)" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
