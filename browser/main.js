@@ -178,6 +178,20 @@ ipcMain.handle("import:bookmarks", (_e, which) => {
   }
   return { ok: true, profiles: out };
 });
+// Top-row stats: memory used by every Blackwall process, time since it opened, and ping to the site you're on
+const START_AT = Date.now();
+ipcMain.handle("stats:get", () => {
+  let kb = 0; try { for (const m of app.getAppMetrics()) kb += (m.memory && (m.memory.workingSetSize || 0)) || 0; } catch {}
+  return { ramMB: Math.round(kb / 1024), upS: Math.floor((Date.now() - START_AT) / 1000) };
+});
+ipcMain.handle("stats:ping", async (_e, url) => {
+  let origin = ""; try { const u = new URL(String(url)); if (!/^https?:$/.test(u.protocol)) return null; origin = u.origin; } catch { return null; }
+  const { net } = require("electron");
+  const once = async () => { const t0 = performance.now(); const c = new AbortController(); const to = setTimeout(() => c.abort(), 4000); try { await session.fromPartition("persist:web").fetch(origin + "/favicon.ico", { method: "HEAD", cache: "no-store", signal: c.signal }); return performance.now() - t0; } catch { return null; } finally { clearTimeout(to); } };
+  await once();   // the first one opens the connection; the second is the real round trip
+  const ms = await once();
+  return ms == null ? null : Math.round(ms);
+});
 ipcMain.handle("data:clear", async () => { const ses = session.fromPartition("persist:web"); await ses.clearCache(); await ses.clearStorageData(); return true; });
 ipcMain.on("open-external", (_e, u) => { if (/^https?:\/\//i.test(String(u))) shell.openExternal(u); });
 

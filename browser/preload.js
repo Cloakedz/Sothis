@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld("sb", {
   onDl: cb => ipcRenderer.on("dl:update", (_e, d) => cb(d)),
   dlOpen: f => ipcRenderer.invoke("dl:open", f), dlShow: f => ipcRenderer.invoke("dl:show", f), dlFolder: () => ipcRenderer.invoke("dl:folder"),
   clearData: () => ipcRenderer.invoke("data:clear"),
+  stats: () => ipcRenderer.invoke("stats:get"), ping: u => ipcRenderer.invoke("stats:ping", u),
   importBookmarks: which => ipcRenderer.invoke("import:bookmarks", which),
   external: u => ipcRenderer.send("open-external", u),
   defaultOpen: () => ipcRenderer.invoke("default:open"), isDefault: () => ipcRenderer.invoke("default:is"), startUrl: () => ipcRenderer.invoke("start:url"),

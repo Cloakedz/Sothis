@@ -83,6 +83,7 @@
     $("start").hidden = !!t.url;
     if (!t.url) startRender();
     renderTabs(); paintBar(); save();
+    try { clearTimeout(select.pt); select.pt = setTimeout(pingTick, 400); } catch {}
     if (!t.url) setTimeout(() => $("url").focus(), 30);
   }
   function close(id) {
@@ -582,6 +583,22 @@
     $("hcD").textContent = d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
   }
   clockTick(); setInterval(clockTick, 1000);
+
+  /* ---------- top-row stats ---------- */
+  async function statsTick() {
+    const st = await B.stats().catch(() => null); if (!st) return;
+    const mb = st.ramMB || 0, ram = $("stRam");
+    ram.textContent = mb >= 1024 ? (mb / 1024).toFixed(1) + " GB" : mb + " MB"; ram.classList.toggle("hot", mb > 3072);
+    const u = st.upS, h = Math.floor(u / 3600), m = Math.floor(u % 3600 / 60), sec = u % 60;
+    $("stUp").textContent = h + ":" + String(m).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
+  }
+  async function pingTick() {
+    const t = now(), el = $("stPing");
+    if (!t || !/^https?:/.test(t.url)) { el.textContent = "--"; el.className = ""; return; }
+    const ms = await B.ping(t.url).catch(() => null);
+    el.textContent = ms == null ? "--" : ms + "ms"; el.className = ms == null ? "" : ms < 80 ? "good" : ms > 250 ? "hot" : "";
+  }
+  statsTick(); setInterval(statsTick, 1000); setTimeout(pingTick, 2500); setInterval(pingTick, 10000);
 
   /* ---------- update pill ---------- */
   const updShow = () => { $("updBtn").hidden = false; };
