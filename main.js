@@ -1689,6 +1689,18 @@ function clipsMoveOnce() {
   } catch (e) { try { presLog("clips: couldn't move the clips folder: " + e.message); } catch {} }
 }
 app.whenReady().then(() => setTimeout(() => { try { clipsMoveOnce(); } catch {} }, 1500));
+// While Windows is locked (or asleep) the screen can't be recorded: Windows keeps refusing the capture and the recorder kept
+// restarting over and over behind the lock screen. Stop it when the PC locks and start it again once you're back in.
+let clipPausedForLock = false;
+app.whenReady().then(() => {
+  const { powerMonitor } = require("electron");
+  const pause = why => { try { if (clipperObj && clipperObj.state().recording) { clipperObj.stop(); clipPausedForLock = true; presLog("clips: paused (" + why + ")"); } } catch {} };
+  const resume = why => { if (!clipPausedForLock) return; clipPausedForLock = false; setTimeout(() => { try { if (featOn("clips") && (settings.clips || {}).on !== false) { clipper().start(); presLog("clips: resumed (" + why + ")"); } } catch {} }, 4000); };
+  powerMonitor.on("lock-screen", () => pause("PC locked"));
+  powerMonitor.on("suspend", () => pause("PC asleep"));
+  powerMonitor.on("unlock-screen", () => resume("PC unlocked"));
+  powerMonitor.on("resume", () => { try { if (powerMonitor.getSystemIdleState(1) !== "locked") resume("PC awake"); } catch { resume("PC awake"); } });
+});
 const VID_RE = /\.(mp4|mkv|webm|mov|m4v)$/i;
 /* Sothis's own clips (clipper.js): records the last 15-120 s while you play and saves on your clip key */
 let clipperObj = null, audioReqs = {}, audioReqN = 0;
@@ -4484,7 +4496,7 @@ async function phCmd(cmd, value) {
   if (cmd === "notes") { if (!featOn("notes")) return { ok: false, err: "Notes are switched off." }; const n = notesSet(typeof value === "string" ? value : "", "phone"); return { ok: true, at: n.at }; }
   if (cmd === "show") { try { showWindow(); } catch {} return { ok: true }; }
   if (cmd === "rgb") { const v = value && typeof value === "object" ? value : {}; rgbSet(v); return { ok: true }; }
-  if (cmd === "lock") { return new Promise(res => execFile("rundll32.exe", ["user32.dll,LockWorkStation"], { windowsHide: true }, e => res(e ? { ok: false, err: "Couldn't lock the PC." } : { ok: true }))); }
+  if (cmd === "lock") { try { if (clipperObj && clipperObj.state().recording) { clipperObj.stop(); clipPausedForLock = true; } } catch {} return new Promise(res => execFile("rundll32.exe", ["user32.dll,LockWorkStation"], { windowsHide: true }, e => res(e ? { ok: false, err: "Couldn't lock the PC." } : { ok: true }))); }
   return { ok: false, err: "Unknown command" };
 }
 function phStart() {
