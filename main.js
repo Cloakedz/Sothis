@@ -3280,6 +3280,22 @@ app.on("web-contents-created", (_e, c) => {
     if (c.isDestroyed() || c.getType() !== "webview") return;
     const isD = u => /discord/i.test(String(u || ""));
     let announced = false;
+    // Browser tab: on Google's sign-in pages, look like Firefox all the way through, not just in the name tag.
+    // Google compares the name tag with Chrome-only parts of the page (navigator.userAgentData, window.chrome, the vendor);
+    // a "Firefox" that has them is flagged as an embedded browser ("This browser or app may not be secure").
+    if (c.session === session.fromPartition("persist:browser")) {
+      try {
+        c.debugger.attach("1.3");
+        c.debugger.sendCommand("Page.enable").catch(() => {});
+        c.debugger.sendCommand("Page.addScriptToEvaluateOnNewDocument", { source: `(() => {
+          if (!/^accounts\.(google|youtube)\.com$/.test(location.hostname)) return;
+          try { Object.defineProperty(Navigator.prototype, "userAgentData", { get: () => undefined, configurable: true }); } catch (e) {}
+          try { Object.defineProperty(Navigator.prototype, "vendor", { get: () => "", configurable: true }); } catch (e) {}
+          try { Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false, configurable: true }); } catch (e) {}
+          try { delete window.chrome; Object.defineProperty(window, "chrome", { get: () => undefined, configurable: true }); } catch (e) {}
+        })();` }).catch(e => dlog("browser sign-in script failed " + e.message));
+      } catch (e) { dlog("browser debugger attach failed " + e.message); }
+    }
     // Discord tab: present a consistent Google Chrome identity in every frame (incl. the captcha),
     // and log Discord's reason when a login request is refused.
     if (c.session === session.fromPartition("persist:discord")) {
