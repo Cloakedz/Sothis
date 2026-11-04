@@ -255,7 +255,8 @@
     newtab: () => newTab(""), reopen: () => { const u = closed.pop(); if (u) newTab(u); },
     history: () => togglePop("hiPop"), downloads: () => togglePop("dlPop"), settings: () => { togglePop("setPop"); paintSettings(); },
     bmbar: () => { bmBar = !bmBar; store.set("bmBar", bmBar); bmRender(); },
-    find: () => findOpen(), zoom: () => zoomBy(0), full: () => B.full()
+    find: () => findOpen(), zoom: () => zoomBy(0), full: () => B.full(),
+    update: async () => { toast("Checking for updates…"); const u = await B.updCheck().catch(() => null); if (!u) return toast("Couldn't check for updates"); if (u.state === "ready") { updShow(); toast("Update " + (u.latest || "") + " is ready"); } else if (u.state === "current") toast("Blackwall " + u.version + " is up to date"); else toast("Couldn't update: " + (u.err || "try again later")); }
   };
   document.querySelectorAll("#menu .mi").forEach(b => b.onclick = () => { closePops(); (ACT[b.dataset.a] || (() => {}))(); });
   function zoomBy(d) { const t = now(); if (!t || !t.wv) return; t.zoom = d === 0 ? 1 : Math.max(.3, Math.min(3, Math.round((t.zoom + d) * 10) / 10)); try { t.wv.setZoomFactor(t.zoom); } catch {} paintBar(); toast("Zoom " + Math.round(t.zoom * 100) + "%"); }
@@ -348,7 +349,7 @@
   /* ---------- update pill ---------- */
   const updShow = () => { $("upd").hidden = false; };
   B.onUpd(updShow);
-  B.updGet().then(u => { if (u && u.state === "ready") updShow(); }).catch(() => {});
+  B.updGet().then(u => { if (u && u.state === "ready") updShow(); if (u && u.version) $("verT").textContent = "v" + u.version; }).catch(() => {});
   $("updGo").onclick = () => { save(); B.restart(); };
   $("updX").onclick = () => { $("upd").hidden = true; setTimeout(updShow, 2 * 3600e3); };
 

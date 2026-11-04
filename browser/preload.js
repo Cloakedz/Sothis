@@ -13,5 +13,5 @@ contextBridge.exposeInMainWorld("sb", {
   clearData: () => ipcRenderer.invoke("data:clear"),
   external: u => ipcRenderer.send("open-external", u),
   defaultOpen: () => ipcRenderer.invoke("default:open"), isDefault: () => ipcRenderer.invoke("default:is"), startUrl: () => ipcRenderer.invoke("start:url"),
-  updGet: () => ipcRenderer.invoke("upd:get"), onUpd: cb => ipcRenderer.on("upd:ready", (_e, d) => cb(d)), restart: () => ipcRenderer.send("upd:restart")
+  updGet: () => ipcRenderer.invoke("upd:get"), updCheck: () => ipcRenderer.invoke("upd:check"), onUpd: cb => ipcRenderer.on("upd:ready", (_e, d) => cb(d)), restart: () => ipcRenderer.send("upd:restart")
 });

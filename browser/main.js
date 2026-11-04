@@ -211,11 +211,16 @@ async function updCheck() {
     for (const f of list) { if (!/^[\w./ -]+$/.test(f) || f.includes("..")) continue; got[f] = await get(f, true); }   // everything first, so a failed download changes nothing
     for (const [f, b] of Object.entries(got)) { const dst = path.join(__dirname, f); fs.mkdirSync(path.dirname(dst), { recursive: true }); fs.writeFileSync(dst, b); }
     upd.state = "ready"; send("upd:ready", { version: upd.latest });
+    try { const { Notification } = require("electron"); if (Notification.isSupported() && win && !win.isFocused()) new Notification({ title: "Blackwall update ready", body: "Restart Blackwall to finish updating.", icon: path.join(__dirname, "assets", "blackwall.png"), silent: true }).show(); } catch {}
   } catch (e) { upd.state = "error"; upd.err = String(e.message || e); }
   finally { updBusy = false; }
   return upd;
 }
 ipcMain.handle("upd:get", () => Object.assign({ version: APP_VER }, upd));
+ipcMain.handle("upd:check", async () => { await updCheck(); return Object.assign({ version: APP_VER }, upd); });
+// coming back to the window also checks (at most every 5 minutes), so a new version shows up soon after it's out
+let updFocusAt = 0;
+app.on("browser-window-focus", () => { if (Date.now() - updFocusAt > 5 * 60e3) { updFocusAt = Date.now(); updCheck(); } });
 ipcMain.on("upd:restart", () => { app.relaunch(); app.exit(0); });
-app.whenReady().then(wvReady).then(() => { setupSession(); adLoad(); createWindow(); setTimeout(regBrowser, 3000); setTimeout(updCheck, 15000); setInterval(updCheck, 3 * 3600e3); });
+app.whenReady().then(wvReady).then(() => { setupSession(); adLoad(); createWindow(); setTimeout(regBrowser, 3000); setTimeout(updCheck, 15000); setInterval(updCheck, 20 * 60e3); });
 app.on("window-all-closed", () => app.quit());
