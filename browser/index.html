@@ -24,6 +24,7 @@ svg { display: block; }
 .head .wbtns { height: 100%; }
 /* stats in the top row: memory, time open, ping to the current site */
 .hstats { margin-left: auto; margin-right: 14px; display: flex; gap: 16px; font: 600 11px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: .12em; color: rgba(255, 90, 105, .6); white-space: nowrap; pointer-events: none; }
+#stRamBox { pointer-events: auto; cursor: pointer; -webkit-app-region: no-drag; }
 .hstats b { font-weight: 600; color: #f1f2f6; opacity: .85; font-variant-numeric: tabular-nums; }
 .hstats b.hot { color: #ff3b4f; opacity: 1; text-shadow: 0 0 8px var(--glow); }
 .hstats b.good { color: #3ccf8e; }
@@ -245,7 +246,7 @@ body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog
     <button class="home-btn" id="homeBtn" type="button" title="Home" aria-label="Home"><img class="crest" src="assets/blackwall.png" alt=""></button>
     <div class="name">BLACKWALL</div>
     <button class="updbtn" id="updBtn" type="button" hidden title="Update ready. Click to restart Blackwall" aria-label="Update ready, restart Blackwall"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 8.5"/><path d="M12 11v8M9 16l3 3 3-3"/></svg></button>
-    <div class="hstats" aria-label="Blackwall stats"><span>RAM <b id="stRam">--</b></span><span>UP <b id="stUp">0:00:00</b></span><span>PING <b id="stPing">--</b></span></div>
+    <div class="hstats" aria-label="Blackwall stats"><span id="stRamBox" title="Click to put other tabs to sleep">RAM <b id="stRam">--</b></span><span>UP <b id="stUp">0:00:00</b></span><span>PING <b id="stPing">--</b></span></div>
     <div class="wbtns">
       <button class="wb" id="wMin" type="button" aria-label="Minimize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
       <button class="wb" id="wMax" type="button" aria-label="Maximize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="2"/></svg></button>
@@ -293,6 +294,7 @@ body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog
   <button class="mi" data-a="zoom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M11 8v6M20 20l-3.5-3.5"/></svg>Zoom <span id="zoomT" style="color:var(--muted)">100%</span><kbd>Ctrl + / −</kbd></button>
   <button class="mi" data-a="full"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>Fullscreen<kbd>F11</kbd></button>
   <div class="sep"></div>
+  <button class="mi" data-a="sleepall"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>Free memory (sleep other tabs)</button>
   <button class="mi" data-a="update"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.7L20 8.5M20 3.5v5h-5"/></svg>Check for updates<kbd id="verT"></kbd></button>
   <button class="mi" data-a="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></svg>Settings</button>
 </div>

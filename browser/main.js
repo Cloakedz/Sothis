@@ -185,7 +185,8 @@ ipcMain.handle("import:bookmarks", (_e, which) => {
 // Top-row stats: memory used by every Blackwall process, time since it opened, and ping to the site you're on
 const START_AT = Date.now();
 ipcMain.handle("stats:get", () => {
-  let kb = 0; try { for (const m of app.getAppMetrics()) kb += (m.memory && (m.memory.workingSetSize || 0)) || 0; } catch {}
+  // private memory (what Task Manager calls "Memory"); the working set also counts memory the processes share, many times over
+  let kb = 0; try { for (const m of app.getAppMetrics()) kb += (m.memory && (m.memory.privateBytes || m.memory.workingSetSize || 0)) || 0; } catch {}
   return { ramMB: Math.round(kb / 1024), upS: Math.floor((Date.now() - START_AT) / 1000) };
 });
 ipcMain.handle("stats:ping", async (_e, url) => {

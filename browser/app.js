@@ -486,6 +486,7 @@
     history: () => togglePop("hiPop"), downloads: () => togglePop("dlPop"), settings: () => { togglePop("setPop"); paintSettings(); },
     bmbar: () => { bmBar = !bmBar; store.set("bmBar", bmBar); bmRender(); },
     find: () => findOpen(), zoom: () => zoomBy(0), full: () => B.full(),
+    sleepall: () => sleepAllNow(),
     update: async () => { toast("Checking for updates…"); const u = await B.updCheck().catch(() => null); if (!u) return toast("Couldn't check for updates"); if (u.state === "ready") { updShow(); toast("Update " + (u.latest || "") + " is ready"); } else if (u.state === "current") toast("Blackwall " + u.version + " is up to date"); else toast("Couldn't update: " + (u.err || "try again later")); }
   };
   document.querySelectorAll("#menu .mi").forEach(b => b.onclick = () => { closePops(); (ACT[b.dataset.a] || (() => {}))(); });
@@ -587,16 +588,18 @@
 
   /* ---------- sleeping tabs: background tabs you haven't looked at for a while are unloaded to free memory ---------- */
   let sleepMin = store.get("sleepMin", 15);
-  function sleepTick() {
-    if (!sleepMin) return;
-    const cut = Date.now() - sleepMin * 60e3; let n = 0;
+  function sleepTick(now_) {
+    if (!sleepMin && !now_) return;
+    const cut = now_ ? Infinity : Date.now() - sleepMin * 60e3; let n = 0;
     tabs.forEach(t => {
-      if (t.id === cur || !t.wv || t.audible || t.loading || (t.seen || Date.now()) > cut) return;
+      if (t.id === cur || !t.wv || t.audible || t.loading || (!now_ && (t.seen || Date.now()) > cut)) return;
       try { t.wv.remove(); } catch {}
       t.wv = null; t.wcId = 0; t.asleep = true; n++;
     });
     if (n) renderTabs();
+    return n;
   }
+  function sleepAllNow() { const n = sleepTick(true); toast(n ? n + " background tab" + (n === 1 ? "" : "s") + " put to sleep" : "Nothing to put to sleep"); setTimeout(statsTick, 1500); }
   setInterval(sleepTick, 60e3);
   $("sSleep").value = String(sleepMin);
   $("sSleep").onchange = () => { sleepMin = +$("sSleep").value || 0; store.set("sleepMin", sleepMin); sleepTick(); toast(sleepMin ? "Tabs sleep after " + sleepMin + " minutes in the background" : "Tabs never sleep"); };
@@ -615,6 +618,7 @@
     const ms = await B.ping(t.url).catch(() => null);
     el.textContent = ms == null ? "--" : ms + "ms"; el.className = ms == null ? "" : ms < 80 ? "good" : ms > 250 ? "hot" : "";
   }
+  $("stRamBox").onclick = sleepAllNow;
   statsTick(); setInterval(statsTick, 1000); setTimeout(pingTick, 2500); setInterval(pingTick, 10000);
 
   /* ---------- update pill ---------- */
