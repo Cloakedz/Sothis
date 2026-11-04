@@ -38,7 +38,7 @@
     tabs.forEach(x => { if (x.wv) x.wv.classList.add("off"); });
     $("start").hidden = false; startRender();
     renderTabs(); paintBar(); save();
-    setTimeout(() => { $("sq").focus(); }, 30);
+    setTimeout(() => { $("url").focus(); }, 30);   // Home: type in the bar at the top
   }
   function newTab(url, bg) {
     if (!url) { goHome(); return null; }
@@ -83,7 +83,7 @@
     $("start").hidden = !!t.url;
     if (!t.url) startRender();
     renderTabs(); paintBar(); save();
-    if (!t.url) setTimeout(() => $("sq").focus(), 30);
+    if (!t.url) setTimeout(() => $("url").focus(), 30);
   }
   function close(id) {
     const i = tabs.findIndex(t => t.id === id); if (i < 0) return;
