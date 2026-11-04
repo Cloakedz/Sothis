@@ -227,6 +227,7 @@
   }
   function prog() {
     const t = now(), on = !!(t && t.loading);
+    $("scan").classList.toggle("on", on);
     $("prog").classList.toggle("on", on);
     $("progI").style.width = on ? "70%" : "100%";
     if (!on) setTimeout(() => { if (!(now() && now().loading)) $("progI").style.width = "0"; }, 400);
