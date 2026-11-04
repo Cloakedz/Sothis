@@ -220,7 +220,19 @@ ipcMain.handle("upd:get", () => Object.assign({ version: APP_VER }, upd));
 ipcMain.handle("upd:check", async () => { await updCheck(); return Object.assign({ version: APP_VER }, upd); });
 // coming back to the window also checks (at most every 5 minutes), so a new version shows up soon after it's out
 let updFocusAt = 0;
-app.on("browser-window-focus", () => { if (Date.now() - updFocusAt > 5 * 60e3) { updFocusAt = Date.now(); updCheck(); } });
+app.on("browser-window-focus", () => { if (Date.now() - updFocusAt > 2 * 60e3) { updFocusAt = Date.now(); updCheck(); } });
 ipcMain.on("upd:restart", () => { app.relaunch(); app.exit(0); });
-app.whenReady().then(wvReady).then(() => { setupSession(); adLoad(); createWindow(); setTimeout(regBrowser, 3000); setTimeout(updCheck, 15000); setInterval(updCheck, 20 * 60e3); });
+// any change to Blackwall's own files (an update, or new files copied in) shows the update card right away
+function updWatch() {
+  let t = null;
+  const fire = name => {
+    if (!/\.(js|html|json|png|gif|css)$/i.test(String(name || ""))) return;
+    clearTimeout(t); t = setTimeout(() => {
+      let v = APP_VER; try { v = JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8")).version || v; } catch {}
+      upd.state = "ready"; upd.latest = v; send("upd:ready", { version: v });
+    }, 1500);
+  };
+  for (const d of [__dirname, path.join(__dirname, "assets")]) { try { fs.watch(d, (_ev, name) => fire(name)); } catch {} }
+}
+app.whenReady().then(wvReady).then(() => { setupSession(); adLoad(); createWindow(); setTimeout(regBrowser, 3000); setTimeout(updCheck, 15000); setInterval(updCheck, 10 * 60e3); setTimeout(updWatch, 3000); });
 app.on("window-all-closed", () => app.quit());
