@@ -26,7 +26,14 @@
   const closed = [];
   const now = () => tabs.find(t => t.id === cur);
   // Home isn't a tab: it's what you see with no tab picked (the logo, top-left). Searching from Home opens a tab.
+  // Setting: pause videos in a tab when you leave it, and carry on when you come back
+  let autoPause = store.get("autoPause", true);
+  const PAUSE_JS = `(() => { let n = 0; document.querySelectorAll("video, audio").forEach(v => { if (!v.paused && !v.ended) { v.pause(); v.dataset.sbPaused = "1"; n++; } }); return n; })()`;
+  const RESUME_JS = `(() => { document.querySelectorAll("video[data-sb-paused], audio[data-sb-paused]").forEach(v => { delete v.dataset.sbPaused; v.play().catch(() => {}); }); })()`;
+  function leaveTab(id) { if (!autoPause || id == null) return; const t = tabs.find(x => x.id === id); if (t && t.wv) { try { t.wv.executeJavaScript(PAUSE_JS).catch(() => {}); } catch {} } }
+  function enterTab(t) { if (!autoPause || !t || !t.wv) return; try { t.wv.executeJavaScript(RESUME_JS, true).catch(() => {}); } catch {} }
   function goHome() {
+    leaveTab(cur);
     cur = null;
     tabs.forEach(x => { if (x.wv) x.wv.classList.add("off"); });
     $("start").hidden = false; startRender();
@@ -68,6 +75,7 @@
   }
   function select(id) {
     const t = tabs.find(x => x.id === id); if (!t) return;
+    if (cur !== id) { leaveTab(cur); setTimeout(() => enterTab(t), 60); }
     cur = id;
     tabs.forEach(x => { if (x.wv) x.wv.classList.toggle("off", x.id !== id); });
     if (t.url && !t.wv) makeView(t);
@@ -450,6 +458,19 @@
   const defPaint = () => B.isDefault().then(on => { $("sDefaultT").textContent = on ? "Blackwall is your default browser" : "Make Blackwall your default browser"; }).catch(() => {});
   $("sDefault").onclick = async () => { await B.defaultOpen(); toast("In Settings, set Blackwall for HTTPS and HTTP (or press Set default)"); setTimeout(defPaint, 8000); };
   defPaint();
+  $("sPause").setAttribute("aria-checked", autoPause);
+  $("sPause").onclick = () => { autoPause = !autoPause; store.set("autoPause", autoPause); $("sPause").setAttribute("aria-checked", autoPause); toast(autoPause ? "Videos pause when you leave a tab" : "Videos keep playing in other tabs"); };
+  // bring Chrome's bookmarks in as a folder on the bar (its folders, and folders inside them, come along)
+  $("sImport").onclick = async () => {
+    const r = await B.importBookmarks("chrome").catch(() => null);
+    if (!r || !r.ok) return toast((r && r.err) || "Couldn't import bookmarks");
+    let n = 0; const count = l => l.forEach(x => { if (x.f) count(x.items); else n++; });
+    r.profiles.forEach(p => count(p.items));
+    if (!n) return toast("Chrome has no bookmarks to bring over");
+    const items = r.profiles.length === 1 ? r.profiles[0].items : r.profiles.map(p => ({ f: true, t: "Chrome " + p.prof, items: p.items }));
+    bms.push({ f: true, t: "From Chrome", items }); bmSave(); closePops();
+    toast(n + " bookmark" + (n === 1 ? "" : "s") + " imported into the From Chrome folder");
+  };
   $("sClear").onclick = async () => { $("sClear").disabled = true; await B.clearData(); $("sClear").disabled = false; toast("Cookies and site data cleared"); };
   B.onBlocked(d => { const t = tabs.find(x => x.wcId === d.id); if (t) { t.blocked++; if (t.id === cur) { paintBar(); if (!$("setPop").hidden) paintSettings(); } } });
   let popUrl = "";

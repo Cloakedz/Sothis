@@ -156,6 +156,28 @@ ipcMain.handle("ad:count", (_e, id) => adCounts.get(id) || 0);
 ipcMain.handle("dl:open", (_e, f) => { if (typeof f === "string" && fs.existsSync(f)) shell.openPath(f); });
 ipcMain.handle("dl:show", (_e, f) => { if (typeof f === "string" && fs.existsSync(f)) shell.showItemInFolder(f); });
 ipcMain.handle("dl:folder", () => shell.openPath(app.getPath("downloads")));
+// Import bookmarks from Chrome (or Edge, Brave, Opera GX): reads their Bookmarks file on this PC; nothing leaves the PC
+ipcMain.handle("import:bookmarks", (_e, which) => {
+  const L = process.env.LOCALAPPDATA || "", R = process.env.APPDATA || "";
+  const places = { chrome: path.join(L, "Google", "Chrome", "User Data"), edge: path.join(L, "Microsoft", "Edge", "User Data"), brave: path.join(L, "BraveSoftware", "Brave-Browser", "User Data"), operagx: path.join(R, "Opera Software", "Opera GX Stable") };
+  const base = places[which] || places.chrome;
+  const files = [];
+  try { if (fs.existsSync(path.join(base, "Bookmarks"))) files.push(path.join(base, "Bookmarks")); for (const d of fs.readdirSync(base)) if (/^(Default|Profile \d+)$/.test(d) && fs.existsSync(path.join(base, d, "Bookmarks"))) files.push(path.join(base, d, "Bookmarks")); } catch {}
+  if (!files.length) return { ok: false, err: "Couldn't find that browser's bookmarks on this PC." };
+  const conv = n => n.type === "folder" ? { f: true, t: n.name || "Folder", items: (n.children || []).map(conv).filter(Boolean) } : (n.type === "url" && /^https?:/i.test(n.url || "") ? { u: n.url, t: n.name || n.url } : null);
+  const out = [];
+  for (const f of files) {
+    try {
+      const j = JSON.parse(fs.readFileSync(f, "utf8")), r = j.roots || {};
+      const prof = path.basename(path.dirname(f));
+      const items = [];
+      if (r.bookmark_bar) items.push(...(r.bookmark_bar.children || []).map(conv).filter(Boolean));
+      for (const k of ["other", "synced"]) if (r[k] && (r[k].children || []).length) items.push({ f: true, t: k === "other" ? "Other bookmarks" : "Mobile bookmarks", items: r[k].children.map(conv).filter(Boolean) });
+      if (items.length) out.push({ prof, items });
+    } catch {}
+  }
+  return { ok: true, profiles: out };
+});
 ipcMain.handle("data:clear", async () => { const ses = session.fromPartition("persist:web"); await ses.clearCache(); await ses.clearStorageData(); return true; });
 ipcMain.on("open-external", (_e, u) => { if (/^https?:\/\//i.test(String(u))) shell.openExternal(u); });
 
