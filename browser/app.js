@@ -82,6 +82,7 @@
     const [t] = tabs.splice(i, 1);
     if (t.url) { closed.push(t.url); if (closed.length > 25) closed.shift(); }
     if (t.wv) t.wv.remove();
+    groupTidy();
     if (!tabs.length) { goHome(); return; }
     if (cur === id) select(tabs[Math.min(i, tabs.length - 1)].id); else { renderTabs(); save(); }
   }
@@ -95,10 +96,76 @@
     try { t.wv.focus(); } catch {}
   }
   function paint(t) { renderTabs(); if (t.id === cur) paintBar(); }
+  let tabDrag = null;
+  /* ---------- tab groups (like Chrome): a named, coloured chip; click it to fold its tabs away ---------- */
+  const GCOL = { grey: "#8b8f9c", blue: "#5b8def", red: "#e3192f", yellow: "#f2b33d", green: "#3ccf8e", pink: "#ff5fa2", purple: "#a77bff", cyan: "#3cc8e0", orange: "#ff8a3d" };
+  let groups = store.get("groups", []); if (!Array.isArray(groups)) groups = [];
+  const grp = id => groups.find(g => g.id === id);
+  function groupTidy() {   // keep each group's tabs side by side, and forget empty groups
+    const order = []; const seen = new Set();
+    tabs.forEach(t => { if (!t.g || !grp(t.g)) { t.g = 0; order.push(t); return; } if (seen.has(t.g)) return; seen.add(t.g); tabs.filter(x => x.g === t.g).forEach(x => order.push(x)); });
+    tabs.splice(0, tabs.length, ...order);
+    groups = groups.filter(g => tabs.some(t => t.g === g.id));
+  }
+  async function groupNew(t) {
+    const used = new Set(groups.map(g => g.color)), color = Object.keys(GCOL).find(c => !used.has(c)) || "grey";
+    const g = { id: Date.now(), name: "", color, collapsed: false };
+    groups.push(g); groupAdd(t, g);
+    const n = await window.__askAsync("Name this group (or leave it blank)", "");
+    if (n != null) { g.name = n.trim().slice(0, 30); renderTabs(); save(); }
+  }
+  function groupAdd(t, g) {
+    t.g = g.id; const last = [...tabs].reverse().find(x => x.g === g.id && x !== t);
+    if (last) { tabs.splice(tabs.indexOf(t), 1); tabs.splice(tabs.indexOf(last) + 1, 0, t); }
+    g.collapsed = false; groupTidy(); renderTabs(); save();
+  }
+  function groupMenu(e, g) {
+    e.preventDefault(); e.stopPropagation();
+    const rows = [
+      { label: "Rename group", act: async () => { const n = await window.__askAsync("Group name", g.name); if (n != null) { g.name = n.trim().slice(0, 30); renderTabs(); save(); } } },
+      { label: "Colour", sub: () => Object.entries(GCOL).map(([k, v]) => ({ label: k[0].toUpperCase() + k.slice(1) + (g.color === k ? "  ✓" : ""), dot: v, act: () => { g.color = k; renderTabs(); save(); } })) },
+      { label: g.collapsed ? "Expand group" : "Collapse group", act: () => { g.collapsed = !g.collapsed; if (g.collapsed && now() && now().g === g.id) { const o = tabs.find(x => x.g !== g.id); if (o) select(o.id); else goHome(); } renderTabs(); save(); } },
+      "-",
+      { label: "Ungroup", act: () => { tabs.forEach(t => { if (t.g === g.id) t.g = 0; }); groupTidy(); renderTabs(); save(); } },
+      { label: "Close group", act: () => { tabs.filter(t => t.g === g.id).forEach(t => close(t.id)); } }
+    ];
+    menuAt(e.clientX, e.clientY, 0, rows);
+  }
+  function tabMenu(e, t) {
+    e.preventDefault(); e.stopPropagation();
+    const others = groups.filter(g => g.id !== t.g);
+    const rows = [
+      { label: "Add tab to new group", act: () => groupNew(t) },
+      others.length ? { label: "Add tab to group", sub: () => others.map(g => ({ label: g.name || "Unnamed group", dot: GCOL[g.color], act: () => groupAdd(t, g) })) } : null,
+      t.g ? { label: "Remove from group", act: () => { const gid = t.g; t.g = 0; tabs.splice(tabs.indexOf(t), 1); const last = tabs.map(x => x.g).lastIndexOf(gid); tabs.splice(last + 1, 0, t); groupTidy(); renderTabs(); save(); } } : null,
+      "-",
+      { label: "Duplicate", act: () => { const d = newTab(t.url, true); if (d && t.g) { d.g = t.g; groupTidy(); renderTabs(); save(); } } },
+      { label: "Close other tabs", act: () => tabs.filter(x => x !== t).forEach(x => close(x.id)) },
+      { label: "Close tab", act: () => close(t.id) }
+    ].filter(Boolean);
+    menuAt(e.clientX, e.clientY, 0, rows);
+  }
   function renderTabs() {
     const box = $("tabs"); box.replaceChildren();
+    let lastG = 0;
     tabs.forEach(t => {
-      const b = mk("div", "tab" + (t.id === cur ? " on" : "")); b.setAttribute("role", "tab"); b.title = t.title || t.url || "New tab";
+      const g = t.g ? grp(t.g) : null;
+      if (g && g.id !== lastG) {
+        const c = mk("div", "tgrp" + (g.collapsed ? " shut" : "")); c.style.setProperty("--gc", GCOL[g.color] || GCOL.grey);
+        c.title = (g.name || "Group") + " · " + tabs.filter(x => x.g === g.id).length + " tabs · click to " + (g.collapsed ? "open" : "fold");
+        c.append(mk("span", "", g.name || (g.collapsed ? String(tabs.filter(x => x.g === g.id).length) : "")));
+        c.onclick = () => { g.collapsed = !g.collapsed; if (g.collapsed && now() && now().g === g.id) { const o = tabs.find(x => x.g !== g.id); if (o) select(o.id); else goHome(); } renderTabs(); save(); };
+        c.oncontextmenu = e => groupMenu(e, g);
+        c.addEventListener("dragover", e => { if (tabDrag) { e.preventDefault(); c.classList.add("drop"); } });
+        c.addEventListener("dragleave", () => c.classList.remove("drop"));
+        c.addEventListener("drop", e => { e.preventDefault(); c.classList.remove("drop"); if (tabDrag) { const m = tabDrag; tabDrag = null; m.g = g.id; tabs.splice(tabs.indexOf(m), 1); tabs.splice(tabs.findIndex(x => x.g === g.id), 0, m); g.collapsed = false; groupTidy(); renderTabs(); save(); } });
+        box.append(c);
+      }
+      lastG = g ? g.id : 0;
+      if (g && g.collapsed) return;
+      const b = mk("div", "tab" + (t.id === cur ? " on" : "") + (g ? " ing" : "")); b.setAttribute("role", "tab"); b.title = t.title || t.url || "New tab";
+      if (g) b.style.setProperty("--gc", GCOL[g.color] || GCOL.grey);
+      b.oncontextmenu = e => tabMenu(e, t);
       if (t.loading) b.append(mk("i", "spin"));
       else if (t.icon || t.url) { const im = mk("img"); im.alt = ""; im.src = t.icon || favi(t.url); im.onerror = () => { im.replaceWith(mk("span", "fi", (host(t.url) || "?")[0].toUpperCase())); }; b.append(im); }
       else { const im = mk("img"); im.alt = ""; im.src = "assets/blackwall.png"; b.append(im); }
@@ -108,6 +175,24 @@
       x.onclick = e => { e.stopPropagation(); close(t.id); };
       b.onmousedown = e => { if (e.button === 1) { e.preventDefault(); close(t.id); } };
       b.onclick = () => select(t.id);
+      // drag a tab left or right to reorder
+      b.draggable = true;
+      b.addEventListener("dragstart", e => { tabDrag = t; e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", t.url || ""); } catch {} requestAnimationFrame(() => b.classList.add("dragging")); });
+      b.addEventListener("dragend", () => { tabDrag = null; document.querySelectorAll(".tab.dragging, .tab.drop-l, .tab.drop-r").forEach(el => el.classList.remove("dragging", "drop-l", "drop-r")); });
+      b.addEventListener("dragover", e => {
+        if (!tabDrag || tabDrag === t) return; e.preventDefault();
+        const r = b.getBoundingClientRect(), right = e.clientX > r.left + r.width / 2;
+        b.classList.toggle("drop-r", right); b.classList.toggle("drop-l", !right);
+      });
+      b.addEventListener("dragleave", () => b.classList.remove("drop-l", "drop-r"));
+      b.addEventListener("drop", e => {
+        e.preventDefault(); if (!tabDrag || tabDrag === t) return;
+        const right = b.classList.contains("drop-r"), moving = tabDrag;
+        tabs.splice(tabs.indexOf(moving), 1);
+        tabs.splice(tabs.indexOf(t) + (right ? 1 : 0), 0, moving);
+        moving.g = t.g || 0;   // dropped among a group's tabs: it joins that group
+        tabDrag = null; groupTidy(); renderTabs(); save();
+      });
       b.append(x); box.append(b);
     });
     document.title = (now() && now().title ? now().title + " · " : "") + "Blackwall";
@@ -138,7 +223,7 @@
     $("progI").style.width = on ? "70%" : "100%";
     if (!on) setTimeout(() => { if (!(now() && now().loading)) $("progI").style.width = "0"; }, 400);
   }
-  function save() { store.set("tabs", { list: tabs.filter(t => t.url).map(t => ({ url: t.url, title: t.title })), cur: cur === null ? -1 : Math.max(0, tabs.filter(t => t.url).findIndex(t => t.id === cur)) }); }
+  function save() { store.set("groups", groups); store.set("tabs", { list: tabs.filter(t => t.url).map(t => ({ url: t.url, title: t.title, g: t.g || 0 })), cur: cur === null ? -1 : Math.max(0, tabs.filter(t => t.url).findIndex(t => t.id === cur)) }); }
 
   /* ---------- bookmarks, shortcuts, history ---------- */
   const QUICK_DEF = [["YouTube", "https://www.youtube.com/"], ["Google", "https://www.google.com/"], ["Reddit", "https://www.reddit.com/"], ["Twitch", "https://www.twitch.tv/"],
@@ -193,6 +278,7 @@
     rows.forEach(r => {
       if (r === "-") { m.append(mk("div", "cm-sep")); return; }
       const b = mk("button", "cm-r" + (r.dim ? " dim" : "")); b.type = "button";
+      if (r.dot) { const d = mk("span", "cm-dot"); d.style.background = r.dot; b.append(d); }
       if (r.icon) { const ic = r.icon === "folder" ? mk("span", "cm-i") : mk("img", "cm-i"); if (r.icon === "folder") ic.innerHTML = FOLDER_SVG; else { ic.alt = ""; ic.src = r.icon; ic.onerror = () => ic.remove(); } b.append(ic); }
       b.append(mk("span", "cm-t", r.label));
       if (r.sub) { const c = mk("span", "cm-c"); c.innerHTML = CHEV; b.append(c); }
@@ -439,7 +525,7 @@
     else if (k === "escape") { closePops(); if (!$("find").hidden) findClose(); }
     if (combo) { e.preventDefault(); key(combo); }
   });
-  B.onOpen(d => newTab(d.url, d.bg));
+  B.onOpen(d => { const from = now(); const t = newTab(d.url, d.bg); if (t && from && from.g) { const i = tabs.indexOf(t); tabs.splice(i, 1); tabs.splice(tabs.indexOf(from) + 1, 0, t); t.g = from.g; groupTidy(); renderTabs(); save(); } });
 
   // a small in-app prompt (Electron has no window.prompt)
   window.__prompt = null;
@@ -479,7 +565,7 @@
   const saved = store.get("tabs", null);
   const list = saved && Array.isArray(saved.list) ? saved.list.filter(x => x && /^https?:\/\//i.test(x.url)) : [];
   if (list.length) {
-    list.forEach(x => tabs.push({ id: ++seq, url: x.url, title: x.title || "", icon: "", loading: false, audible: false, wv: null, blocked: 0, wcId: 0, zoom: 1 }));
+    list.forEach(x => tabs.push({ id: ++seq, url: x.url, title: x.title || "", icon: "", loading: false, audible: false, wv: null, blocked: 0, wcId: 0, zoom: 1, g: groups.some(gr => gr.id === x.g) ? x.g : 0 }));
     if (saved.cur === -1) goHome(); else select(tabs[Math.min(Math.max(0, saved.cur | 0), tabs.length - 1)].id);   // the other tabs load when you open them
   } else goHome();
   // opened from a link in another app (when Blackwall is your default browser)
