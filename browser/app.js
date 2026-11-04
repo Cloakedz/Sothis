@@ -61,8 +61,8 @@
     wv.addEventListener("dom-ready", () => { try { t.wcId = wv.getWebContentsId(); } catch {} try { wv.setZoomFactor(t.zoom); } catch {} }, { once: false });
     wv.addEventListener("did-start-loading", () => { t.loading = true; paint(t); });
     wv.addEventListener("did-stop-loading", () => { t.loading = false; paint(t); });
-    wv.addEventListener("did-navigate", e => { t.url = e.url; t.blocked = 0; addHistory(t); paint(t); save(); });
-    wv.addEventListener("did-navigate-in-page", e => { if (e.isMainFrame) { t.url = e.url; paint(t); save(); } });
+    wv.addEventListener("did-navigate", e => { { const v = u => { try { return new URL(u).searchParams.get("v") || u; } catch { return u; } }; if (v(e.url) !== v(t.url)) t.ytAt = 0; } t.url = e.url; t.blocked = 0; addHistory(t); paint(t); save(); });
+    wv.addEventListener("did-navigate-in-page", e => { if (e.isMainFrame) { const v = u => { try { return new URL(u).searchParams.get("v") || u; } catch { return u; } }; if (v(e.url) !== v(t.url)) t.ytAt = 0; t.url = e.url; paint(t); save(); } });
     wv.addEventListener("page-title-updated", e => { t.title = e.title; paint(t); updHistoryTitle(t); });
     wv.addEventListener("page-favicon-updated", e => { t.icon = (e.favicons || [])[0] || ""; paint(t); });
     wv.addEventListener("media-started-playing", () => { t.audible = true; paint(t); });
@@ -79,7 +79,7 @@
     if (cur !== id) { const old = now(); if (old) old.seen = Date.now(); leaveTab(cur); setTimeout(() => enterTab(t), 60); }
     cur = id; t.seen = Date.now(); t.asleep = false;
     tabs.forEach(x => { if (x.wv) x.wv.classList.toggle("off", x.id !== id); });
-    if (t.url && !t.wv) makeView(t);
+    if (t.url && !t.wv) { const r = resumeUrl(t); if (r !== t.url) t.url = r; makeView(t); }
     if (t.wv) t.wv.classList.remove("off");
     $("start").hidden = !!t.url;
     if (!t.url) startRender();
@@ -234,7 +234,26 @@
     $("progI").style.width = on ? "70%" : "100%";
     if (!on) setTimeout(() => { if (!(now() && now().loading)) $("progI").style.width = "0"; }, 400);
   }
-  function save() { store.set("groups", groups); store.set("tabs", { list: tabs.filter(t => t.url).map(t => ({ url: t.url, title: t.title, g: t.g || 0 })), cur: cur === null ? -1 : Math.max(0, tabs.filter(t => t.url).findIndex(t => t.id === cur)) }); }
+  // YouTube: remember how far into the video you were, so it picks up there after a restart (or when a sleeping tab wakes)
+  const isYtWatch = u => /^https:\/\/(www\.|m\.)?youtube\.com\/(watch|shorts\/|live\/)/i.test(u || "") || /^https:\/\/youtu\.be\//i.test(u || "");
+  function resumeUrl(t) {
+    if (!t.ytAt || !isYtWatch(t.url) || t.ytAt < 5) return t.url;
+    try { const u = new URL(t.url); u.searchParams.set("t", Math.floor(t.ytAt) + "s"); return u.href; } catch { return t.url; }
+  }
+  async function ytRemember() {
+    let changed = false;
+    for (const t of tabs) {
+      if (!t.wv || !isYtWatch(t.url)) continue;
+      try {
+        const at = await t.wv.executeJavaScript(`(() => { const v = document.querySelector("video"); return v && isFinite(v.currentTime) ? (v.duration && v.currentTime > v.duration - 8 ? 0 : v.currentTime) : -1; })()`);
+        if (at >= 0 && Math.abs((t.ytAt || 0) - at) >= 2) { t.ytAt = at; changed = true; }
+      } catch {}
+    }
+    if (changed) save();
+  }
+  setInterval(ytRemember, 5000);
+  window.addEventListener("beforeunload", () => save());
+  function save() { store.set("groups", groups); store.set("tabs", { list: tabs.filter(t => t.url).map(t => ({ url: resumeUrl(t), title: t.title, g: t.g || 0 })), cur: cur === null ? -1 : Math.max(0, tabs.filter(t => t.url).findIndex(t => t.id === cur)) }); }
 
   /* ---------- bookmarks, shortcuts, history ---------- */
   const QUICK_DEF = [["YouTube", "https://www.youtube.com/"], ["Google", "https://www.google.com/"], ["Reddit", "https://www.reddit.com/"], ["Twitch", "https://www.twitch.tv/"],
