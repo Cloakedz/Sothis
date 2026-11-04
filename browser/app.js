@@ -574,6 +574,14 @@
     };
   };
 
+  /* ---------- Home clock ---------- */
+  function clockTick() {
+    const d = new Date(), tt = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), m = /^(.*?)\s*([AaPp]\.?\s?[Mm]\.?)$/.exec(tt);
+    const el = $("hcT"); if (el.dataset.v !== tt) { el.dataset.v = tt; el.replaceChildren(document.createTextNode(m ? m[1] : tt)); if (m) el.append(mk("small", "", m[2].replace(/[.\s]/g, "").toUpperCase())); }
+    $("hcD").textContent = d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+  }
+  clockTick(); setInterval(clockTick, 1000);
+
   /* ---------- update pill ---------- */
   const updShow = () => { $("upd").hidden = false; };
   B.onUpd(updShow);

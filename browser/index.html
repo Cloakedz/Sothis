@@ -138,6 +138,13 @@ webview.off { visibility: hidden; pointer-events: none; }
 .word small { display: block; text-align: center; font: 800 11px var(--f-head); letter-spacing: .4em; color: var(--muted); text-shadow: none; margin-top: 8px; }
 .sbox { width: min(640px, 100%); margin: auto 0; display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 18px; border-radius: 26px; background: rgba(20, 20, 26, .92); border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0, 0, 0, .45); }
 .sbox[hidden] { display: none; }
+/* Home: clock and date on the left */
+.start > .hclock { position: absolute; left: clamp(24px, 6vw, 96px); top: 50%; transform: translateY(-50%); z-index: 2; pointer-events: none; }
+.hc-t { font: 800 clamp(48px, 7vw, 96px)/1 var(--f-head); letter-spacing: .04em; color: transparent;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent) 38%, #ffd0d5 50%, var(--accent) 62%, var(--accent) 100%) 0 0 / 300% 100%; -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 0 14px var(--glow)); animation: nameRoll 4s linear infinite; font-variant-numeric: tabular-nums; }
+.hc-t small { font-size: .32em; letter-spacing: .18em; margin-left: .35em; vertical-align: .9em; }
+.hc-d { margin-top: 12px; font: 800 13px var(--f-head); letter-spacing: .36em; text-transform: uppercase; color: rgba(255, 255, 255, .7); text-shadow: 0 0 10px rgba(0, 0, 0, .8); }
 .sbox:focus-within { border-color: color-mix(in srgb, var(--accent) 60%, transparent); box-shadow: 0 0 0 4px rgba(227, 25, 47, .12), 0 16px 40px rgba(0, 0, 0, .45); }
 .sbox svg { width: 18px; height: 18px; color: var(--muted); }
 .sbox input { flex: 1; background: none; border: 0; outline: none; color: var(--ink); font: 16px var(--f-body); user-select: text; }
@@ -208,7 +215,7 @@ select { background: var(--surface2); color: var(--ink); border: 1px solid var(-
 .upd .x { width: 26px; height: 26px; border-radius: 8px; color: var(--muted); font-size: 12px; }
 .upd .x:hover { background: var(--surface2); color: var(--ink); }
 body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog { display: none; }
-@media (prefers-reduced-motion: reduce) { .crest, .name, .start::before, .start::after { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .crest, .name, .hc-t, .start::before, .start::after { animation: none; } }
 </style>
 </head>
 <body>
@@ -245,6 +252,7 @@ body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog
   <div class="bms" id="bms" hidden></div>
   <div class="view" id="view">
     <div class="start" id="start">
+      <div class="hclock" aria-label="Time and date"><div class="hc-t" id="hcT">--:--</div><div class="hc-d" id="hcD"></div></div>
       <form class="sbox" id="sForm" autocomplete="off" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="sq" type="text" spellcheck="false" placeholder="Search the web or type an address"></form>
 <div hidden><div id="quick"></div><div id="recent"></div></div>
     </div>
