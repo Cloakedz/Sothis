@@ -22,6 +22,13 @@ svg { display: block; }
 /* top bar: crest, tabs, window buttons */
 .head { position: relative; display: flex; align-items: center; height: 40px; padding: 0 0 0 12px; background: var(--panel); -webkit-app-region: drag; }
 .head .wbtns { margin-left: auto; height: 100%; }
+/* update ready: a red download button just right of the name (click it to restart) */
+.updbtn { -webkit-app-region: no-drag; position: absolute; left: calc(50% + 74px); top: 50%; transform: translateY(-50%); width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: #fff; background: var(--accent); box-shadow: 0 0 12px var(--glow); animation: updGlow 2s ease-in-out infinite; }
+.updbtn[hidden] { display: none; }
+.updbtn svg { width: 15px; height: 15px; }
+.updbtn:hover { filter: brightness(1.15); }
+.updbtn:active { transform: translateY(-50%) scale(.92); }
+@keyframes updGlow { 50% { box-shadow: 0 0 20px rgba(255, 40, 60, .85); } }
 .home-btn { -webkit-app-region: no-drag; position: relative; width: 34px; height: 30px; margin-left: -5px; border-radius: 9px; display: grid; place-items: center; transition: background .15s; }
 .home-btn:hover { background: var(--surface2); }
 .home-btn.on { background: rgba(227, 25, 47, .14); }
@@ -223,6 +230,7 @@ body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog
   <div class="head">
     <button class="home-btn" id="homeBtn" type="button" title="Home" aria-label="Home"><img class="crest" src="assets/blackwall.png" alt=""></button>
     <div class="name">BLACKWALL</div>
+    <button class="updbtn" id="updBtn" type="button" hidden title="Update ready. Click to restart Blackwall" aria-label="Update ready, restart Blackwall"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
     <div class="wbtns">
       <button class="wb" id="wMin" type="button" aria-label="Minimize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
       <button class="wb" id="wMax" type="button" aria-label="Maximize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="2"/></svg></button>

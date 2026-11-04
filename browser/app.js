@@ -583,11 +583,10 @@
   clockTick(); setInterval(clockTick, 1000);
 
   /* ---------- update pill ---------- */
-  const updShow = () => { $("upd").hidden = false; };
+  const updShow = () => { $("updBtn").hidden = false; };
   B.onUpd(updShow);
   B.updGet().then(u => { if (u && u.state === "ready") updShow(); if (u && u.version) $("verT").textContent = "v" + u.version; }).catch(() => {});
-  $("updGo").onclick = () => { save(); B.restart(); };
-  $("updX").onclick = () => { $("upd").hidden = true; setTimeout(updShow, 2 * 3600e3); };
+  $("updBtn").onclick = () => { save(); B.restart(); };
 
   /* ---------- start ---------- */
   bmRender();
