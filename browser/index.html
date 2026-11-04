@@ -105,7 +105,7 @@ webview.off { visibility: hidden; pointer-events: none; }
 
 /* start page */
 .start { position: absolute; inset: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 24px 12vh;
-  background: radial-gradient(ellipse 70% 45% at 50% 0%, rgba(227, 25, 47, .16), transparent 70%), var(--bg); }
+  background: radial-gradient(ellipse 60% 45% at 50% 50%, rgba(7, 7, 10, .55), rgba(7, 7, 10, .15) 70%), url("assets/matrix-red.gif") center / cover no-repeat, var(--bg); }
 .start[hidden] { display: none; }
 .start::before { content: none; display: none; background: none; opacity: 0; pointer-events: none; animation: cbg 5s ease-in-out infinite; }
 @keyframes cbg { 50% { opacity: .17; filter: drop-shadow(0 0 30px rgba(227, 25, 47, .6)); } }
