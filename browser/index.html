@@ -22,6 +22,10 @@ svg { display: block; }
 /* top bar: crest, tabs, window buttons */
 .head { position: relative; display: flex; align-items: center; height: 40px; padding: 0 0 0 12px; background: var(--panel); -webkit-app-region: drag; }
 .head .wbtns { margin-left: auto; height: 100%; }
+.home-btn { -webkit-app-region: no-drag; position: relative; width: 34px; height: 30px; margin-left: -5px; border-radius: 9px; display: grid; place-items: center; transition: background .15s; }
+.home-btn:hover { background: var(--surface2); }
+.home-btn.on { background: rgba(227, 25, 47, .14); }
+.home-btn.on::after { content: ""; position: absolute; left: 9px; right: 9px; bottom: 1px; height: 2px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 8px var(--glow); }
 .name { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 800 13px/1 var(--f-head); letter-spacing: .42em; padding-left: .42em; pointer-events: none; white-space: nowrap;
   color: transparent; background: linear-gradient(90deg, var(--accent) 0%, var(--accent) 38%, #ffd0d5 50%, var(--accent) 62%, var(--accent) 100%) 0 0 / 300% 100%; -webkit-background-clip: text; background-clip: text;
   filter: drop-shadow(0 0 6px var(--glow)); animation: nameRoll 4s linear infinite; }
@@ -189,7 +193,7 @@ body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog
 <body>
 <div class="app">
   <div class="head">
-    <img class="crest" src="assets/blackwall.png" alt="">
+    <button class="home-btn" id="homeBtn" type="button" title="Home" aria-label="Home"><img class="crest" src="assets/blackwall.png" alt=""></button>
     <div class="name">BLACKWALL</div>
     <div class="wbtns">
       <button class="wb" id="wMin" type="button" aria-label="Minimize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
@@ -199,7 +203,7 @@ body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog
   </div>
   <div class="top">
     <div class="tabs" id="tabs" role="tablist" aria-label="Tabs"></div>
-    <button class="newtab" id="newTab" type="button" title="New tab (Ctrl+T)" aria-label="New tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button class="newtab" id="newTab" type="button" title="Home (Ctrl+T)" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
     <div class="drag"></div>
   </div>
   <div class="bar">
@@ -226,7 +230,7 @@ body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog
   </div>
 </div>
 <div class="pop" id="menu" hidden>
-  <button class="mi" data-a="newtab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>New tab<kbd>Ctrl+T</kbd></button>
+  <button class="mi" data-a="newtab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>New tab (Home)<kbd>Ctrl+T</kbd></button>
   <button class="mi" data-a="reopen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/></svg>Reopen closed tab<kbd>Ctrl+Shift+T</kbd></button>
   <div class="sep"></div>
   <button class="mi" data-a="history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>History<kbd>Ctrl+H</kbd></button>

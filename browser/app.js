@@ -25,7 +25,16 @@
   let tabs = [], cur = null, seq = 0;
   const closed = [];
   const now = () => tabs.find(t => t.id === cur);
+  // Home isn't a tab: it's what you see with no tab picked (the logo, top-left). Searching from Home opens a tab.
+  function goHome() {
+    cur = null;
+    tabs.forEach(x => { if (x.wv) x.wv.classList.add("off"); });
+    $("start").hidden = false; startRender();
+    renderTabs(); paintBar(); save();
+    setTimeout(() => { $("sq").focus(); }, 30);
+  }
   function newTab(url, bg) {
+    if (!url) { goHome(); return null; }
     const t = { id: ++seq, url: url || "", title: "", icon: "", loading: false, audible: false, wv: null, blocked: 0, wcId: 0, zoom: 1 };
     tabs.push(t);
     if (t.url) makeView(t);
@@ -73,12 +82,13 @@
     const [t] = tabs.splice(i, 1);
     if (t.url) { closed.push(t.url); if (closed.length > 25) closed.shift(); }
     if (t.wv) t.wv.remove();
-    if (!tabs.length) { newTab(""); return; }
+    if (!tabs.length) { goHome(); return; }
     if (cur === id) select(tabs[Math.min(i, tabs.length - 1)].id); else { renderTabs(); save(); }
   }
   function go(q) {
     const url = toUrl(q); if (!url) return;
-    let t = now(); if (!t) t = newTab("");
+    let t = now();
+    if (!t) { t = newTab(url); try { t.wv.focus(); } catch {} return; }   // from Home: a new tab
     t.url = url; t.title = ""; t.icon = "";
     if (t.wv) t.wv.loadURL(url).catch(() => {}); else makeView(t);
     select(t.id);
@@ -101,9 +111,10 @@
       b.append(x); box.append(b);
     });
     document.title = (now() && now().title ? now().title + " · " : "") + "Blackwall";
+    $("homeBtn").classList.toggle("on", cur === null);
   }
   function paintBar() {
-    const t = now(); if (!t) return;
+    const t = now() || { url: "", loading: false, blocked: 0, zoom: 1, wv: null };   // Home
     const wv = t.wv;
     let back = false, fwd = false; try { back = !!(wv && wv.canGoBack()); fwd = !!(wv && wv.canGoForward()); } catch {}
     $("bBack").disabled = !back; $("bFwd").disabled = !fwd;
@@ -127,7 +138,7 @@
     $("progI").style.width = on ? "70%" : "100%";
     if (!on) setTimeout(() => { if (!(now() && now().loading)) $("progI").style.width = "0"; }, 400);
   }
-  function save() { store.set("tabs", { list: tabs.filter(t => t.url).map(t => ({ url: t.url, title: t.title })), cur: Math.max(0, tabs.filter(t => t.url).findIndex(t => t.id === cur)) }); }
+  function save() { store.set("tabs", { list: tabs.filter(t => t.url).map(t => ({ url: t.url, title: t.title })), cur: cur === null ? -1 : Math.max(0, tabs.filter(t => t.url).findIndex(t => t.id === cur)) }); }
 
   /* ---------- bookmarks, shortcuts, history ---------- */
   const QUICK_DEF = [["YouTube", "https://www.youtube.com/"], ["Google", "https://www.google.com/"], ["Reddit", "https://www.reddit.com/"], ["Twitch", "https://www.twitch.tv/"],
@@ -383,7 +394,8 @@
   $("bBack").onclick = () => { const t = now(); try { t && t.wv && t.wv.canGoBack() && t.wv.goBack(); } catch {} };
   $("bFwd").onclick = () => { const t = now(); try { t && t.wv && t.wv.canGoForward() && t.wv.goForward(); } catch {} };
   $("bReload").onclick = () => { const t = now(); if (!t || !t.wv) return; if (t.loading) t.wv.stop(); else t.wv.reload(); };
-  $("bHome").onclick = () => { const t = now(); if (!t) return; t.url = ""; t.title = ""; t.icon = ""; if (t.wv) { t.wv.remove(); t.wv = null; } select(t.id); };
+  $("bHome").onclick = goHome;
+  $("homeBtn").onclick = goHome;
   $("bStar").onclick = bmToggle;
   $("bShield").onclick = () => { togglePop("setPop"); paintSettings(); };
   $("bDl").onclick = () => togglePop("dlPop");
@@ -468,8 +480,8 @@
   const list = saved && Array.isArray(saved.list) ? saved.list.filter(x => x && /^https?:\/\//i.test(x.url)) : [];
   if (list.length) {
     list.forEach(x => tabs.push({ id: ++seq, url: x.url, title: x.title || "", icon: "", loading: false, audible: false, wv: null, blocked: 0, wcId: 0, zoom: 1 }));
-    select(tabs[Math.min(Math.max(0, saved.cur | 0), tabs.length - 1)].id);   // the other tabs load when you open them
-  } else newTab("");
+    if (saved.cur === -1) goHome(); else select(tabs[Math.min(Math.max(0, saved.cur | 0), tabs.length - 1)].id);   // the other tabs load when you open them
+  } else goHome();
   // opened from a link in another app (when Blackwall is your default browser)
   B.startUrl().then(u => { if (u) newTab(u); }).catch(() => {});
   setInterval(() => { if (now() && now().wv) paintBar(); }, 1500);
