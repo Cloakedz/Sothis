@@ -1,4 +1,4 @@
-// Sothis Browser: tabs, address bar, start page, bookmarks, history, downloads. Kept in this window's storage on this PC.
+// Blackwall: tabs, address bar, start page, bookmarks, history, downloads. Kept in this window's storage on this PC.
 (() => {
   const $ = id => document.getElementById(id);
   const B = window.sb || new Proxy({}, { get: () => () => Promise.resolve(null) });
@@ -91,7 +91,7 @@
       const b = mk("div", "tab" + (t.id === cur ? " on" : "")); b.setAttribute("role", "tab"); b.title = t.title || t.url || "New tab";
       if (t.loading) b.append(mk("i", "spin"));
       else if (t.icon || t.url) { const im = mk("img"); im.alt = ""; im.src = t.icon || favi(t.url); im.onerror = () => { im.replaceWith(mk("span", "fi", (host(t.url) || "?")[0].toUpperCase())); }; b.append(im); }
-      else { const im = mk("img"); im.alt = ""; im.src = "assets/crest-bg.png"; b.append(im); }
+      else { const im = mk("img"); im.alt = ""; im.src = "assets/blackwall.png"; b.append(im); }
       b.append(mk("span", "t", t.title || (t.url ? host(t.url) : "New tab")));
       if (t.audible) { const s = mk("span", "snd"); s.innerHTML = ICON_SND; b.append(s); }
       const x = mk("button", "x"); x.type = "button"; x.setAttribute("aria-label", "Close tab"); x.innerHTML = ICON_X;
@@ -100,7 +100,7 @@
       b.onclick = () => select(t.id);
       b.append(x); box.append(b);
     });
-    document.title = (now() && now().title ? now().title + " · " : "") + "Sothis Browser";
+    document.title = (now() && now().title ? now().title + " · " : "") + "Blackwall";
   }
   function paintBar() {
     const t = now(); if (!t) return;

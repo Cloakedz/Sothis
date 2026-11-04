@@ -1,9 +1,16 @@
-// Sothis Browser: a small tabbed web browser in the Sothis style. Everything it keeps (sign-ins, history, bookmarks,
-// settings) stays in %APPDATA%\sothis-browser on this PC.
+// Blackwall: a small tabbed web browser in the Sothis style. Everything it keeps (sign-ins, history, bookmarks,
+// settings) stays in %APPDATA%\Blackwall on this PC.
 const { app, BrowserWindow, ipcMain, session, Menu, clipboard, shell, nativeImage, dialog } = require("electron");
 const path = require("path"), fs = require("fs");
 
-app.setAppUserModelId("Sothis Browser");
+app.setAppUserModelId("Blackwall");
+// your data folder is %APPDATA%\Blackwall; it was "Sothis Browser" before the rename, so that one moves over (sign-ins, tabs, bookmarks)
+{
+  const OLD = path.join(app.getPath("appData"), "Sothis Browser"), NEW = path.join(app.getPath("appData"), "Blackwall");
+  let use = NEW;
+  try { if (fs.existsSync(OLD) && !fs.existsSync(NEW)) fs.renameSync(OLD, NEW); } catch { if (fs.existsSync(OLD) && !fs.existsSync(NEW)) use = OLD; }
+  app.setPath("userData", use);
+}
 if (!app.requestSingleInstanceLock()) { app.quit(); return; }
 
 const DATA = app.getPath("userData");
@@ -94,7 +101,7 @@ app.on("web-contents-created", (_e, c) => {
     const signIn = /(accounts\.google|login|signin|sign-in|oauth|auth|sso|appleid|discord\.com\/(api\/)?oauth|paypal|checkout|steamcommunity\.com\/openid)/i.test(url);
     if (disposition === "new-window" && (signIn || features)) {
       if (!signIn && settings.popBlock !== false) { send("web:popup", { url, from: c.id }); return { action: "deny" }; }
-      return { action: "allow", overrideBrowserWindowOptions: { width: 520, height: 680, autoHideMenuBar: true, backgroundColor: "#0b0b0f", icon: path.join(__dirname, "assets", "icon.png"), webPreferences: { partition: "persist:web" } } };
+      return { action: "allow", overrideBrowserWindowOptions: { width: 520, height: 680, autoHideMenuBar: true, backgroundColor: "#0b0b0f", icon: path.join(__dirname, "assets", "blackwall.png"), webPreferences: { partition: "persist:web" } } };
     }
     send("web:open", { url, bg: disposition === "background-tab" });
     return { action: "deny" };
@@ -126,7 +133,7 @@ function createWindow() {
   const b = settings.bounds || {};
   win = new BrowserWindow({
     width: b.width || 1280, height: b.height || 820, x: b.x, y: b.y, minWidth: 520, minHeight: 360,
-    frame: false, backgroundColor: "#07070a", show: false, title: "Sothis Browser", icon: path.join(__dirname, "assets", "icon.png"),
+    frame: false, backgroundColor: "#07070a", show: false, title: "Blackwall", icon: path.join(__dirname, "assets", "blackwall.png"),
     webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false, sandbox: true, webviewTag: true }
   });
   win.removeMenu();

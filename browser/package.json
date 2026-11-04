@@ -1,8 +1,8 @@
 {
-  "name": "sothis-browser",
-  "productName": "Sothis Browser",
-  "version": "1.0.1",
-  "description": "A web browser in the Sothis style",
+  "name": "blackwall",
+  "productName": "Blackwall",
+  "version": "1.1.0",
+  "description": "Blackwall, a web browser in the Sothis style",
   "main": "main.js",
   "author": "Cloak",
   "license": "MIT"

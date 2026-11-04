@@ -1,4 +1,4 @@
-# Sothis Browser
+# Blackwall
 
 A small tabbed web browser in the Sothis style (Electron, castlabs engine for protected video).
 
@@ -6,6 +6,6 @@ A small tabbed web browser in the Sothis style (Electron, castlabs engine for pr
 - Ad and tracker blocking, pop-up blocking (sign-in windows still open)
 - Google sign-in works: Google's sign-in pages see a consistent, current Firefox
 - Find on page, zoom, fullscreen, picture-in-picture from the right-click menu
-- Everything it keeps stays in %APPDATA%\Sothis Browser on your PC
+- Everything it keeps stays in %APPDATA%\Blackwall on your PC
 
 Shortcuts: Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+Tab, Ctrl+1..9, Ctrl+L, Ctrl+D, Ctrl+H, Ctrl+J, Ctrl+F, Ctrl +/-/0, F5, F11, F12, Alt+Left/Right/Home.
