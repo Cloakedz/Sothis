@@ -4,6 +4,10 @@ const { app, BrowserWindow, ipcMain, session, Menu, clipboard, shell, nativeImag
 const path = require("path"), fs = require("fs");
 
 app.setAppUserModelId("Blackwall");
+// use less memory: let tabs of the same site share a process, and give pages a smaller memory ceiling
+app.commandLine.appendSwitch("renderer-process-limit", "8");
+app.commandLine.appendSwitch("js-flags", "--max-old-space-size=1024");
+app.commandLine.appendSwitch("disable-features", "BackForwardCache,SpareRendererForSitePerProcess");
 // your data folder is %APPDATA%\Blackwall; it was "Sothis Browser" before the rename, so that one moves over (sign-ins, tabs, bookmarks)
 {
   const OLD = path.join(app.getPath("appData"), "Sothis Browser"), NEW = path.join(app.getPath("appData"), "Blackwall");

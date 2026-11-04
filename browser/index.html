@@ -57,6 +57,8 @@ svg { display: block; }
 .tab .fi { display: grid; place-items: center; font: 800 10px var(--f-head); background: var(--surface2); color: var(--muted); }
 .tab .t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
 .tab.dragging { opacity: .4; }
+.tab.asleep img, .tab.asleep .fi { opacity: .4; filter: grayscale(1); }
+.tab.asleep .t { opacity: .55; font-style: italic; }
 .tab.ing::before { content: ""; position: absolute; left: 6px; right: 6px; bottom: 0; height: 2px; border-radius: 2px; background: var(--gc); opacity: .9; }
 .tab.ing.on::after { background: var(--gc); box-shadow: 0 0 10px var(--gc); }
 .tgrp { -webkit-app-region: no-drag; align-self: center; flex: none; display: flex; align-items: center; min-width: 14px; height: 22px; margin: 6px 2px 0 6px; padding: 0 9px; border-radius: 8px; background: var(--gc); color: #0b0b0f; font: 800 12px var(--f-head); cursor: pointer; transition: filter .15s, transform .12s; }
@@ -300,6 +302,8 @@ body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog
   <h4>Settings</h4>
   <div class="set"><div class="tx"><b>Block ads and trackers</b><span id="adN">Stops known ad servers from loading.</span></div><button class="sw" id="sAd" role="switch" aria-checked="true" aria-label="Block ads"></button></div>
   <div class="set"><div class="tx"><b>Block pop-up windows</b><span>Sign-in windows still open.</span></div><button class="sw" id="sPop" role="switch" aria-checked="true" aria-label="Block pop-ups"></button></div>
+  <div class="set"><div class="tx"><b>Sleep unused tabs</b><span>Tabs you haven't looked at are unloaded to save memory. Tabs playing sound never sleep.</span></div>
+    <select id="sSleep"><option value="5">After 5 min</option><option value="15">After 15 min</option><option value="30">After 30 min</option><option value="60">After 1 hour</option><option value="0">Never</option></select></div>
   <div class="set"><div class="tx"><b>Pause videos when you switch tabs</b><span>They carry on when you come back to the tab.</span></div><button class="sw" id="sPause" role="switch" aria-checked="true" aria-label="Pause videos when you switch tabs"></button></div>
   <div class="set"><div class="tx"><b>Search with</b><span>Used for anything that isn't a web address.</span></div>
     <select id="sEng"><option value="google">Google</option><option value="ddg">DuckDuckGo</option><option value="bing">Bing</option><option value="brave">Brave Search</option></select></div>

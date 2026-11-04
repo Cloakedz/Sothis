@@ -33,6 +33,7 @@
   function leaveTab(id) { if (!autoPause || id == null) return; const t = tabs.find(x => x.id === id); if (t && t.wv) { try { t.wv.executeJavaScript(PAUSE_JS).catch(() => {}); } catch {} } }
   function enterTab(t) { if (!autoPause || !t || !t.wv) return; try { t.wv.executeJavaScript(RESUME_JS, true).catch(() => {}); } catch {} }
   function goHome() {
+    { const old = now(); if (old) old.seen = Date.now(); }
     leaveTab(cur);
     cur = null;
     tabs.forEach(x => { if (x.wv) x.wv.classList.add("off"); });
@@ -75,8 +76,8 @@
   }
   function select(id) {
     const t = tabs.find(x => x.id === id); if (!t) return;
-    if (cur !== id) { leaveTab(cur); setTimeout(() => enterTab(t), 60); }
-    cur = id;
+    if (cur !== id) { const old = now(); if (old) old.seen = Date.now(); leaveTab(cur); setTimeout(() => enterTab(t), 60); }
+    cur = id; t.seen = Date.now(); t.asleep = false;
     tabs.forEach(x => { if (x.wv) x.wv.classList.toggle("off", x.id !== id); });
     if (t.url && !t.wv) makeView(t);
     if (t.wv) t.wv.classList.remove("off");
@@ -172,7 +173,7 @@
       }
       lastG = g ? g.id : 0;
       if (g && g.collapsed) return;
-      const b = mk("div", "tab" + (t.id === cur ? " on" : "") + (g ? " ing" : "")); b.setAttribute("role", "tab"); b.title = t.title || t.url || "New tab";
+      const b = mk("div", "tab" + (t.id === cur ? " on" : "") + (g ? " ing" : "") + (t.asleep ? " asleep" : "")); b.setAttribute("role", "tab"); b.title = (t.title || t.url || "New tab") + (t.asleep ? " (asleep to save memory; click to wake)" : "");
       if (g) b.style.setProperty("--gc", GCOL[g.color] || GCOL.grey);
       b.oncontextmenu = e => tabMenu(e, t);
       if (t.loading) b.append(mk("i", "spin"));
@@ -583,6 +584,22 @@
     $("hcD").textContent = d.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
   }
   clockTick(); setInterval(clockTick, 1000);
+
+  /* ---------- sleeping tabs: background tabs you haven't looked at for a while are unloaded to free memory ---------- */
+  let sleepMin = store.get("sleepMin", 15);
+  function sleepTick() {
+    if (!sleepMin) return;
+    const cut = Date.now() - sleepMin * 60e3; let n = 0;
+    tabs.forEach(t => {
+      if (t.id === cur || !t.wv || t.audible || t.loading || (t.seen || Date.now()) > cut) return;
+      try { t.wv.remove(); } catch {}
+      t.wv = null; t.wcId = 0; t.asleep = true; n++;
+    });
+    if (n) renderTabs();
+  }
+  setInterval(sleepTick, 60e3);
+  $("sSleep").value = String(sleepMin);
+  $("sSleep").onchange = () => { sleepMin = +$("sSleep").value || 0; store.set("sleepMin", sleepMin); sleepTick(); toast(sleepMin ? "Tabs sleep after " + sleepMin + " minutes in the background" : "Tabs never sleep"); };
 
   /* ---------- top-row stats ---------- */
   async function statsTick() {
