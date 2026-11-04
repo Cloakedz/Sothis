@@ -22,10 +22,15 @@ svg { display: block; }
 /* top bar: crest, tabs, window buttons */
 .head { position: relative; display: flex; align-items: center; height: 40px; padding: 0 0 0 12px; background: var(--panel); -webkit-app-region: drag; }
 .head .wbtns { margin-left: auto; height: 100%; }
-.name { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 800 13px/1 var(--f-head); letter-spacing: .42em; margin-right: -.42em; color: var(--accent); text-shadow: 0 0 12px var(--glow); pointer-events: none; white-space: nowrap; }
+.name { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 800 13px/1 var(--f-head); letter-spacing: .42em; padding-left: .42em; pointer-events: none; white-space: nowrap;
+  color: transparent; background: linear-gradient(90deg, var(--accent) 0%, var(--accent) 38%, #ffd0d5 50%, var(--accent) 62%, var(--accent) 100%) 0 0 / 300% 100%; -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 0 6px var(--glow)); animation: nameRoll 4s linear infinite; }
+/* a bright band rolls across the name from left to right */
+@keyframes nameRoll { from { background-position: 100% 0; } to { background-position: 0% 0; } }
 .top { display: flex; align-items: flex-end; gap: 6px; height: 40px; padding: 0 0 0 10px; background: var(--panel); -webkit-app-region: drag; }
-.crest { width: 24px; height: 24px; margin: 0; flex: none; filter: drop-shadow(0 0 6px var(--glow)); animation: cg 4.5s ease-in-out infinite; }
-@keyframes cg { 50% { filter: drop-shadow(0 0 12px var(--glow)) drop-shadow(0 0 22px rgba(227, 25, 47, .25)); } }
+.crest { width: 24px; height: 24px; margin: 0; flex: none; filter: drop-shadow(0 0 3px var(--glow)); animation: cg 7s ease-in-out infinite; }
+/* the logo glows up and fades back, slowly */
+@keyframes cg { 0%, 100% { filter: drop-shadow(0 0 2px rgba(227, 25, 47, .35)); } 50% { filter: drop-shadow(0 0 9px rgba(255, 60, 80, .95)) drop-shadow(0 0 20px rgba(227, 25, 47, .55)); } }
 .tabs { display: flex; align-items: flex-end; gap: 2px; min-width: 0; flex: 0 1 auto; overflow: hidden; height: 100%; padding-top: 6px; }
 .tab { -webkit-app-region: no-drag; position: relative; display: flex; align-items: center; gap: 8px; width: 220px; min-width: 64px; flex: 0 1 220px; height: 34px; padding: 0 8px 0 12px; border-radius: 12px 12px 0 0; color: var(--muted); transition: background .15s, color .15s; }
 .tab:hover { background: rgba(255, 255, 255, .04); color: var(--ink); }
@@ -162,6 +167,7 @@ select { background: var(--surface2); color: var(--ink); border: 1px solid var(-
 .upd .x { width: 26px; height: 26px; border-radius: 8px; color: var(--muted); font-size: 12px; }
 .upd .x:hover { background: var(--surface2); color: var(--ink); }
 body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog { display: none; }
+@media (prefers-reduced-motion: reduce) { .crest, .name, .start::before { animation: none; } }
 </style>
 </head>
 <body>
@@ -226,6 +232,7 @@ body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog
   <div class="set"><div class="tx"><b>Search with</b><span>Used for anything that isn't a web address.</span></div>
     <select id="sEng"><option value="google">Google</option><option value="ddg">DuckDuckGo</option><option value="bing">Bing</option><option value="brave">Brave Search</option></select></div>
   <div class="sep"></div>
+  <button class="mi" id="sDefault"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg><span id="sDefaultT">Make Blackwall your default browser</span></button>
   <button class="mi" id="sClear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Clear cookies, sign-ins and site data</button>
   <div class="empty">Sign-ins, history and bookmarks stay on this PC only.</div>
 </div>

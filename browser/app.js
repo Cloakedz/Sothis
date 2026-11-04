@@ -240,6 +240,10 @@
   $("sAd").onclick = async () => { cfg = await B.setCfg({ adBlock: !cfg.adBlock }) || cfg; paintSettings(); toast(cfg.adBlock ? "Ad blocking on. Reload to clear ads already shown" : "Ad blocking off"); };
   $("sPop").onclick = async () => { cfg = await B.setCfg({ popBlock: !cfg.popBlock }) || cfg; paintSettings(); };
   $("sEng").onchange = async () => { cfg = await B.setCfg({ search: $("sEng").value }) || cfg; paintSettings(); };
+  // default browser: Windows only lets you choose this yourself, so this opens the right page in Settings
+  const defPaint = () => B.isDefault().then(on => { $("sDefaultT").textContent = on ? "Blackwall is your default browser" : "Make Blackwall your default browser"; }).catch(() => {});
+  $("sDefault").onclick = async () => { await B.defaultOpen(); toast("In Settings, set Blackwall for HTTPS and HTTP (or press Set default)"); setTimeout(defPaint, 8000); };
+  defPaint();
   $("sClear").onclick = async () => { $("sClear").disabled = true; await B.clearData(); $("sClear").disabled = false; toast("Cookies and site data cleared"); };
   B.onBlocked(d => { const t = tabs.find(x => x.wcId === d.id); if (t) { t.blocked++; if (t.id === cur) { paintBar(); if (!$("setPop").hidden) paintSettings(); } } });
   let popUrl = "";
@@ -356,5 +360,7 @@
     list.forEach(x => tabs.push({ id: ++seq, url: x.url, title: x.title || "", icon: "", loading: false, audible: false, wv: null, blocked: 0, wcId: 0, zoom: 1 }));
     select(tabs[Math.min(Math.max(0, saved.cur | 0), tabs.length - 1)].id);   // the other tabs load when you open them
   } else newTab("");
+  // opened from a link in another app (when Blackwall is your default browser)
+  B.startUrl().then(u => { if (u) newTab(u); }).catch(() => {});
   setInterval(() => { if (now() && now().wv) paintBar(); }, 1500);
 })();

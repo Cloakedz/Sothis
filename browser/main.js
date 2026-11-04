@@ -159,9 +159,35 @@ ipcMain.handle("dl:folder", () => shell.openPath(app.getPath("downloads")));
 ipcMain.handle("data:clear", async () => { const ses = session.fromPartition("persist:web"); await ses.clearCache(); await ses.clearStorageData(); return true; });
 ipcMain.on("open-external", (_e, u) => { if (/^https?:\/\//i.test(String(u))) shell.openExternal(u); });
 
+/* ---------- default browser: Blackwall lists itself in Windows as a browser (for you only, no admin); you pick it in Settings ---------- */
+function regBrowser() {
+  if (process.platform !== "win32" || !app.isPackaged) return;
+  const exe = process.execPath, ico = path.join(path.dirname(exe), "blackwall.ico"), cmd = `"${exe}" "%1"`;
+  const K = "HKCU\\Software", C = K + "\\Clients\\StartMenuInternet\\Blackwall";
+  const rows = [
+    [K + "\\Classes\\BlackwallHTML", "", "Blackwall web page"], [K + "\\Classes\\BlackwallHTML", "URL Protocol", ""],
+    [K + "\\Classes\\BlackwallHTML\\DefaultIcon", "", ico + ",0"], [K + "\\Classes\\BlackwallHTML\\shell\\open\\command", "", cmd],
+    [K + "\\Classes\\BlackwallHTML\\Application", "ApplicationName", "Blackwall"], [K + "\\Classes\\BlackwallHTML\\Application", "ApplicationIcon", ico + ",0"],
+    [C, "", "Blackwall"], [C + "\\DefaultIcon", "", ico + ",0"], [C + "\\shell\\open\\command", "", `"${exe}"`],
+    [C + "\\Capabilities", "ApplicationName", "Blackwall"], [C + "\\Capabilities", "ApplicationDescription", "Blackwall, a web browser in the Sothis style"], [C + "\\Capabilities", "ApplicationIcon", ico + ",0"],
+    [C + "\\Capabilities\\URLAssociations", "http", "BlackwallHTML"], [C + "\\Capabilities\\URLAssociations", "https", "BlackwallHTML"],
+    [C + "\\Capabilities\\FileAssociations", ".html", "BlackwallHTML"], [C + "\\Capabilities\\FileAssociations", ".htm", "BlackwallHTML"], [C + "\\Capabilities\\FileAssociations", ".pdf", "BlackwallHTML"],
+    [C + "\\Capabilities\\StartMenu", "StartMenuInternet", "Blackwall"],
+    [K + "\\RegisteredApplications", "Blackwall", "Software\\Clients\\StartMenuInternet\\Blackwall\\Capabilities"]
+  ];
+  if (settings.regFor === exe) return;   // already done for this copy
+  const { execFileSync } = require("child_process");
+  try { for (const [key, name, val] of rows) execFileSync("reg.exe", ["add", key].concat(name ? ["/v", name] : ["/ve"], ["/t", "REG_SZ", "/d", val, "/f"]), { windowsHide: true }); settings.regFor = exe; saveSettings(); } catch {}
+}
+ipcMain.handle("default:open", () => { regBrowser(); shell.openExternal("ms-settings:defaultapps?registeredAppUser=Blackwall"); return true; });
+ipcMain.handle("default:is", () => { try { return /blackwall/i.test(require("child_process").execFileSync("reg.exe", ["query", "HKCU\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\https\\UserChoice", "/v", "ProgId"], { windowsHide: true, encoding: "utf8" })); } catch { return false; } });
+// a link or file Windows asked Blackwall to open
+const argUrl = argv => { for (const a of (argv || []).slice(1)) { if (/^https?:\/\//i.test(a)) return a; if (/\.(html?|pdf)$/i.test(a) && fs.existsSync(a)) return require("url").pathToFileURL(a).href; } return ""; };
+let firstUrl = argUrl(process.argv);
+ipcMain.handle("start:url", () => { const u = firstUrl; firstUrl = ""; return u; });
 app.on("second-instance", (_e, argv) => {
   if (!win) return; if (win.isMinimized()) win.restore(); win.focus();
-  const u = argv.find(a => /^https?:\/\//i.test(a)); if (u) send("web:open", { url: u, bg: false });
+  const u = argUrl(argv); if (u) send("web:open", { url: u, bg: false });
 });
 // the Widevine part (Netflix, Spotify and other protected video) comes from this engine's own updater; don't wait on it for long
 async function wvReady() { try { const { components } = require("electron"); if (components && components.whenReady) await Promise.race([components.whenReady(), new Promise(r => setTimeout(r, 4000))]); } catch {} }
@@ -191,5 +217,5 @@ async function updCheck() {
 }
 ipcMain.handle("upd:get", () => Object.assign({ version: APP_VER }, upd));
 ipcMain.on("upd:restart", () => { app.relaunch(); app.exit(0); });
-app.whenReady().then(wvReady).then(() => { setupSession(); adLoad(); createWindow(); setTimeout(updCheck, 15000); setInterval(updCheck, 3 * 3600e3); });
+app.whenReady().then(wvReady).then(() => { setupSession(); adLoad(); createWindow(); setTimeout(regBrowser, 3000); setTimeout(updCheck, 15000); setInterval(updCheck, 3 * 3600e3); });
 app.on("window-all-closed", () => app.quit());

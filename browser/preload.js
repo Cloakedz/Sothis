@@ -12,5 +12,6 @@ contextBridge.exposeInMainWorld("sb", {
   dlOpen: f => ipcRenderer.invoke("dl:open", f), dlShow: f => ipcRenderer.invoke("dl:show", f), dlFolder: () => ipcRenderer.invoke("dl:folder"),
   clearData: () => ipcRenderer.invoke("data:clear"),
   external: u => ipcRenderer.send("open-external", u),
+  defaultOpen: () => ipcRenderer.invoke("default:open"), isDefault: () => ipcRenderer.invoke("default:is"), startUrl: () => ipcRenderer.invoke("start:url"),
   updGet: () => ipcRenderer.invoke("upd:get"), onUpd: cb => ipcRenderer.on("upd:ready", (_e, d) => cb(d)), restart: () => ipcRenderer.send("upd:restart")
 });
