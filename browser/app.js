@@ -469,12 +469,14 @@
   $("dlFolder").onclick = () => B.dlFolder();
   // settings
   function paintSettings() {
-    $("sAd").setAttribute("aria-checked", cfg.adBlock); $("sPop").setAttribute("aria-checked", cfg.popBlock); $("sEng").value = cfg.search || "google";
+    $("sAd").setAttribute("aria-checked", cfg.adBlock); $("sPop").setAttribute("aria-checked", cfg.popBlock); $("sDark").setAttribute("aria-checked", !!cfg.forceDark); $("darkN").textContent = cfg.darkNeedsRestart ? "Restart Blackwall to finish switching." : "Makes every site dark, even ones without a dark theme."; $("darkR").hidden = !cfg.darkNeedsRestart; $("sEng").value = cfg.search || "google";
     const t = now(); $("adN").textContent = cfg.adBlock ? (t && t.blocked ? t.blocked + " blocked on this tab." : "Stops known ad servers from loading.") : "Ads load normally.";
     paintBar();
   }
   $("sAd").onclick = async () => { cfg = await B.setCfg({ adBlock: !cfg.adBlock }) || cfg; paintSettings(); toast(cfg.adBlock ? "Ad blocking on. Reload to clear ads already shown" : "Ad blocking off"); };
   $("sPop").onclick = async () => { cfg = await B.setCfg({ popBlock: !cfg.popBlock }) || cfg; paintSettings(); };
+  $("sDark").onclick = async () => { cfg = await B.setCfg({ forceDark: !cfg.forceDark }) || cfg; paintSettings(); toast(cfg.darkNeedsRestart ? "Restart Blackwall to finish switching" : cfg.forceDark ? "Force dark mode on" : "Force dark mode off"); };
+  $("darkR").onclick = () => { save(); B.restart(); };
   $("sEng").onchange = async () => { cfg = await B.setCfg({ search: $("sEng").value }) || cfg; paintSettings(); };
   // default browser: Windows only lets you choose this yourself, so this opens the right page in Settings
   const defPaint = () => B.isDefault().then(on => { $("sDefaultT").textContent = on ? "Blackwall is your default browser" : "Make Blackwall your default browser"; }).catch(() => {});

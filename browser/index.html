@@ -220,6 +220,8 @@ select { background: var(--surface2); color: var(--ink); border: 1px solid var(-
 .note[hidden] { display: none; }
 .note span { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 360px; }
 .note button { font-weight: 600; color: var(--accent); }
+.lnk { display: block; margin-top: 6px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255, 40, 60, .12); color: #ff5a6a; font: inherit; font-size: 12px; cursor: pointer; }
+.lnk[hidden] { display: none; }
 .toast { position: absolute; z-index: 60; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; transition: .25s; padding: 9px 16px; border-radius: 999px; background: rgba(30, 30, 38, .96); border: 1px solid var(--line); font-size: 13px; pointer-events: none; }
 .toast.on { opacity: 1; transform: translate(-50%, 0); }
 .find { position: absolute; z-index: 45; top: 136px; right: 14px; display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 12px; border-radius: 12px; background: rgba(16, 16, 22, .98); border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(0, 0, 0, .5); }
@@ -306,6 +308,7 @@ body.full .head, body.full .top, body.full .bar, body.full .bms, body.full .prog
   <div class="set"><div class="tx"><b>Block pop-up windows</b><span>Sign-in windows still open.</span></div><button class="sw" id="sPop" role="switch" aria-checked="true" aria-label="Block pop-ups"></button></div>
   <div class="set"><div class="tx"><b>Sleep unused tabs</b><span>Tabs you haven't looked at are unloaded to save memory. Tabs playing sound never sleep.</span></div>
     <select id="sSleep"><option value="5">After 5 min</option><option value="15">After 15 min</option><option value="30">After 30 min</option><option value="60">After 1 hour</option><option value="0">Never</option></select></div>
+  <div class="set"><div class="tx"><b>Force dark mode</b><span id="darkN">Makes every site dark, even ones without a dark theme.</span><button class="lnk" id="darkR" hidden>Restart now</button></div><button class="sw" id="sDark" role="switch" aria-checked="false" aria-label="Force dark mode"></button></div>
   <div class="set"><div class="tx"><b>Pause videos when you switch tabs</b><span>They carry on when you come back to the tab.</span></div><button class="sw" id="sPause" role="switch" aria-checked="true" aria-label="Pause videos when you switch tabs"></button></div>
   <div class="set"><div class="tx"><b>Search with</b><span>Used for anything that isn't a web address.</span></div>
     <select id="sEng"><option value="google">Google</option><option value="ddg">DuckDuckGo</option><option value="bing">Bing</option><option value="brave">Brave Search</option></select></div>

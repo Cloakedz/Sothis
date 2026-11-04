@@ -20,6 +20,9 @@ if (!app.requestSingleInstanceLock()) { app.quit(); return; }
 const DATA = app.getPath("userData");
 const SET_FILE = path.join(DATA, "settings.json");
 let settings = {}; try { settings = JSON.parse(fs.readFileSync(SET_FILE, "utf8")) || {}; } catch {}
+// force dark: darkens pages that only have a light theme (needs a restart to change)
+if (settings.forceDark) app.commandLine.appendSwitch("blink-settings", "forceDarkModeEnabled=true");
+const DARK_AT_START = !!settings.forceDark;
 const saveSettings = () => { try { fs.writeFileSync(SET_FILE, JSON.stringify(settings, null, 1)); } catch {} };
 
 // the current Chrome version (Chrome ships every 4 weeks; 131 came out 12 Nov 2024): Google turns away out-of-date browsers too
@@ -154,8 +157,11 @@ ipcMain.on("win:min", () => win.minimize());
 ipcMain.on("win:max", () => (win.isMaximized() ? win.unmaximize() : win.maximize()));
 ipcMain.on("win:close", () => win.close());
 ipcMain.on("win:full", (_e, on) => win.setFullScreen(on === undefined ? !win.isFullScreen() : !!on));
-ipcMain.handle("cfg:get", () => ({ adBlock: settings.adBlock !== false, popBlock: settings.popBlock !== false, search: settings.search || "google" }));
-ipcMain.handle("cfg:set", (_e, o) => { for (const k of ["adBlock", "popBlock", "search"]) if (o && k in o) settings[k] = o[k]; saveSettings(); return { adBlock: settings.adBlock !== false, popBlock: settings.popBlock !== false, search: settings.search || "google" }; });
+const cfgOut = () => ({ adBlock: settings.adBlock !== false, popBlock: settings.popBlock !== false, search: settings.search || "google", forceDark: !!settings.forceDark, darkNeedsRestart: !!settings.forceDark !== DARK_AT_START });
+const darkApply = () => { try { require("electron").nativeTheme.themeSource = settings.forceDark ? "dark" : "system"; } catch {} };
+app.whenReady().then(darkApply);
+ipcMain.handle("cfg:get", () => cfgOut());
+ipcMain.handle("cfg:set", (_e, o) => { for (const k of ["adBlock", "popBlock", "search", "forceDark"]) if (o && k in o) settings[k] = o[k]; saveSettings(); darkApply(); return cfgOut(); });
 ipcMain.handle("ad:count", (_e, id) => adCounts.get(id) || 0);
 ipcMain.handle("dl:open", (_e, f) => { if (typeof f === "string" && fs.existsSync(f)) shell.openPath(f); });
 ipcMain.handle("dl:show", (_e, f) => { if (typeof f === "string" && fs.existsSync(f)) shell.showItemInFolder(f); });
