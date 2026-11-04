@@ -4907,7 +4907,7 @@ async function updCheck(manual) {
     if (!fs.existsSync(path.join(root, "main.js"))) { const sub = fs.readdirSync(staged, { withFileTypes: true }).find(d => d.isDirectory() && fs.existsSync(path.join(staged, d.name, "main.js"))); if (sub) root = path.join(staged, sub.name); }
     let pkNew = {}; try { pkNew = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")); } catch {}
     if (!fs.existsSync(path.join(root, "main.js")) || verCmp(pkNew.version || "0", APP_VER) <= 0) throw new Error("The update looks incomplete.");
-    const skip = new Set(["installer", ".gitignore", "README.md", ".github"]);
+    const skip = new Set(["installer", ".gitignore", "README.md", ".github", "browser"]);   // browser/ is Sothis Browser's own update source
     for (const e of fs.readdirSync(root)) if (!skip.has(e)) fs.cpSync(path.join(root, e), path.join(__dirname, e), { recursive: true, force: true });
     fs.rmSync(dir, { recursive: true, force: true });
     settings.updDone = upd.latest; saveSettings();
