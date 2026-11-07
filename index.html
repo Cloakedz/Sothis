@@ -1336,6 +1336,10 @@ body.is-mini .bell { display: none; }
 .sw-bar select { max-width: 190px; padding: 6px 8px; font-size: .78rem; background: rgba(0, 0, 0, .4); color: #eef0f5; border-color: rgba(255, 255, 255, .14); }
 .sw-bar .ib { width: 34px; height: 34px; color: #eef0f5; } .sw-bar .ib svg { width: 18px; height: 18px; }
 .sw-bar .ib[aria-pressed="true"] { color: #ff4d5e; }
+.sw-vol { display: flex; align-items: center; gap: 2px; }
+.sw-vol input[type=range] { width: 92px; accent-color: #ff4d5e; cursor: pointer; }
+.sw-vol .sw-vn { width: 3ch; font: 600 .72rem/1 var(--f-mono); color: #b9bdc8; text-align: right; }
+.sw-vol.off input[type=range], .sw-vol.off .sw-vn { opacity: .45; }
 body.sw-full .sw-stage { position: fixed; inset: 0; z-index: 60; border-radius: 0; }
 body.sw-full .sw-stage:not(.show-bar) { cursor: none; }
 .cl-fab.dc-fab { bottom: 112px; color: var(--muted); cursor: pointer; display: grid; place-items: center; padding: 0; }
@@ -2215,7 +2219,7 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
         <div class="sw-nosig" id="swNoSig" hidden>No picture yet. Is your Switch on and in its dock?</div>
         <div class="sw-bar">
           <select id="swSrc" aria-label="Video source"></select>
-          <button class="ib" id="swSnd" type="button" aria-label="Switch sound" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg></button>
+          <select id="swAud" aria-label="Sound from" title="Sound from"></select><div class="sw-vol" id="swVolBox"><button class="ib" id="swSnd" type="button" aria-label="Switch sound" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg></button><input type="range" id="swVol" min="0" max="100" step="1" value="100" aria-label="Switch volume" title="Switch volume"><span class="sw-vn" id="swVolN">100</span></div>
           <button class="ib hd" id="swHd" type="button" aria-label="Sharper upscaling" aria-pressed="true" title="Sharper upscaling">HD</button>
           <button class="ib" id="swPop" type="button" aria-label="Pop out into its own window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4l-8 8"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></button>
           <button class="ib" id="swFull" type="button" aria-label="Fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
@@ -6805,6 +6809,7 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
 
   /* ---------- Switch: your OBS Switch scene, projector style ---------- */
   // Shows the capture card directly (lowest delay). If OBS is holding the card, it uses OBS's Virtual Camera instead.
+  let swUsed = null, swVolume = Math.max(0, Math.min(100, +(store.get("sw.vol") || 100))) / 100;
   let swStream = null, swOn = false, swSound = store.get("sw.sound") === "1", swStarting = false, swBarT = null, swFullOn = false;
   const swMsg = t => { $("swMsg").hidden = !t; $("swMsgT").textContent = t || ""; $("swObs").hidden = true; };
   $("swObs").onsubmit = async e => {
@@ -6815,6 +6820,37 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
   };
   const isObsCam = d => /obs/i.test(d.label);
   const isCard = d => /fifine|capture|cam link|elgato|hdmi|usb video|av\.?mmio|ezcap/i.test(d.label) && !isObsCam(d);
+  // the capture card's sound shows up as its own "microphone"; cheap cards call it "Digital Audio Interface"
+  const isCardAudio = d => /fifine|capture|cam link|elgato|hdmi|usb video|av\.?mmio|ezcap|digital audio interface|usb digital audio|ms2109|macrosilicon|live gamer|avermedia|game ?capture/i.test(d.label) && !isObsCam(d);
+  const swIns = devs => devs.filter(d => d.kind === "audioinput" && d.deviceId !== "default" && d.deviceId !== "communications");
+  function swPickMic(devs, used) {
+    const ins = swIns(devs), saved = store.get("sw.aud") || "";
+    if (saved) { const s = ins.find(d => d.deviceId === saved); if (s) return s; }
+    if (used && isObsCam(used)) return null;   // OBS Virtual Camera has no sound of its own; pick a source to hear it here
+    return (used && ins.find(d => d.groupId && d.groupId === used.groupId)) || ins.find(isCardAudio) || null;
+  }
+  function swAudList(devs) {
+    const sel = $("swAud"), saved = store.get("sw.aud") || ""; sel.replaceChildren();
+    const a = mk("option", "", "Sound: auto"); a.value = ""; sel.append(a);
+    swIns(devs).forEach(d => { const o = mk("option", "", d.label || "Audio input"); o.value = d.deviceId; sel.append(o); });
+    sel.value = swIns(devs).some(d => d.deviceId === saved) ? saved : "";
+  }
+  // turn the Switch's sound on or off (and pick it up again) without restarting the picture
+  async function swAudioApply(devs, quiet) {
+    const v = $("swVid"); if (!swStream) return;
+    swStream.getAudioTracks().forEach(t => { t.stop(); swStream.removeTrack(t); });
+    v.volume = swVolume;
+    if (!swSound) { v.muted = true; return; }
+    devs = devs || await swDevices();
+    const mic = swPickMic(devs, swUsed);
+    if (!mic) { v.muted = true; if (!quiet) toast(swUsed && isObsCam(swUsed) ? "OBS Virtual Camera has no sound. Pick your capture card under Sound" : "Couldn't find your capture card's sound. Pick it from the Sound list"); return; }
+    try {
+      const a = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: mic.deviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false, latency: 0 } });
+      if (!swStream) { a.getTracks().forEach(t => t.stop()); return; }
+      a.getAudioTracks().forEach(t => swStream.addTrack(t));
+      v.srcObject = swStream; v.muted = false; v.volume = swVolume; v.play().catch(() => {});
+    } catch { v.muted = true; if (!quiet) toast("Couldn't open " + (mic.label || "that sound source")); }
+  }
   let swSigT = null;
   function swSigWatch(on) {
     clearInterval(swSigT); swSigT = null; $("swNoSig").hidden = true;
@@ -6917,23 +6953,14 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
         return;
       }
       if (!swOn) { stream.getTracks().forEach(t => t.stop()); return; }
-      // Sound: the capture card's own audio input (same device group), only when using the card directly
-      if (swSound && !isObsCam(used)) {
-        const mic = devs.find(d => d.kind === "audioinput" && d.groupId && d.groupId === used.groupId) || devs.find(d => d.kind === "audioinput" && isCard(d));
-        if (mic) {
-          try {
-            const a = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: mic.deviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false, latency: 0 } });
-            a.getAudioTracks().forEach(t => stream.addTrack(t));
-          } catch {}
-        }
-      }
-      swStream = stream;
+      swStream = stream; swUsed = used;
       try { D.presenceSwitch(true); } catch {}
-      const v = $("swVid"); v.srcObject = stream; v.muted = !swSound || isObsCam(used);
+      const v = $("swVid"); v.srcObject = stream; v.muted = true; v.volume = swVolume;
       v.play().catch(() => {});
       swMsg("");
       swSigWatch(true);
-      if (swSound && isObsCam(used)) toast("Sound comes from OBS when using the Virtual Camera");
+      swAudList(devs);
+      await swAudioApply(devs);
     } finally { swStarting = false; }
   }
   let swPopped = false;
@@ -6967,9 +6994,22 @@ body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }
   $("swCan").ondblclick = () => swFull(!swFullOn);
   swHdRender();
   $("swSrc").onchange = () => { store.set("sw.src", $("swSrc").value); swStart(); };
-  const swSndRender = () => $("swSnd").setAttribute("aria-pressed", swSound);
+  const swSndRender = () => {
+    $("swSnd").setAttribute("aria-pressed", swSound); $("swSnd").title = swSound ? "Mute the Switch" : "Turn on the Switch's sound";
+    $("swVolBox").classList.toggle("off", !swSound);
+    $("swVol").value = Math.round(swVolume * 100); $("swVolN").textContent = Math.round(swVolume * 100);
+    $("swVol").style.setProperty("--p", Math.round(swVolume * 100) + "%");
+  };
   swSndRender();
-  $("swSnd").onclick = () => { swSound = !swSound; store.set("sw.sound", swSound ? "1" : "0"); swSndRender(); swStart(); };
+  const swSoundSet = on => { swSound = on; store.set("sw.sound", on ? "1" : "0"); swSndRender(); swAudioApply(); };
+  $("swSnd").onclick = () => swSoundSet(!swSound);
+  $("swVol").addEventListener("input", () => {
+    swVolume = +$("swVol").value / 100; store.set("sw.vol", String(Math.round(swVolume * 100)));
+    $("swVid").volume = swVolume; swSndRender();
+    if (!swSound && swVolume > 0) swSoundSet(true);   // moving the slider turns the sound on
+  });
+  $("swVolBox").addEventListener("wheel", e => { e.preventDefault(); $("swVol").value = Math.max(0, Math.min(100, +$("swVol").value + (e.deltaY < 0 ? 5 : -5))); $("swVol").dispatchEvent(new Event("input")); }, { passive: false });
+  $("swAud").onchange = () => { store.set("sw.aud", $("swAud").value); if (!swSound) swSoundSet(true); else swAudioApply(); };
   $("swFull").onclick = () => swFull(!swFullOn);
   $("swVid").ondblclick = () => swFull(!swFullOn);
   D.onFull(on => { if (!on && swFullOn) { swFullOn = false; document.body.classList.remove("sw-full"); } });
