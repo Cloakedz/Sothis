@@ -404,12 +404,19 @@
     try {
       if (!S.ctx) S.ctx = new AudioContext();
       if (S.ctx.state === "suspended") S.ctx.resume();
-      const t = S.stream && S.stream.getAudioTracks()[0];
-      if (S.v !== v || !t || t.readyState === "ended") {
-        S.stream = v.captureStream();
-        if (!S.stream.getAudioTracks().length) return null;
+      // YouTube Music plays every song in the same video element, and each new song adds a new audio track to the
+      // copied stream while the old one stays "live" but silent. The analyser has to follow the newest track, or the
+      // ring sat flat from the second song on.
+      const tl = S.stream ? S.stream.getAudioTracks().filter(x => x.readyState === "live") : [];
+      const t = tl[tl.length - 1];
+      if (S.v !== v || !t || t !== S.track) {
+        if (S.v !== v || !S.stream) S.stream = v.captureStream();
+        const all = S.stream.getAudioTracks().filter(x => x.readyState === "live"), nt = all[all.length - 1];
+        for (const old of S.stream.getAudioTracks()) if (old !== nt) { try { S.stream.removeTrack(old); old.stop(); } catch (e) {} }
+        if (!nt) return null;
         try { S.src && S.src.disconnect(); } catch (e) {}
-        S.src = S.ctx.createMediaStreamSource(S.stream);
+        S.track = nt;
+        S.src = S.ctx.createMediaStreamSource(new MediaStream([nt]));
         S.an = S.ctx.createAnalyser(); S.an.fftSize = 512; S.an.smoothingTimeConstant = 0.7;
         S.src.connect(S.an); S.buf = new Uint8Array(S.an.frequencyBinCount); S.v = v;
       }
