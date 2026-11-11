@@ -108,6 +108,9 @@ function createWindow() {
   // "screen-saver" level keeps it above most other windows, including borderless games.
   if (isPinned()) win.setAlwaysOnTop(true, "screen-saver");
   win.removeMenu();
+  // Opens full (filling the screen above the taskbar), unless it was left as the mini player or the side tray
+  if (!settings.mini && !settings.compact) setFull(true);
+  win.webContents.on("did-finish-load", () => { try { win.webContents.send("win:full", !!preFull); } catch {} });
   win.once("ready-to-show", () => { if (!win.isDestroyed() && !win.isVisible()) win.show(); });
   win.loadFile("index.html");
   // Opera docked in Sothis follows the window around
