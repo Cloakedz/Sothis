@@ -115,7 +115,7 @@
   }
   // Mixer
   let mixT = null, mixBusy = false;
-  const PRETTY = { discord: "Discord", opera: "Opera GX", sothis: "Sothis", electron: "Sothis", overwatch: "Overwatch", cs2: "Counter-Strike 2", rainbowsix: "Rainbow Six Siege", "rainbowsix_vulkan": "Rainbow Six Siege", javaw: "Minecraft", steamwebhelper: "Steam", chrome: "Chrome", msedge: "Edge", spotify: "Spotify", medal: "Medal", obs64: "OBS" };
+  const PRETTY = { discord: "Discord", blackwall: "Blackwall", opera: "Opera GX", sothis: "Sothis", electron: "Sothis", overwatch: "Overwatch", cs2: "Counter-Strike 2", rainbowsix: "Rainbow Six Siege", "rainbowsix_vulkan": "Rainbow Six Siege", javaw: "Minecraft", steamwebhelper: "Steam", chrome: "Chrome", msedge: "Edge", spotify: "Spotify", medal: "Medal", obs64: "OBS" };
   const pretty = n => PRETTY[String(n).toLowerCase()] || n.replace(/[-_]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
   async function renderMixer() {
     if (mixBusy) return; mixBusy = true;

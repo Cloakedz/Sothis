@@ -81,7 +81,7 @@
       ["switch", "Switch tab", "The Switch emulator page", ["#tabbtn-switch"]]]],
     ["Apps", [
       ["claude", "Claude button", "Claude inside Sothis", ["#tabbtn-claude"]],
-      ["opera", "Opera GX button", "Opera GX docked in Sothis", [".op-fab"]],
+      ["opera", "Browser button", "The Blackwall button in the corner", [".op-fab"]],
       ["discord", "Discord call", "The call card, Discord button and voice overlay", ["#dcBtn", "#hmDc"]],
       ["dcStatus", "Discord status", "Your song or game in your Discord status", [".setting:has(#setDcPres)", ".setting:has(#setDcIdle)", ".setting:has(#setDcName)"]],
       ["gameDetails", "Game details in status", "Cyberpunk and Skyrim details in your Discord status", []],

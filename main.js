@@ -2375,7 +2375,7 @@ app.on("will-quit", () => { try { mix && mix.kill(); } catch {} });
 const LAUNCH_PRESETS = () => {
   const L = process.env.LOCALAPPDATA || "", PF = process.env.ProgramFiles || "C:\\Program Files", PF86 = process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
   return [
-    { name: "Opera GX", path: operaPath(), proc: "opera.exe", logo: "opera" },
+    { name: "Blackwall", path: blackwallPath(), proc: "blackwall.exe", logo: "blackwall" },
     { name: "Medal", path: path.join(L, "Medal", "Update.exe"), alt: path.join(L, "Medal", "current", "medal.exe"), args: ["--processStart", "Medal.exe"], proc: "medal.exe" },
     { name: "OBS Studio", path: path.join(PF, "obs-studio", "bin", "64bit", "obs64.exe"), proc: "obs64.exe", cwd: true },
     { name: "Steam", path: path.join(PF86, "Steam", "steam.exe"), proc: "steam.exe" },
@@ -2385,8 +2385,22 @@ const LAUNCH_PRESETS = () => {
 };
 function launchers() {
   if (!Array.isArray(settings.launchers)) {
-    const op = LAUNCH_PRESETS().find(p => p.name === "Opera GX");
-    settings.launchers = op ? [{ name: op.name, path: op.path, proc: op.proc, logo: "opera" }] : [];
+    const bw = LAUNCH_PRESETS().find(p => p.name === "Blackwall");
+    settings.launchers = bw ? [{ name: bw.name, path: bw.path, proc: bw.proc, logo: "blackwall" }] : [];
+    settings.bwButton = true;
+  }
+  // Opera GX's button became the Blackwall button (once; Opera itself isn't touched, and you can pin it again in Settings)
+  if (!settings.bwButton) {
+    settings.bwButton = true;
+    const bwPath = blackwallPath(), isOpera = l => l && (l.logo === "opera" || /\\opera( gx)?\\|\\(opera|launcher)\.exe$/i.test(l.path || "") && /opera/i.test((l.name || "") + (l.path || "")));
+    const at = settings.launchers.findIndex(isOpera), has = settings.launchers.some(l => /blackwall\.exe$/i.test(l.path || ""));
+    if (at >= 0 || (bwPath && !has)) {
+      const bw = bwPath && !has ? [{ name: "Blackwall", path: bwPath, proc: "blackwall.exe", logo: "blackwall" }] : [];
+      const rest = settings.launchers.filter(l => !isOpera(l));
+      rest.splice(at >= 0 ? Math.min(at, rest.length) : 0, 0, ...bw);
+      settings.launchers = rest;
+    }
+    saveSettings();
   }
   // Proton VPN was pinned for a moment: take it back out
   if (settings.protonPinned) { delete settings.protonPinned; settings.launchers = settings.launchers.filter(l => !/protonvpn/i.test(l.path || "")); saveSettings(); }
@@ -2465,7 +2479,12 @@ ipcMain.handle("launch:move", (_e, { i, dir }) => {
   [L[i], L[j]] = [L[j], L[i]]; saveSettings(); return true;
 });
 
-/* ---------- Opera GX button: launch it, and report whether it's running ---------- */
+// Blackwall, your own browser: where its installer puts it
+function blackwallPath() {
+  const c = [path.join(process.env.LOCALAPPDATA || "", "Programs", "Blackwall", "Blackwall.exe"), path.join(process.env.ProgramFiles || "C:\\Program Files", "Blackwall", "Blackwall.exe")];
+  return c.find(f => { try { return fs.existsSync(f); } catch { return false; } }) || "";
+}
+/* ---------- Opera GX (only the GX Rewards reminder still opens it) ---------- */
 function operaPath() {
   const cands = [
     path.join(process.env.LOCALAPPDATA || "", "Programs", "Opera GX", "opera.exe"),
