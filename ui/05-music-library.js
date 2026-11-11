@@ -504,7 +504,7 @@
     area += ` L${X(pts[pts.length - 1].t).toFixed(1)},${H} Z`;
     const charge = pts.filter(p => p.c).map(p => `<circle cx="${X(p.t).toFixed(1)}" cy="${Y(p.p).toFixed(1)}" r="1.6" class="bh-chg"/>`).join("");
     const grid = [25, 50, 75].map(v => `<line x1="0" x2="${W}" y1="${Y(v)}" y2="${Y(v)}" class="bh-grid"/>`).join("");
-    svg.innerHTML = `<defs><linearGradient id="bhG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(255,77,115,.45)"/><stop offset="1" stop-color="rgba(255,77,115,0)"/></linearGradient></defs>${grid}<path d="${area}" fill="url(#bhG)"/><path d="${line}" class="bh-line"/>${charge}`;
+    svg.innerHTML = `<defs><linearGradient id="bhG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(227,25,47,.45)"/><stop offset="1" stop-color="rgba(227,25,47,0)"/></linearGradient></defs>${grid}<path d="${area}" fill="url(#bhG)"/><path d="${line}" class="bh-line"/>${charge}`;
   }
   function bhHide(delay) {
     clearTimeout(bhT);

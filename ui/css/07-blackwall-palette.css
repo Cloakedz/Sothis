@@ -1,0 +1,10 @@
+/* ---------- Blackwall palette, solid window ----------
+   Sothis uses Blackwall's colours, and its window is solid. Only the mini player stays see-through
+   (Settings → Window → Mini player background sets how much). */
+:root:not([data-theme="light"]), :root[data-theme="dark"] {
+  --bg: #07070a; --surface: rgba(255, 255, 255, .05); --veil: rgba(7, 7, 10, .14); --ink: #f1f2f6; --muted: #a7abb9;
+  --line: rgba(255, 255, 255, .1); --accent: #e3192f; --accent-ink: #ffffff; --track: #26262e;
+  --ok: #e3192f; --glow: rgba(227, 25, 47, .3); color-scheme: dark;
+}
+.shell, body.is-compact .shell { background: #07070a; }
+body.is-mini .shell { background: rgba(0, 0, 0, var(--shell-a, .7)); }

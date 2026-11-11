@@ -317,7 +317,7 @@
   $("setShellA").addEventListener("input", () => store.set("shell.a", String(shellA($("setShellA").value))));
 
   /* ---------- Accent color and your own logo (Settings → Window) ---------- */
-  const DEF_ACCENT = "#ff4d73";
+  const DEF_ACCENT = "#e3192f";
   function hexRgb(h) { const m = /^#?([0-9a-f]{6})$/i.exec(h || ""); if (!m) return null; const n = parseInt(m[1], 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
   function setAccent(h) {
     const rgb = hexRgb(h) || hexRgb(DEF_ACCENT), root = document.documentElement.style;
@@ -326,6 +326,8 @@
     root.setProperty("--accent", h); root.setProperty("--glow", `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, .22)`); root.setProperty("--accent-ink", lum > 0.6 ? "#14060a" : "#ffffff");
     $("setAccent").value = h; return h;
   }
+  // Sothis moved to Blackwall's colours: a colour picked before that is dropped once, so the new red shows (pick again any time)
+  if (!store.get("pal.blackwall")) { store.set("pal.blackwall", "1"); store.set("brand.accent", DEF_ACCENT); }
   setAccent(store.get("brand.accent") || DEF_ACCENT);
   $("setAccent").addEventListener("input", () => store.set("brand.accent", setAccent($("setAccent").value)));
   $("setAccentReset").onclick = () => { store.set("brand.accent", setAccent(DEF_ACCENT)); };
