@@ -22,6 +22,8 @@ body { display: flex; flex-direction: column; background: radial-gradient(120% 7
 .ly p { margin: 0 0 14px; font: 700 21px/1.3 "Segoe UI", system-ui, sans-serif; color: rgba(255, 255, 255, .32); transition: color .3s, transform .3s; transform-origin: left center; }
 .ly p.on { color: #fff; transform: scale(1.04); text-shadow: 0 0 18px rgba(255, 255, 255, .25); }
 .ly p.past { color: rgba(255, 255, 255, .5); }
+.ly p.seek { cursor: pointer; }
+.ly p.seek:hover { color: rgba(255, 255, 255, .8); }
 .ly.plain p { color: rgba(255, 255, 255, .85); font-size: 17px; font-weight: 600; }
 .msg { color: var(--muted); text-align: center; font-size: 14px; margin-top: 30%; }
 </style>
@@ -50,7 +52,7 @@ function build(d) {
   if (!d.lyrics) { box.innerHTML = '<p class="msg">No lyrics found for this song.</p>'; return; }
   if (d.lyrics.instrumental) { box.innerHTML = '<p class="msg">Instrumental ♪</p>'; return; }
   if (!lines.length) { box.className = "ly plain"; for (const l of String(d.lyrics.plain || "").split(/\n/)) { const p = document.createElement("p"); p.textContent = l || " "; box.append(p); } return; }
-  for (const [, l] of lines) { const p = document.createElement("p"); p.textContent = l || "♪"; box.append(p); }
+  for (const [t, l] of lines) { const p = document.createElement("p"); p.textContent = l || "♪"; p.className = "seek"; p.title = "Play from here"; p.onclick = () => { if (ly.seek) { ly.seek(t); if (st) { st.pos = t; st.playing = true; at = performance.now(); cur = -2; } } }; box.append(p); }
 }
 ly.onState(d => {
   st = d; at = performance.now();

@@ -695,6 +695,8 @@ async function dcGameNow() {
   if (sid) { const r = await regQuery(`HKCU\\Software\\Valve\\Steam\\Apps\\${sid}`, "Running"); if (r != null && !/^(0x0*1|1)$/i.test(r)) sid = 0; }
   const run = await runningSet();
   for (const [exe, name] of Object.entries(GAME_EXES)) if (run.has(exe)) return { name, exe, img: GAME_IMG[name] ? GAME_IMG[name]() : "" };
+  // any other game that was seen in front and is still running (see games-detect.js)
+  for (const [exe, g] of gdLive) { if (!run.has(exe)) { gdLive.delete(exe); continue; } const o = { name: g.name, exe, img: g.img || "" }; if (g.sid) o.sid = g.sid; return o; }
   // Steam can leave RunningAppID set after a game closes: only trust it while one of the game's own programs is running
   if (sid) { const exes = await steamAppExes(sid); if (exes && ![...exes].some(e => run.has(e))) sid = 0; }
   if (sid) {
@@ -1595,8 +1597,64 @@ function voEnsure() {
 }
 // Which program is in front: one small background helper reports it whenever it changes
 let fgNow = { name: "", path: "" }, fgProc = null;
-const isGameFg = f => !!f.name && (Object.prototype.hasOwnProperty.call(GAME_EXES, f.name.toLowerCase()) ||
-  /\\steamapps\\common\\|\\epic games\\|\\riot games\\|\\ubisoft game launcher\\games\\|\\ea games\\|\\xboxgames\\|\\gog galaxy\\games\\/i.test(f.path || ""));
+// Recognising games without a hand-written list (games-detect.js): your Steam and Epic libraries, the folders game
+// launchers install into, Discord's public list of game programs, and anything you mark yourself in Settings → Gaming.
+const gd = new (require("./games-detect").Detector)();
+const gdLive = new Map();   // program name -> game, for games seen in front that are still running
+let gdRecent = [];          // programs that were lately in front, for the "is this a game?" list
+const gdLists = () => gd.setLists({ builtin: GAME_EXES, custom: settings.gamesMine || {}, notGames: settings.gamesNot || {} });
+const isGameFg = f => { try { return !!f.name && !!gd.identify(f); } catch { return false; } };
+function gdSeen(f) {
+  if (!f || !f.name) return;
+  let g = null; try { g = gd.identify(f); } catch {}
+  const exe = f.name.toLowerCase();
+  if (g && !gdLive.has(exe)) { gdLive.set(exe, g); setTimeout(() => { try { dcGamePoll(); } catch {} try { trkPoll(); } catch {} }, 800); }
+  let maybe = false; try { maybe = gd.couldBeGame(f); } catch {}
+  if (g || maybe) gdRecent = [{ exe, path: f.path || "", at: Date.now() }, ...gdRecent.filter(x => x.exe !== exe)].slice(0, 12);
+}
+async function gdRefresh() {
+  gdLists();
+  if (process.platform !== "win32") return;
+  try {
+    let root = await regQuery("HKCU\\Software\\Valve\\Steam", "SteamPath"); root = root ? root.replace(/\//g, "\\") : "C:\\Program Files (x86)\\Steam";
+    gd.scan({ steamRoot: root, epicDir: path.join(process.env.ProgramData || "C:\\ProgramData", "Epic", "EpicGamesLauncher", "Data", "Manifests") });
+  } catch {}
+  // Discord's public list of game programs: kept in your data folder, refreshed weekly
+  const file = path.join(DATA_DIR, "game-list.json");
+  let age = Infinity; try { age = Date.now() - fs.statSync(file).mtimeMs; } catch {}
+  if (!gd.byExe.size) { try { gd.unpackDetectable(JSON.parse(fs.readFileSync(file, "utf8"))); } catch {} }
+  if (age > 7 * 864e5 || !gd.byExe.size) {
+    for (const u of ["https://discord.com/api/v9/applications/detectable", "https://raw.githubusercontent.com/OpenAsar/arrpc/main/src/process/detectable.json"]) {
+      try {
+        const r = await require("electron").net.fetch(u); if (!r.ok) continue;
+        const j = await r.json();
+        if (Array.isArray(j) && j.length > 1000 && gd.setDetectable(j) > 1000) { fs.writeFileSync(file, JSON.stringify(gd.packDetectable())); break; }
+      } catch {}
+    }
+  }
+  try { gdSeen(fgNow); } catch {}
+}
+app.whenReady().then(() => { gdLists(); setTimeout(() => { gdRefresh().catch(() => {}); fgWatch(); }, 6000); setInterval(() => gdRefresh().catch(() => {}), 30 * 60000); });
+ipcMain.handle("games:seen", () => {
+  gdLists();
+  const mine = settings.gamesMine || {}, not = settings.gamesNot || {};
+  const rows = gdRecent.map(x => { let g = null; try { g = gd.identify({ name: x.exe, path: x.path }); } catch {} return { exe: x.exe, name: g ? g.name : gd.guessName({ name: x.exe, path: x.path }), game: !!g, how: g ? g.how : "", at: x.at }; });
+  for (const exe of Object.keys(mine)) if (!rows.some(r => r.exe === exe)) rows.push({ exe, name: mine[exe], game: true, how: "yours", at: 0 });
+  for (const exe of Object.keys(not)) if (!rows.some(r => r.exe === exe)) rows.push({ exe, name: gd.guessName({ name: exe, path: "" }), game: false, how: "", at: 0, blocked: true });
+  return rows.map(r => Object.assign(r, { blocked: !!not[r.exe] }));
+});
+// game: true = "this is a game" (name optional), false = "this isn't a game", null = forget what I said
+ipcMain.handle("games:mark", (_e, o) => {
+  const exe = String(o && o.exe || "").toLowerCase(); if (!/^[^\\/:*?"<>|]{1,80}\.exe$/.test(exe)) return false;
+  const mine = Object.assign({}, settings.gamesMine), not = Object.assign({}, settings.gamesNot);
+  delete mine[exe]; delete not[exe];
+  if (o.game === true) { const seen = gdRecent.find(x => x.exe === exe); mine[exe] = String(o.name || "").trim().slice(0, 60) || gd.guessName({ name: exe, path: seen ? seen.path : "" }); }
+  else if (o.game === false) not[exe] = true;
+  settings.gamesMine = mine; settings.gamesNot = not; saveSettings(); gdLists();
+  gdLive.delete(exe); const seen = gdRecent.find(x => x.exe === exe); if (seen && o.game !== false) gdSeen({ name: exe, path: seen.path });
+  try { dcGamePoll(); } catch {}
+  return true;
+});
 function fgWatch() {
   if (process.platform !== "win32" || fgProc) return;
   const ps = `Add-Type -Namespace SothisFg2 -Name W -MemberDefinition '[DllImport("user32.dll")] public static extern System.IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(System.IntPtr h, out uint p);'
@@ -1613,9 +1671,10 @@ while ($true) {
       buf += d; const lines = buf.split(/\r?\n/); buf = lines.pop();
       const last = lines.filter(Boolean).pop(); if (!last) return;
       const [name, ...rest] = last.split("|"); fgNow = { name: name || "", path: rest.join("|") };
+      try { gdSeen(fgNow); } catch {}
       try { voUpdate(); } catch {}
     });
-    fgProc.on("exit", () => { fgProc = null; setTimeout(() => { if (voCfg().on) fgWatch(); }, 5000); });
+    fgProc.on("exit", () => { fgProc = null; setTimeout(fgWatch, 5000); });
   } catch { fgProc = null; }
 }
 app.on("will-quit", () => { try { fgProc && fgProc.kill(); } catch {} });
@@ -3812,7 +3871,8 @@ async function trkPoll() {
   let name = null, exe = null;
   for (const [e, n] of Object.entries(GAME_EXES)) if (run.has(e)) { name = n; exe = e; break; }
   // any other Steam game that's running (e.g. Wardogs) counts too
-  if (!name && dcGame && dcGame.sid && dcGame.name && dcGame.name !== "a Steam game") { name = dcGame.name.replace(/[®™©]/g, "").trim(); exe = "steam:" + dcGame.sid; }
+  if (!name) for (const [e, g] of gdLive) { if (!run.has(e)) { gdLive.delete(e); continue; } name = g.name.replace(/[®™©]/g, "").trim(); exe = g.sid ? "steam:" + g.sid : e; break; }
+  if (!name && dcGame && (dcGame.sid || dcGame.exe) && dcGame.name && dcGame.name !== "a Steam game") { name = dcGame.name.replace(/[®™©]/g, "").trim(); exe = dcGame.sid ? "steam:" + dcGame.sid : dcGame.exe; }
   const now = Date.now();
   if (name) {
     trkMiss = 0; trkLast = now;
@@ -4907,7 +4967,7 @@ async function updCheck(manual) {
     if (!fs.existsSync(path.join(root, "main.js"))) { const sub = fs.readdirSync(staged, { withFileTypes: true }).find(d => d.isDirectory() && fs.existsSync(path.join(staged, d.name, "main.js"))); if (sub) root = path.join(staged, sub.name); }
     let pkNew = {}; try { pkNew = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")); } catch {}
     if (!fs.existsSync(path.join(root, "main.js")) || verCmp(pkNew.version || "0", APP_VER) <= 0) throw new Error("The update looks incomplete.");
-    const skip = new Set(["installer", ".gitignore", "README.md", ".github", "browser"]);   // browser/ is Sothis Browser's own update source
+    const skip = new Set(["installer", ".gitignore", "README.md", ".github", "browser", "tests"]);   // browser/ is Sothis Browser's own update source
     for (const e of fs.readdirSync(root)) if (!skip.has(e)) fs.cpSync(path.join(root, e), path.join(__dirname, e), { recursive: true, force: true });
     fs.rmSync(dir, { recursive: true, force: true });
     settings.updDone = upd.latest; saveSettings();
@@ -5213,6 +5273,8 @@ ipcMain.on("lyrics:win", (_e, what) => {
   else if (what === "back") { try { showWindow(); win.webContents.send("lyrics:popped", false); } catch {} lyWin.close(); }
 });
 ipcMain.handle("lyrics:top", () => settings.lyricsTop !== false);
+// clicking a line in the pop-out lyrics jumps the song there (the main window does the seeking)
+ipcMain.on("lyrics:seek", (_e, t) => { if (win && !win.isDestroyed() && Number.isFinite(+t)) win.webContents.send("lyrics:seek", +t); });
 
 /* ---------- Screenshots: Steam, Xbox Game Bar, Windows, NVIDIA / AMD captures and game photo modes, sorted by game ---------- */
 const SHOT_RE = /\.(png|jpe?g|webp|bmp)$/i;
