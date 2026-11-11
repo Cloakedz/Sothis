@@ -166,25 +166,38 @@ namespace SothisAudio {
 '@
 
 # the app's main process (its sound comes from a child process, which the whole-tree mode covers)
+# Returns 0 when the app isn't running, and -1 when Windows couldn't be asked just now (so "couldn't ask" is never
+# mistaken for "the app quit"). When the app has more than one top-level process the oldest is taken, every time:
+# picking "the first one listed" could give a different answer from one check to the next, which restarted this
+# helper every ten seconds and left a three-second hole in the sound each time.
 function Root-Pid([string]$name) {
-  $all = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -match ("^" + [regex]::Escape($name) + "(PTB|Canary)?\.exe$") })
+  try {
+    $all = @(Get-CimInstance Win32_Process -Filter ("Name LIKE '" + $name.Replace("'", "") + "%'") -Property ProcessId, ParentProcessId, Name, CreationDate -ErrorAction Stop |
+      Where-Object { $_.Name -match ("^" + [regex]::Escape($name) + "(PTB|Canary)?\.exe$") })
+  } catch { return -1 }
   if (-not $all.Count) { return 0 }
   $ids = @{}; foreach ($p in $all) { $ids[[uint32]$p.ProcessId] = 1 }
-  $root = $all | Where-Object { -not $ids.ContainsKey([uint32]$_.ParentProcessId) } | Select-Object -First 1
-  if ($root) { return [uint32]$root.ProcessId } else { return [uint32]$all[0].ProcessId }
+  $root = $all | Where-Object { -not $ids.ContainsKey([uint32]$_.ParentProcessId) } | Sort-Object CreationDate, ProcessId | Select-Object -First 1
+  if (-not $root) { $root = $all | Sort-Object CreationDate, ProcessId | Select-Object -First 1 }
+  return [int64]$root.ProcessId
 }
 
 $target = Root-Pid $Target
+if ($target -lt 0) { $target = 0 }
 $include = $Mode -eq "Include"
 if ($include -and -not $target) { [Console]::Error.WriteLine("notarget"); exit 3 }
 # nothing to leave out: leave out this helper itself (it makes no sound), so it records everything
 $pid0 = if ($target) { $target } else { [uint32]$PID }
 $script:last = [DateTime]::UtcNow
+$script:changed = 0
 $stop = [Func[bool]] {
   if (([DateTime]::UtcNow - $script:last).TotalSeconds -lt 10) { return $false }
   $script:last = [DateTime]::UtcNow
-  # restart when the app starts or quits, so the split stays right
-  return ((Root-Pid $Target) -ne $target)
+  # restart when the app starts or quits, so the split stays right; only once two checks in a row agree it really changed
+  $now = Root-Pid $Target
+  if ($now -lt 0 -or $now -eq $target) { $script:changed = 0; return $false }
+  $script:changed++
+  return ($script:changed -ge 2)
 }
 $err = [SothisAudio.Rec]::Run([uint32]$pid0, $include, $stop)
 if ($err) { [Console]::Error.WriteLine($err); exit 2 }

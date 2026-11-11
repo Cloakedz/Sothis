@@ -694,9 +694,11 @@ async function dcGameNow() {
     (err, out) => { const m = !err && String(out).match(/RunningAppID\s+REG_DWORD\s+0x([0-9a-f]+)/i); res(m ? parseInt(m[1], 16) : 0); }));
   if (sid) { const r = await regQuery(`HKCU\\Software\\Valve\\Steam\\Apps\\${sid}`, "Running"); if (r != null && !/^(0x0*1|1)$/i.test(r)) sid = 0; }
   const run = await runningSet();
-  for (const [exe, name] of Object.entries(GAME_EXES)) if (run.has(exe)) return { name, exe, img: GAME_IMG[name] ? GAME_IMG[name]() : "" };
+  // the game in front wins; then any running one that was in front lately (one idling in the background doesn't count)
+  const front = fgExe(), known = Object.entries(GAME_EXES).filter(([exe]) => run.has(exe)).sort((a, b) => (b[0] === front) - (a[0] === front));
+  for (const [exe, name] of known) if (!gameStale(exe)) return { name, exe, img: GAME_IMG[name] ? GAME_IMG[name]() : "" };
   // any other game that was seen in front and is still running (see games-detect.js)
-  for (const [exe, g] of gdLive) { if (!run.has(exe)) { gdLive.delete(exe); continue; } const o = { name: g.name, exe, img: g.img || "" }; if (g.sid) o.sid = g.sid; return o; }
+  for (const exe of [...gdLive.keys()].sort((a, b) => (b === front) - (a === front))) { const g = gdLive.get(exe); if (!run.has(exe)) { gdLive.delete(exe); continue; } if (gameStale(exe)) continue; const o = { name: g.name, exe, img: g.img || "" }; if (g.sid) o.sid = g.sid; return o; }
   // Steam can leave RunningAppID set after a game closes: only trust it while one of the game's own programs is running
   if (sid) { const exes = await steamAppExes(sid); if (exes && ![...exes].some(e => run.has(e))) sid = 0; }
   if (sid) {
@@ -1604,6 +1606,18 @@ const gdLive = new Map();   // program name -> game, for games seen in front tha
 let gdRecent = [];          // programs that were lately in front, for the "is this a game?" list
 const gdLists = () => gd.setLists({ builtin: GAME_EXES, custom: settings.gamesMine || {}, notGames: settings.gamesNot || {} });
 const isGameFg = f => { try { return !!f.name && !!gd.identify(f); } catch { return false; } };
+// A game left open in the background isn't being played. Each game's last time in front is remembered; one that hasn't
+// been in front for half an hour stops counting (status, session, hours) until you go back to it. If the helper that
+// reports the front window isn't working, nothing is ever treated as stale.
+let fgEver = false; const gdFrontBy = new Map(), gdFirstSeen = new Map(), GAME_STALE_MS = 30 * 60000;
+const fgExe = () => String(fgNow.name || "").toLowerCase();
+function gameStale(exe) {
+  if (!fgEver || !exe) return false;
+  const now = Date.now();
+  if (fgExe() === exe) { gdFrontBy.set(exe, now); return false; }
+  if (!gdFirstSeen.has(exe)) gdFirstSeen.set(exe, now);   // already running when first noticed: give it the benefit of the doubt for a while
+  return now - (gdFrontBy.get(exe) || gdFirstSeen.get(exe)) > GAME_STALE_MS;
+}
 function gdSeen(f) {
   if (!f || !f.name) return;
   let g = null; try { g = gd.identify(f); } catch {}
@@ -1670,7 +1684,9 @@ while ($true) {
     fgProc.stdout.on("data", d => {
       buf += d; const lines = buf.split(/\r?\n/); buf = lines.pop();
       const last = lines.filter(Boolean).pop(); if (!last) return;
+      const before = fgExe(); if (before) gdFrontBy.set(before, Date.now());   // the program you just left was in front until now
       const [name, ...rest] = last.split("|"); fgNow = { name: name || "", path: rest.join("|") };
+      fgEver = true; if (fgExe()) gdFrontBy.set(fgExe(), Date.now());
       try { gdSeen(fgNow); } catch {}
       try { voUpdate(); } catch {}
     });
@@ -1868,7 +1884,7 @@ function aaSpawn(key) {
     if (aa.procs[key] === p) delete aa.procs[key];
     const noTarget = /notarget/.test(err);
     if (!noTarget && code !== 0) { aa.fails[key]++; try { presLog("clips: " + key + " sound helper stopped (" + code + "): " + err.trim().split("\n").pop()); } catch {} }
-    if (aa.want) aa.timers[key] = setTimeout(() => aaSpawn(key), noTarget ? 15000 : Date.now() - started < 5000 ? 8000 : 2000);
+    if (aa.want) aa.timers[key] = setTimeout(() => aaSpawn(key), noTarget ? 15000 : Date.now() - started < 5000 ? 8000 : code === 0 ? 150 : 2000);   // a clean stop means "the app started or quit": come straight back
   });
 }
 function aaSet(on) {
@@ -3887,9 +3903,10 @@ async function trkPoll() {
   if (process.platform !== "win32") return;
   let run; try { run = await runningSet(); } catch { return; }
   let name = null, exe = null;
-  for (const [e, n] of Object.entries(GAME_EXES)) if (run.has(e)) { name = n; exe = e; break; }
+  const front = fgExe();
+  for (const [e, n] of Object.entries(GAME_EXES).sort((a, b) => (b[0] === front) - (a[0] === front))) if (run.has(e) && !gameStale(e)) { name = n; exe = e; break; }
   // any other Steam game that's running (e.g. Wardogs) counts too
-  if (!name) for (const [e, g] of gdLive) { if (!run.has(e)) { gdLive.delete(e); continue; } name = g.name.replace(/[®™©]/g, "").trim(); exe = g.sid ? "steam:" + g.sid : e; break; }
+  if (!name) for (const [e, g] of [...gdLive].sort((a, b) => (b[0] === front) - (a[0] === front))) { if (!run.has(e)) { gdLive.delete(e); continue; } if (gameStale(e)) continue; name = g.name.replace(/[®™©]/g, "").trim(); exe = g.sid ? "steam:" + g.sid : e; break; }
   if (!name && dcGame && (dcGame.sid || dcGame.exe) && dcGame.name && dcGame.name !== "a Steam game") { name = dcGame.name.replace(/[®™©]/g, "").trim(); exe = dcGame.sid ? "steam:" + dcGame.sid : dcGame.exe; }
   const now = Date.now();
   if (name) {

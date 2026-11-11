@@ -783,6 +783,7 @@ body.is-mini .bell { display: none; }
 .sw-bar select { max-width: 190px; padding: 6px 8px; font-size: .78rem; background: rgba(0, 0, 0, .4); color: #eef0f5; border-color: rgba(255, 255, 255, .14); }
 .sw-bar .ib { width: 34px; height: 34px; color: #eef0f5; } .sw-bar .ib svg { width: 18px; height: 18px; }
 .sw-bar .ib[aria-pressed="true"] { color: #ff4d5e; }
+#gdRefresh { flex: none; flex-direction: row; align-items: center; gap: 6px; height: auto; padding: 7px 12px; white-space: nowrap; align-self: center; }
 .gd-list { display: flex; flex-direction: column; gap: 6px; margin: 0 0 14px; }
 .gd-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 255, 255, .06); }
 .gd-row.on { border-color: rgba(255, 77, 94, .35); }

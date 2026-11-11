@@ -325,6 +325,10 @@ module.exports = function makeClipper(ctx) {
       const base = game || "Clip";
       let count = 0; try { count = fs.readdirSync(dir).filter(n => VID_RE.test(n)).length; } catch {}
       let n = count + 1, file = path.join(dir, `${base} ${n}.mp4`); while (fs.existsSync(file)) file = path.join(dir, `${base} ${++n}.mp4`);
+      // The clip is written under a temporary name and renamed when it's complete. If Sothis or the PC stops in the middle
+      // of a save, you get no clip rather than a broken one that won't play. Leftovers from such a stop are cleared here.
+      const part = file + ".part";
+      try { for (const n of fs.readdirSync(dir)) if (/\.mp4\.part$/i.test(n)) { const f = path.join(dir, n); if (Date.now() - fs.statSync(f).mtimeMs > 10 * 60000) fs.unlinkSync(f); } } catch {}
       const q = Math.max(14, qp() - 3);
       const encs = copyV ? [["-c:v", "copy"]] : [["-c:v", "h264_amf", "-quality", "quality", "-rc", "cqp", "-qp_i", String(q), "-qp_p", String(q + 1), "-bf", "0"], ["-c:v", "h264_nvenc", "-preset", "p6", "-tune", "hq", "-rc", "constqp", "-qp", String(q)], ["-c:v", "h264_qsv", "-global_quality", String(q)], ["-c:v", "libx264", "-preset", "fast", "-crf", String(q + 1)]];
       let res = { ok: false, err: "" };
@@ -349,11 +353,13 @@ module.exports = function makeClipper(ctx) {
       for (const e of encs) {
         const args = ["-hide_banner", "-y", ...(copyV ? [] : ["-ss", off.toFixed(3)]), "-i", "v.ts", ...(haveAudio ? ["-i", "a.wav"] : []), ...(haveVoice ? ["-i", "d.wav"] : []), ...(haveMic ? ["-i", "m.wav"] : []), "-t", clipLen.toFixed(3),
           ...(fc ? ["-filter_complex", fc] : []), "-map", copyV ? "0:v:0" : "[v]", ...amap, ...e,
-          ...(haveAudio ? ["-c:a", "aac", "-b:a", "256k"] : []), ...(copyV ? ["-avoid_negative_ts", "make_zero"] : []), "-movflags", "+faststart", file];
+          ...(haveAudio ? ["-c:a", "aac", "-b:a", "256k"] : []), ...(copyV ? ["-avoid_negative_ts", "make_zero"] : []), "-movflags", "+faststart", "-f", "mp4", part];
         res = await runFF(args, tmp);
         if (res.ok) break;
-        try { fs.unlinkSync(file); } catch {}
+        try { fs.unlinkSync(part); } catch {}
       }
+      // only a finished clip gets its real name
+      if (res.ok) { try { fs.renameSync(part, file); } catch (e) { res = { ok: false, err: "rename: " + (e && e.message) }; try { fs.unlinkSync(part); } catch {} } }
       try { fs.rmSync(tmp, { recursive: true, force: true }); } catch {}
       if (!res.ok) { log("clips: save failed: " + res.err.split("\n").filter(Boolean).slice(-2).join(" | ")); return { ok: false, err: "Couldn't save the clip" }; }
       log("clips: saved " + path.basename(file) + " (" + clipLen.toFixed(1) + " s, " + (copyV ? "straight copy" : "re-encoded") + (overlay ? ", keys" : "") + (haveAudio ? ", sound" : ", no sound") + ")");
