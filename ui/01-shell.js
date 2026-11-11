@@ -11,6 +11,9 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch {} }
   };
   ["cider.host", "cider.token", "s.scope", "s.storefront"].forEach(k => { try { localStorage.removeItem(k); } catch {} });   // drop old Cider/Apple Music data
+  // Every launch starts each page on its first view (Stats on the first game, Music on Library, Games on PC games,
+  // Files on Clips, Settings on its first section...) instead of wherever it was left.
+  ["st.game", "yt.view", "ytl.kind", "yts.kind", "gm.mode", "rel.kind", "rel.by", "fl.kind", "set.tab"].forEach(k => { try { localStorage.removeItem(k); } catch {} });
 
   /* ---------- Mini player (YouTube Music) ---------- */
   const PLAY = '<path d="M8 5v14l11-7z"/>', PAUSE = '<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>';

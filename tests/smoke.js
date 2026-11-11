@@ -82,6 +82,11 @@ app.whenReady().then(async () => {
     where = "clips"; b = errors.length;
     await click("tabbtn-home"); await W(600);
     if (await click("hmClipDir")) { await W(1200); ok("Clips page opens", await js(`!document.getElementById("tab-clips").classList.contains("off")`) && errors.length === b, errors.slice(b, b + 4)); await shot("3-clips"); }
+    // pages go back to their first view on the next launch (a reload stands in for one)
+    await js(`["st.game", "yt.view", "gm.mode", "fl.kind", "set.tab"].forEach((k, i) => localStorage.setItem(k, ["cs", "spot", "mods", "mp3", "Clips"][i])); location.reload(); 1`).catch(() => {});
+    await W(2500); await until(`document.readyState === "complete" && !!document.getElementById("tab-home")`, 10000);
+    ok("each page starts on its first view after a relaunch", await js(`["st.game", "yt.view", "gm.mode", "fl.kind", "set.tab"].every(k => localStorage.getItem(k) === null)`), await js(`JSON.stringify(["st.game", "yt.view", "gm.mode", "fl.kind", "set.tab"].map(k => localStorage.getItem(k)))`));
+    await W(4000); await click("dsGo"); await W(400);
     where = "keyboard"; b = errors.length;
     for (const k of ["Escape", "ArrowLeft", "ArrowRight", " ", "f", "m", "/", "Tab"]) { await js(`document.body.dispatchEvent(new KeyboardEvent("keydown", { key: ${JSON.stringify(k)}, bubbles: true })); 1`); await W(120); }
     ok("keyboard shortcuts don't throw", errors.length === b, errors.slice(b, b + 4));
