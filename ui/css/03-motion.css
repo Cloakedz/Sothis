@@ -1,0 +1,45 @@
+/* ---------- Motion: pages glide in, their sections follow one after another; buttons and cards respond ---------- */
+@keyframes sx-rise { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes sx-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sx-pop { 0% { transform: scale(.9); opacity: 0; } 60% { transform: scale(1.03); opacity: 1; } 100% { transform: none; } }
+.panel.enter > .col > * { animation: sx-rise .42s cubic-bezier(.2, .8, .2, 1) backwards; }
+.panel.enter > .col > *:nth-child(2) { animation-delay: .04s; }
+.panel.enter > .col > *:nth-child(3) { animation-delay: .08s; }
+.panel.enter > .col > *:nth-child(4) { animation-delay: .12s; }
+.panel.enter > .col > *:nth-child(5) { animation-delay: .16s; }
+.panel.enter > .col > *:nth-child(6) { animation-delay: .2s; }
+.panel.enter > .col > *:nth-child(n+7) { animation-delay: .24s; }
+.panel.enter > .webwrap, .panel.enter > .wb-tabs, .panel.enter > .wb-bar { animation: sx-fade .3s ease backwards; }
+.btn, .chip, .wbtn, .tab, .ib, .hm-clip, .linkbtn, .switch { transition: transform .12s ease, background .15s, color .15s, border-color .15s, box-shadow .15s, opacity .15s; }
+.btn:active, .chip:active, .wbtn:active, .ib:active, .hm-clip:active, .switch:active { transform: scale(.94); }
+.tab:active { transform: scale(.9); }
+.tab[aria-selected="true"] { animation: sx-pop .35s ease; }
+/* the highlight glides between tabs */
+.tab-pill { position: absolute; top: 0; left: 0; height: 46px; width: 54px; border-radius: 16px; background: var(--accent); box-shadow: 0 4px 14px var(--glow); transition: transform .42s cubic-bezier(.35, 1.25, .45, 1), width .3s, height .3s, opacity .2s; pointer-events: none; z-index: 0; opacity: 0; }
+.tabs.has-pill .tab { position: relative; z-index: 1; }
+.tabs.has-pill .tab[aria-selected="true"] { background: transparent; box-shadow: none; animation: none; }
+/* pages slide in from the side of the tab you came from */
+@keyframes sx-in-r { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
+@keyframes sx-in-l { from { opacity: 0; transform: translateX(-26px); } to { opacity: 1; transform: none; } }
+.panel.enter.from-r > .col > * { animation-name: sx-in-r; }
+.panel.enter.from-l > .col > * { animation-name: sx-in-l; }
+/* clip saved: rings burst out of the Clip button and a little copy of the moment flies into the clips folder */
+.hm-clip { position: relative; }
+.clip-ring { position: absolute; left: 11px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; border: 2px solid var(--accent); pointer-events: none; animation: clipRing .9s ease-out forwards; }
+@keyframes clipRing { 0% { opacity: .9; transform: scale(1); } 100% { opacity: 0; transform: scale(9); } }
+.clip-fly { position: fixed; z-index: 80; border-radius: 18px; background: center / cover no-repeat, linear-gradient(160deg, #57202f, #1d1018); box-shadow: 0 10px 30px rgba(0, 0, 0, .5); pointer-events: none; transform-origin: 0 0; transition: transform 1s cubic-bezier(.6, 0, .3, 1), opacity 1s ease-in; }
+@keyframes clipBump { 50% { transform: scale(1.25); color: #3ccf8e; border-color: #3ccf8e; } }
+.hm-clipdir.bump { animation: clipBump .4s ease; }
+/* new song: the cover slides in */
+@keyframes artIn { from { opacity: 0; transform: translateX(16px) rotate(4deg); } to { opacity: 1; transform: none; } }
+.ynp-art.swap { animation: artIn .55s cubic-bezier(.3, 1.2, .5, 1); }
+/* weekly recap: bars grow in one after another */
+@keyframes wkGrow { from { transform: scaleY(0); } to { transform: none; } }
+.wk-col i { transform-origin: bottom; animation: wkGrow .7s cubic-bezier(.3, 1.2, .5, 1) backwards; }
+@media (prefers-reduced-motion: reduce) { .tab-pill, .clip-fly, .dcn-stack > .dcn { transition: none; } .clip-ring, .ynp-art.swap, .wk-col i { animation: none; } }
+.clc, .phc, .fr-card, .hxp-h, .wb-q, .rank, .tile, .fm-row, .hm-dc, .hx { transition: transform .2s cubic-bezier(.2, .8, .2, 1), box-shadow .2s, border-color .2s, background .2s; }
+.clc:hover, .phc:hover, .fr-card:hover, .tile:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0, 0, 0, .28); }
+.wb-q:hover, .hxp-h:hover { transform: translateY(-2px); }
+.hxp:not([hidden]), .wb-blk:not([hidden]), .fr-edit:not([hidden]), .wb-pop:not([hidden]), #phBox:not([hidden]) { animation: sx-rise .28s cubic-bezier(.2, .8, .2, 1); }
+.phc { animation: sx-fade .4s ease backwards; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } .panel.enter > .col > *, .panel.enter > *, .tab[aria-selected="true"], .hxp, .wb-blk, .fr-edit, .wb-pop, #phBox, .phc { animation: none !important; } }

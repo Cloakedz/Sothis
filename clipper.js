@@ -64,7 +64,7 @@ module.exports = function makeClipper(ctx) {
   }
 
   /* ---- rolling buffer ---- */
-  let ff = null, encIdx = 0, startedAt = 0, segs = [], wallOff = null, listPos = 0, listTimer = null, want = false, vidSize = null;
+  let ff = null, encIdx = 0, startedAt = 0, segs = [], wallOff = null, offWin = [], listPos = 0, listTimer = null, want = false, vidSize = null;
   // each recorder run writes into its own folder; when Windows briefly takes the screen away (a game going full screen,
   // alt-tab, a resolution change) the recorder restarts right away and the earlier pieces are kept, so clips stay full length
   let run = 0, runDir = BUF, oldSegs = [], curIdx = -1;
@@ -104,7 +104,10 @@ module.exports = function makeClipper(ctx) {
       const file = m[0].trim(), a = +m[1], b = +m[2]; if (!file || !isFinite(b)) continue;
       segs = segs.filter(x => x.file !== file).concat([{ file, a, b, at: now }]).slice(-WRAP + 2);
       const off = now - b * 1000;   // wall clock of stream time 0, from the moment each piece is finished (smallest = least delay)
-      if (wallOff == null || off < wallOff) wallOff = off;
+      // The best of the last two minutes, not of the whole session: if Windows corrects its clock mid-game (time sync), an
+      // all-time best would stay stuck on the old clock and every later clip's sound would be off by that jump.
+      offWin.push(off); if (offWin.length > 60) offWin.shift();
+      wallOff = Math.min(...offWin);
     }
   }
   function start(keep) {
@@ -121,7 +124,7 @@ module.exports = function makeClipper(ctx) {
     try { const keepRuns = new Set(oldSegs.map(x => "r" + x.run)); for (const d of fs.readdirSync(BUF)) if (/^r\d+$/.test(d) && !keepRuns.has(d)) fs.rmSync(path.join(BUF, d), { recursive: true, force: true }); } catch {}
     run++; runDir = path.join(BUF, "r" + run);
     fs.mkdirSync(runDir, { recursive: true });
-    segs = []; wallOff = null; listPos = 0;
+    segs = []; wallOff = null; offWin = []; listPos = 0;
     const c = cfg(), idx = monitorIdx(), d = screen.getAllDisplays()[idx] || screen.getPrimaryDisplay();
     curIdx = idx;
     vidSize = { w: Math.round(d.size.width * d.scaleFactor), h: Math.round(d.size.height * d.scaleFactor) };

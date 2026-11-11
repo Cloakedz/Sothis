@@ -1,0 +1,59 @@
+
+/* ---------- Wide layout (Settings → Layout): nav rail on the left, the page in the middle, a side panel on the right ---------- */
+body.wide { --wd-rail: 64px; --dock: 14px; }
+body.wide.wide-labels { --wd-rail: 168px; }
+body.wide .dock-bg { display: none; }
+body.wide .tabs { left: 10px !important; top: 58px; bottom: 10px; transform: none; flex-direction: column; align-items: stretch; width: var(--wd-rail); box-sizing: border-box; padding: 10px 8px; gap: 6px; border-radius: 20px; box-shadow: none; }
+body.wide.splashing .tabs { transform: translateX(-12px); }
+body.wide .tabs .tab { width: 100%; height: 46px; }
+body.wide .tabs.compact .tab, body.wide .tabs.tiny .tab { width: 100%; }
+.tab .wd-l { display: none; }
+body.wide-labels .tabs .tab { justify-content: flex-start; gap: 12px; padding: 0 13px; }
+body.wide-labels .tab .wd-l { display: inline; font: 700 .9rem var(--f-body); white-space: nowrap; color: inherit; }
+body.wide .panels { margin-left: calc(var(--wd-rail) + 16px); transition: margin .25s ease; }
+body.wide.wd-has-side .panels { margin-right: 318px; }
+/* the corner buttons (Claude, sound, Discord, launchers) stack at the foot of the rail */
+body.wide #tabbtn-claude, body.wide.dock-row #tabbtn-claude { left: 22px; bottom: 20px; }
+body.wide .cl-fab.snd-fab, body.wide.dock-row .cl-fab.snd-fab { left: 22px; bottom: 64px; }
+body.wide .cl-fab.dc-fab, body.wide.dock-row .cl-fab.dc-fab { left: 22px; bottom: 108px; }
+body.wide .ln-col, body.wide.dock-row .ln-col { left: 22px; right: auto; bottom: 152px; flex-direction: column-reverse; }
+body.wide.on-music .tabs, body.wide.on-music .cl-fab, body.wide.on-music .ln-col { margin-bottom: 0; }
+body.wide .tb-vol { left: calc(var(--wd-rail) + 40px); right: 340px; bottom: 0; }
+body.wide .snd-pop, body.wide .dc-pop, body.wide.dock-row .snd-pop, body.wide.dock-row .dc-pop { left: calc(var(--wd-rail) + 20px); bottom: 14px; max-height: calc(100% - 80px); margin-bottom: 0; }
+body.wide .col.hm { max-width: 680px; }
+body.wide .col.statscol { max-width: 560px; margin-inline: auto; align-items: stretch; }
+body.wide .col.statscol > :not(.seg) { margin-inline: auto; }
+body.wide .gm { max-width: none; }
+.wd-side { display: none; }
+body.wd-has-side .wd-side { position: absolute; top: 58px; right: 10px; bottom: 10px; width: 300px; z-index: 3; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; scrollbar-width: none; padding: 2px; box-sizing: border-box; }
+.wd-side::-webkit-scrollbar { display: none; }
+.wd-slot:empty { display: none; }
+.wd-slot { display: flex; flex-direction: column; gap: 10px; }
+.wd-k { font: 700 10px/1 ui-monospace, Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 2px 4px 0; }
+/* now playing, big */
+.wd-side .hm-now { display: grid !important; grid-template-columns: 1fr; grid-template-rows: auto; text-align: left; gap: 12px; padding: 14px; }
+.wd-side .hm-art { width: 100%; height: auto; aspect-ratio: 1; grid-row: auto; border-radius: 14px; }
+.wd-side .hm-ctl { justify-content: center; gap: 18px; }
+.wd-side .hm-ctl .play { width: 48px; height: 48px; }
+body.wd-ly .wd-side .hm-now { grid-template-columns: 64px 1fr; }
+body.wd-ly .wd-side .hm-art { width: 64px; height: 64px; grid-row: span 2; }
+body.wd-ly .wd-side .hm-ctl { grid-column: 1 / -1; }
+body.wd-ly #wdDc, body.wd-ly #wdClip { display: none !important; }
+/* lyrics fill the rest of the panel on Music */
+.wd-side .lyp { position: relative; inset: auto; flex: 1 1 0; min-height: 320px; }
+.wd-side #wdExtra:has(.lyp:not([hidden])) { flex: 1 1 0; min-height: 320px; }
+.wd-side .hm-empty { order: 0; margin: 0; opacity: .7; }
+.wd-side .fr-board[hidden] { display: none; }
+/* last clip */
+.wd-clip { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); text-align: left; color: var(--ink); cursor: pointer; }
+.wd-clip[hidden] { display: none; }
+.wd-clip video { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 12px; background: #000; pointer-events: none; }
+.wd-clip b { font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wd-clip span { font-size: .78rem; color: var(--muted); }
+.wd-clip:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+/* Files: an open clip sits in its own column on the right, next to the grid */
+body.wide #tab-clips > .col { max-width: none; }
+body.wide #tab-clips > .col:has(#clPlay:not([hidden])) { display: grid; grid-template-columns: minmax(0, 1fr) 400px; column-gap: 18px; align-items: start; }
+body.wide #tab-clips > .col:has(#clPlay:not([hidden])) > * { grid-column: 1; }
+body.wide #tab-clips > .col:has(#clPlay:not([hidden])) > #clPlay { grid-column: 2; grid-row: 1 / span 30; position: sticky; top: 0; }
+body.wide #clPlay .ed-bar, body.wide #clPlay .clpi { flex-wrap: wrap; }

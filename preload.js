@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld("desktop", {
   close: () => ipcRenderer.send("win:close"),
   quit: () => ipcRenderer.send("app:quit"),
   launchList: () => ipcRenderer.invoke("launch:list"),
+  uiSource: kind => ipcRenderer.sendSync("ui:source", kind),   // the page's own code and styles, joined from the ui folder
   gamesSeen: () => ipcRenderer.invoke("games:seen"), gamesMark: o => ipcRenderer.invoke("games:mark", o),
   launchPresets: () => ipcRenderer.invoke("launch:presets"),
   launchOpen: i => ipcRenderer.invoke("launch:open", i),

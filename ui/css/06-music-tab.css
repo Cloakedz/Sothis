@@ -1,0 +1,52 @@
+/* ---------- Music tab: cleaner look (cover grid, quieter rows, slimmer bars) ---------- */
+#tab-ytm .ytbar { gap: 2px; margin: 0 4px 12px; }
+#tab-ytm .ytnav { width: 32px; height: 32px; color: var(--muted); }
+#tab-ytm .ytnav:hover:not(:disabled) { color: var(--ink); }
+#tab-ytm .ytsw { width: auto; margin: 0 auto; padding: 0; gap: 4px; background: none; border: 0; }
+#tab-ytm .ytsw button { flex: none; padding: 6px 14px; border-radius: 999px; font-size: .84rem; }
+#tab-ytm .ytsw button:hover:not([aria-checked="true"]) { color: var(--ink); }
+#tab-ytm .ytsw button[aria-checked="true"] { background: color-mix(in srgb, var(--ink) 12%, transparent); color: var(--ink); }
+#tab-ytm .ms-chip { width: 30px; height: 30px; margin: 0 2px; background: none; border-color: transparent; }
+#tab-ytm .ms-chip:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+#tab-ytm .ytbar-sp { display: none; }
+/* Playlists / Albums: small pills on the left instead of a full-width box */
+#tab-ytm .yts { gap: 12px; }
+#tab-ytm .yts-kind { align-self: flex-start; padding: 0; gap: 6px; background: none; border: 0; margin: 0 2px; }
+#tab-ytm .yts-kind button { flex: none; padding: 5px 14px; border-radius: 999px; font-size: .8rem; border: 1px solid var(--line); }
+#tab-ytm .yts-kind button[aria-checked="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+/* Library: a grid of covers */
+#ytlList.ytl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); align-content: start; gap: 14px 12px; padding: 2px 2px 12px; }
+#ytlList.ytl-grid .ytl-item { flex-direction: column; align-items: stretch; gap: 8px; padding: 6px; border-radius: 14px; transition: background .15s; }
+#ytlList.ytl-grid .ytl-th { width: 100%; height: auto; aspect-ratio: 1; border-radius: 10px; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, .7); transition: transform .18s ease; }
+#ytlList.ytl-grid .ytl-item:hover .ytl-th { transform: translateY(-2px); }
+#ytlList.ytl-grid .yts-tx { padding: 0 2px; }
+#ytlList.ytl-grid .yts-tx b { font-size: .82rem; }
+#ytlList.ytl-grid .ytl-chev { display: none; }
+/* Playlist page: big header, quiet song rows */
+#tab-ytm .ytl-head { gap: 16px; padding: 4px 4px 14px; border-bottom: 1px solid var(--line); }
+#tab-ytm .ytl-dth { width: 96px; height: 96px; border-radius: 14px; box-shadow: 0 10px 28px -10px rgba(0, 0, 0, .8); }
+#tab-ytm .ytl-head .yts-tx { gap: 4px; }
+#tab-ytm .ytl-head .yts-tx b { font-size: 1.25rem; }
+#tab-ytm .ytl-shuf { width: 40px; height: 40px; border-radius: 50%; border-color: var(--line); }
+#tab-ytm .ytl-playall { width: 44px; height: 44px; padding: 0; border-radius: 50%; font-size: 0; background: var(--accent); color: var(--accent-ink); box-shadow: 0 8px 20px -8px var(--glow); position: relative; color: transparent; }
+#tab-ytm .ytl-playall::before { content: ""; position: absolute; left: 50%; top: 50%; width: 15px; height: 16px; transform: translate(-40%, -50%); background: var(--accent-ink); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+#tab-ytm .ytl-playall:hover:not(:disabled) { filter: brightness(1.08); }
+#ytlTracks { gap: 0; counter-reset: trk; }
+#ytlTracks .yts-row { gap: 12px; padding: 6px 8px; border-radius: 10px; counter-increment: trk; }
+#ytlTracks .yts-row::before { content: counter(trk); width: 22px; flex: none; text-align: right; font: 500 .74rem var(--f-mono); color: var(--muted); }
+#ytlTracks .yts-th { width: 40px; height: 40px; border-radius: 6px; }
+#ytlTracks .yts-dur { flex: none; min-width: 64px; text-align: right; padding-right: 4px; font: 500 .74rem var(--f-mono); color: var(--muted); }
+#ytlTracks .yts-b { display: none; }
+#ytlTracks .yts-row:hover .yts-b, #ytlTracks .yts-row:focus-within .yts-b { display: grid; }
+#ytlTracks .yts-row:focus-within .yts-dur { display: none; }
+#ytlTracks .yts-row:hover .yts-dur { display: none; }
+#ytlTracks .yts-b.add { color: var(--muted); } #ytlTracks .yts-b.add:hover { color: var(--accent); }
+/* now playing: glassy bar, thin progress line */
+#tab-ytm .ynp { height: 58px; padding: 0 10px 0 9px; gap: 10px; border-radius: 18px; border-color: color-mix(in srgb, var(--ink) 9%, transparent); background: color-mix(in srgb, var(--bg) 70%, transparent); -webkit-backdrop-filter: blur(18px) saturate(1.3); backdrop-filter: blur(18px) saturate(1.3); }
+#tab-ytm .ynp-bar { top: auto; bottom: 0; left: 14px; right: 14px; height: 2px; border-radius: 2px; background: color-mix(in srgb, var(--ink) 10%, transparent); }
+#tab-ytm .ynp-bar::after { content: ""; position: absolute; left: 0; right: 0; top: -6px; bottom: -6px; }
+#tab-ytm .ynp-bar i { border-radius: 2px; }
+#tab-ytm .ynp-art { width: 42px; height: 42px; border-radius: 9px; }
+#tab-ytm .ynp .yts-tx b { font-size: .86rem; }
+#tab-ytm .ynp .yts-b { color: var(--muted); } #tab-ytm .ynp .yts-b:hover { color: var(--ink); }
+#tab-ytm .ynp-play { width: 38px; height: 38px; background: var(--ink); color: var(--bg); border: 0; box-shadow: none; }

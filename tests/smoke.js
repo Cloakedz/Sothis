@@ -36,7 +36,7 @@ app.whenReady().then(async () => {
     await W(3500);   // splash
     ok("no error while starting up", errors.length === 0, errors.slice(0, 6));
     // the once-a-day briefing covers the window on a fresh start: check it shows, then close it like you would
-    const brief = await js(`!!document.getElementById("dsGo")`);
+    const brief = await until(`!!document.getElementById("dsGo")`, 9000);
     if (brief) { await shot("0-briefing"); await click("dsGo"); ok("daily briefing closes with its button", await until(`!document.getElementById("dsGo") || document.getElementById("dsGo").offsetParent === null`, 3000)); }
     const tabs = await js(`[...document.querySelectorAll("[id^=tabbtn-]")].filter(b => !b.hidden && b.offsetParent !== null).map(b => b.id.slice(7))`);
     ok("tab buttons are there", tabs.length >= 4, tabs);
@@ -46,7 +46,8 @@ app.whenReady().then(async () => {
       where = "page " + t; const before = errors.length;
       await click("tabbtn-" + t); await W(1200);
       const on = await js(`(() => { const p = document.getElementById("tab-" + ${JSON.stringify(t)}); return !!p && !p.classList.contains("off"); })()`);
-      ok("page opens: " + t, on && errors.length === before, on ? errors.slice(before, before + 4) : "page didn't show");
+      const cover = await topMost();
+      ok("page opens: " + t, on && errors.length === before && !/phbox|ds-/i.test(cover), !on ? "page didn't show" : /phbox|ds-/i.test(cover) ? "covered by " + cover : errors.slice(before, before + 4));
       await shot("1-" + t);
     }
     for (const [id, pop, label] of [["setBtn", "tab-settings", "Settings"]]) {

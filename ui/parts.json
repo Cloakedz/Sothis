@@ -1,0 +1,25 @@
+{
+ "js": [
+  "01-shell.js",
+  "02-stats.js",
+  "03-music-home.js",
+  "04-discord-call.js",
+  "05-music-library.js",
+  "06-claude-browser.js",
+  "07-games-settings.js",
+  "08-launchers-bell.js",
+  "09-switch.js",
+  "10-clips.js",
+  "11-keys-sessions.js",
+  "12-retro.js",
+  "13-home-banner-files.js"
+ ],
+ "css": [
+  "01-base.css",
+  "02-home.css",
+  "03-motion.css",
+  "04-polish-pass.css",
+  "05-wide-layout.css",
+  "06-music-tab.css"
+ ]
+}

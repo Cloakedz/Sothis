@@ -2240,11 +2240,20 @@ ipcMain.handle("games:launch", (_e, url) => {
 });
 
 /* ---------- Live updates: files dropped into the install folder show an "Update ready" pill ---------- */
+// The window's own code and styles are kept as separate files in the ui folder (ui/parts.json gives the order).
+// They are joined here into one script and one stylesheet, byte for byte what used to sit inside index.html.
+ipcMain.on("ui:source", (e, kind) => {
+  try {
+    const dir = path.join(__dirname, "ui"), parts = JSON.parse(fs.readFileSync(path.join(dir, "parts.json"), "utf8"));
+    if (kind === "css") { e.returnValue = parts.css.map(f => fs.readFileSync(path.join(dir, "css", path.basename(f)), "utf8")).join(""); return; }
+    e.returnValue = "\n(() => {\n" + parts.js.map(f => fs.readFileSync(path.join(dir, path.basename(f)), "utf8")).join("") + "})();\n//# sourceURL=sothis-ui.js\n";
+  } catch (err) { try { log("ui: could not read the ui folder: " + (err && err.message)); } catch {} e.returnValue = ""; }
+});
 let updWatch = null, updT = null;
 // Windows reports a file "changed" for antivirus scans, timestamp and attribute touches too, so only
 // real content changes count: each file is fingerprinted at launch and re-checked when the watcher fires.
 const updBase = new Map(), updDirty = new Set(), updSeen = new Set();
-const RESTART_RE = /^(main|preload|lyrics-preload|toast-preload|obs-preload|r6tab-preload|sw-pop-preload|vo-preload|battery-worker|nopasskey-preload|qpop-preload|emu-preload|azahar-preload)\.js$/i;
+const RESTART_RE = /^(main|preload|games-detect|clipper|lyrics-preload|toast-preload|obs-preload|r6tab-preload|sw-pop-preload|vo-preload|battery-worker|nopasskey-preload|qpop-preload|emu-preload|azahar-preload)\.js$/i;
 const updHash = f => { try { return require("crypto").createHash("sha1").update(fs.readFileSync(path.join(__dirname, f))).digest("hex"); } catch { return "gone"; } };
 function updScan(dir = "") {
   let ents = []; try { ents = fs.readdirSync(path.join(__dirname, dir), { withFileTypes: true }); } catch {}
@@ -2374,7 +2383,16 @@ async function launchIcon(l) {
   if (launchIcons[k] === undefined) { try { launchIcons[k] = (await app.getFileIcon(k, { size: "large" })).toDataURL(); } catch { launchIcons[k] = ""; } }
   return launchIcons[k];
 }
+// The list of running programs. Several parts of Sothis ask for it every few seconds, so one answer is shared for a
+// few seconds instead of starting a new "tasklist" for each of them.
+let runSetAt = 0, runSetVal = null, runSetBusy = null;
 function runningSet() {
+  if (runSetVal && Date.now() - runSetAt < 4000) return Promise.resolve(runSetVal);
+  if (runSetBusy) return runSetBusy;
+  runSetBusy = runningSetNow().then(s => { runSetBusy = null; if (s.size) { runSetVal = s; runSetAt = Date.now(); } return s; });
+  return runSetBusy;
+}
+function runningSetNow() {
   return new Promise(res => {
     if (process.platform !== "win32") return res(new Set());
     execFile("tasklist", ["/FO", "CSV", "/NH"], { windowsHide: true, timeout: 5000, maxBuffer: 4 << 20 }, (err, out) => {
