@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("desktop", {
   onBrand: cb => ipcRenderer.on("brand:changed", (_e, i) => cb(i)),
   firefoxUA: (() => { try { return ipcRenderer.sendSync("ua:firefox"); } catch { return ""; } })(),
   personal: (() => { try { return ipcRenderer.sendSync("personal:get"); } catch { return {}; } })(),
+  role: (() => { try { return ipcRenderer.sendSync("app:role"); } catch { return { role: "sothis", name: "Sothis" }; } })(),   // "sothis" or "launcher" (same code, role.json decides)
   features: (() => { try { return ipcRenderer.sendSync("features:get"); } catch { return { owner: false, on: {}, list: {} }; } })(),
   featuresSet: (id, which, on) => ipcRenderer.invoke("features:set", { id, which, on }),
   featuresToken: t => ipcRenderer.invoke("features:token", t),
@@ -46,6 +47,8 @@ contextBridge.exposeInMainWorld("desktop", {
   operaUrl: url => ipcRenderer.invoke("opera:url", url),
   operaRunning: () => ipcRenderer.invoke("opera:running"),
   onUpdate: cb => ipcRenderer.on("app:update", (_e, u) => cb(u)),
+  myAppsList: () => ipcRenderer.invoke("myapps:list"),          // your own apps (Blackwall, Braindance…) for the top bar
+  myAppsOpen: key => ipcRenderer.invoke("myapps:open", key),
   reloadApp: () => ipcRenderer.send("app:reload"),
   restartApp: () => ipcRenderer.send("app:restart"),
   gamesList: force => ipcRenderer.invoke("games:list", force),

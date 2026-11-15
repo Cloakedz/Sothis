@@ -1,0 +1,48 @@
+/* ---------- Minimal look ----------
+   Pure black, hairline edges, no crest or song glow, and thin type. The tabs keep their icons.
+   On by default; 14-minimal-circuits.js adds body.minimal (localStorage "sothis.minimal" = "0" turns it off).
+   The light theme and the see-through mini player are left alone. */
+:root:not([data-theme="light"]) body.minimal {
+  --bg: #000; --surface: rgba(255, 255, 255, .025); --veil: rgba(0, 0, 0, .1); --line: rgba(255, 255, 255, .07);
+  --muted: #8f8f96; --ink: #f5f5f7; --glow: transparent; --track: #222226;
+}
+:root:not([data-theme="light"]) body.minimal:not(.is-mini) .shell { background: #000; border-color: rgba(255, 255, 255, .06); }
+body.minimal .shell::before, body.minimal .shell::after { opacity: 0; }
+body.minimal .titlebar h1, body.minimal .title, body.minimal .artist, body.minimal .owname, body.minimal .sethead h2 { text-shadow: none; }
+
+/* tabs keep their usual icons (words were tried and dropped) */
+
+/* thin type */
+body.minimal { --f-display: "Figtree", "Segoe UI", system-ui, sans-serif; }
+body.minimal .hx-t { font-weight: 300; letter-spacing: -.03em; text-shadow: none; }
+body.minimal .hx[data-state="idle"] .hx-t, body.minimal .hm-time { font-family: var(--f-body); font-weight: 200; letter-spacing: -.02em; }
+body.minimal .hx-k { font: 500 .66rem/1 var(--f-body); letter-spacing: .08em; color: var(--muted); }
+body.minimal .hm-hero[data-cs="plate"] .hm-time { background: transparent; border-color: transparent; }
+
+/* ---------- Circuit lines behind the window ----------
+   Blackwall's address bar circuits, stretched across the whole window: faint red traces with sparks running along them.
+   The sparks speed up while a game is live. */
+.mcx { position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .85; transition: opacity .4s; }
+.mcx svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.mcx .tr { fill: none; stroke: rgba(227, 25, 47, .11); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.mcx .nd { fill: rgba(227, 25, 47, .3); }
+.mcx .pk { fill: none; stroke: #ff3b4f; stroke-width: 1.4; stroke-linecap: round; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 3px #e3192f); stroke-dasharray: 46 1600; animation: mcxRun 9s linear infinite; }
+.mcx .pk:nth-of-type(2n) { animation-duration: 12s; } .mcx .pk:nth-of-type(3n) { animation-duration: 15s; }
+body:has(.hx[data-state="live"]) .mcx .pk { animation-duration: 4s; }
+body:not(.minimal) .mcx, body.is-mini .mcx, body.no-circuits .mcx { display: none; }
+@keyframes mcxRun { from { stroke-dashoffset: 1646; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .mcx .pk { animation: none; opacity: 0; } }
+
+/* ---------- Visualizer removed ---------- */
+.viz, .viz-glow, .setting:has(#setViz) { display: none !important; }
+
+/* ---------- Compact sidebar: icons only, centred ----------
+   Its buttons copy the main tabs, which carry hidden name labels for the wide layout; those showed under the icons. */
+.rl-tab .wd-l, .rl-tab::before, .rl-tab::after { display: none !important; }
+.rl-tabs { align-items: center; }
+.rl-tab { width: 44px; height: 40px; padding: 0; display: grid; place-items: center; }
+.rl-tab > svg, .rl-tab > .glogo, .rl-tab > .dock-logo { width: 20px; height: 20px; margin: 0; display: block; }
+
+/* ---------- Home: the "Good evening" clock card is see-through when no game is on ---------- */
+.hx[data-state="idle"]:not(.has-bg) { background: transparent; border-color: transparent; box-shadow: none; }
+.hx[data-state="idle"]:not(.has-bg)::before { display: none; }

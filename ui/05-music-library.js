@@ -430,7 +430,7 @@
       return out;
     } catch (e) { return null; }
   })()`;
-  let vizOn = store.get("viz") !== "0", vizBusy = false, vizLive = false, vizBass = 0;
+  let vizOn = false,   /* visualizer removed: the ring never draws */ vizBusy = false, vizLive = false, vizBass = 0;
   const vizBands = new Array(32).fill(0);
   const vizCv = $("vizRing"), vizCx = vizCv.getContext("2d"), shellEl = $("shell");
   function vizDraw() {

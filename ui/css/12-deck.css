@@ -1,0 +1,149 @@
+/* ---------- Command Deck: Sothis's look since Nov 2026 (ui/21-deck.js) ----------
+   Near-black, Sothis red (#e3192f) and the wordmark's light red (#ff7a86); square panels with one cut corner;
+   uppercase tabs and labels. "Sothis" uses Pirata One, the font the start-up animation's wordmark was drawn from,
+   with Blackwall's rolling shine; the crest glows up and fades back like Blackwall's logo. */
+@font-face { font-family: "Pirata One"; src: url("fonts/pirata-one.woff2") format("woff2"); font-display: block; }
+
+html.deck { --bg: #07070a; --ink: #f1f2f6; --muted: #a7abb9; --accent: #e3192f; --accent-ink: #ffffff; --line: rgba(255, 255, 255, .1); --dk-lite: #ff7a86; --dk-panel: #111115; --dk-edge: #1f1f25; --dock: 0px; }
+html.deck .shell { background: #07070a !important; border-radius: 12px; }
+html.deck .shell::before, html.deck .shell::after { opacity: 0 !important; }   /* no big crest behind the panels */
+
+/* the old tab bar, rail, side panel and Claude bubble are gone (Claude is in FILES) */
+html.deck .tabs, html.deck #wdSide, html.deck .cl-fab, html.deck .dock-bg { display: none !important; }
+html.deck body:not(.is-compact) .rail { display: none !important; }   /* the compact sidebar keeps its rail */
+html.deck #rlClip, html.deck .rail [aria-label="Claude"] { display: none !important; }   /* clip saving and Claude are gone */
+/* compact sidebar and mini player: none of the deck's top bar */
+html.deck body.is-compact .dk-brand, html.deck body.is-compact .dk-apps, html.deck body.is-compact .dk-mid, html.deck body.is-compact .dk-right,
+html.deck body.is-mini .dk-brand, html.deck body.is-mini .dk-apps, html.deck body.is-mini .dk-mid, html.deck body.is-mini .dk-right { display: none !important; }
+html.deck body.is-compact .titlebar, html.deck body.is-mini .titlebar { border-bottom: 0; }
+html.deck body.wide .panels { margin-left: 0; }
+html.deck .scroll { padding-bottom: 22px !important; }
+
+/* ===== top bar ===== */
+html.deck .titlebar { padding: 8px 8px 8px 14px; border-bottom: 1px solid var(--accent); gap: 14px; }   /* Sothis moves the window itself (drag) and double-click = fullscreen */
+html.deck .titlebar h1 { display: none; }
+html.deck .tb-left { flex: none; gap: 14px; }
+html.deck .dk-brand { display: flex; align-items: center; gap: 9px; }
+html.deck .dk-crest { width: 30px; height: 30px; object-fit: contain; animation: dkCg 7s ease-in-out infinite; }
+@keyframes dkCg { 0%, 100% { filter: drop-shadow(0 0 2px rgba(227, 25, 47, .35)); } 50% { filter: drop-shadow(0 0 9px rgba(255, 60, 80, .95)) drop-shadow(0 0 20px rgba(227, 25, 47, .55)); } }
+html.deck .dk-name { font: 400 30px/1 "Pirata One", serif; padding: 0 2px; color: transparent;
+  background: linear-gradient(90deg, #e3192f 0%, #e3192f 38%, #ffd0d5 50%, #e3192f 62%, #e3192f 100%) 0 0 / 300% 100%; -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 0 6px rgba(227, 25, 47, .5)); animation: dkRoll 4s linear infinite; }
+@keyframes dkRoll { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+@media (prefers-reduced-motion: reduce) { html.deck .dk-crest, html.deck .dk-name { animation: none; } }
+
+/* your own apps, next to the name */
+html.deck .dk-apps { display: flex; align-items: center; gap: 4px; padding-left: 10px; border-left: 1px solid var(--dk-edge); }
+html.deck .dk-app { -webkit-app-region: no-drag; width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid transparent; background: transparent; cursor: pointer; padding: 0; }
+html.deck .dk-app:hover, html.deck .dk-app:focus-visible { border-color: var(--accent); background: rgba(227, 25, 47, .1); }
+html.deck .dk-app img { width: 22px; height: 22px; object-fit: contain; }
+html.deck .dk-app.missing { opacity: .55; }
+html.deck .dk-app-i { font: 700 11px/1 var(--f-body); color: var(--dk-lite); text-transform: uppercase; }
+
+/* tabs */
+html.deck .dk-mid { flex: 1; min-width: 0; display: flex; justify-content: center; }
+html.deck .dk-nav { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
+html.deck .dk-tab { -webkit-app-region: no-drag; height: 32px; padding: 0 16px; border: 0; background: transparent; color: #c4c7d2; cursor: pointer;
+  font: 700 13px/1 var(--f-body); letter-spacing: .14em; text-transform: uppercase; }
+html.deck .dk-tab:hover { color: #fff; }
+html.deck .dk-tab { cursor: grab; }
+html.deck .dk-tab.dragging { opacity: .4; }
+html.deck .dk-tab.drop-l { box-shadow: inset 2px 0 0 var(--dk-lite); }
+html.deck .dk-tab.drop-r { box-shadow: inset -2px 0 0 var(--dk-lite); }
+html.deck .dk-tab[aria-current="page"] { background: var(--accent); color: #fff; clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+html.deck .dk-right { display: flex; align-items: center; gap: 12px; margin-right: 8px; }
+html.deck .dk-clock { font: 500 12px/1 "JetBrains Mono", Consolas, monospace; color: var(--dk-lite); letter-spacing: .06em; white-space: nowrap; }
+html.deck .dk-upd { -webkit-app-region: no-drag; display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px; border: 1px solid var(--accent); background: transparent; color: var(--dk-lite);
+  font: 700 11px/1 var(--f-body); letter-spacing: .14em; text-transform: uppercase; cursor: pointer; box-shadow: 0 0 12px rgba(227, 25, 47, .35); }
+html.deck .dk-upd[hidden] { display: none; }
+html.deck .dk-upd:hover { background: rgba(227, 25, 47, .15); color: #fff; }
+
+/* ===== Home: the deck ===== */
+html.deck #tab-home > .col.hm { display: none; }
+html.deck #tab-home { align-items: stretch; padding: 18px 22px 22px; }
+html.deck .dk { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; font-family: "JetBrains Mono", Consolas, monospace; font-size: 13px; }
+@media (max-width: 1150px) { html.deck .dk { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { html.deck .dk { grid-template-columns: minmax(0, 1fr); } html.deck .dk-launch, html.deck .dk-retro { grid-column: auto !important; } }
+html.deck .dk-top { grid-column: 1 / -1; }
+html.deck .dk-top:empty, html.deck .dk-top:has(> [hidden]:only-child) { display: none; }
+html.deck .dk-p { min-width: 0; background: var(--dk-panel); border: 1px solid var(--dk-edge); padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+html.deck .dk-h { margin: 0; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font: 700 12px/1.2 var(--f-body); letter-spacing: .16em; text-transform: uppercase; color: var(--dk-lite); }
+html.deck .dk-hs { color: #8f8f96; font-weight: 600; letter-spacing: .1em; }
+html.deck .dk-note { margin: 0; color: #8f8f96; }
+html.deck .dk-rrow > .dk-note { grid-column: 1 / -1; }
+html.deck .dk-note[hidden] { display: none; }
+html.deck .dk-link { align-self: flex-start; margin-top: auto; border: 0; background: none; padding: 4px 0; color: var(--dk-lite); font: 600 12px/1 var(--f-body); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+html.deck .dk-link::after { content: " >"; }
+html.deck .dk-link:hover { color: #fff; }
+
+/* Launch */
+html.deck .dk-launch { grid-column: span 2; clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 0 100%); }
+html.deck .dk-l-body { display: flex; flex-wrap: wrap; gap: 16px; flex: 1; }
+html.deck .dk-l-art { flex: 1 1 360px; min-height: 230px; display: flex; }
+html.deck .dk-l-art > .hx { flex: 1; margin: 0; min-height: 230px; border-radius: 0; }
+html.deck .dk-l-art .hm-acts { display: none; }   /* clip buttons live in FILES */
+html.deck .dk-l-info { flex: 1 1 250px; display: flex; flex-direction: column; gap: 9px; justify-content: center; }
+html.deck .dk-k { color: var(--dk-lite); }
+html.deck .dk-title { font: 800 38px/1 var(--f-body); text-transform: uppercase; letter-spacing: .01em; color: var(--ink); }
+html.deck .dk-meta { color: var(--muted); }
+html.deck .dk-loadout { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+html.deck .dk-sel { height: 32px; min-width: 0; flex: 1; background: #07070a; color: var(--ink); border: 1px solid var(--dk-edge); font: inherit; padding: 0 8px; }
+html.deck .dk-btns { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+html.deck .dk-start { height: 46px; padding: 0 30px; border: 0; background: var(--accent); color: #fff; cursor: pointer; font: 800 16px/1 var(--f-body); letter-spacing: .18em; text-transform: uppercase; }
+html.deck .dk-start:hover { background: #ff2d3f; }
+html.deck .dk-ghost { height: 46px; padding: 0 18px; border: 1px solid var(--dk-lite); background: transparent; color: var(--dk-lite); cursor: pointer; font: 700 13px/1 var(--f-body); letter-spacing: .14em; text-transform: uppercase; }
+html.deck .dk-ghost:hover { background: rgba(255, 122, 134, .1); }
+
+/* Audio: Home's Now playing card, squared off */
+html.deck .dk-music .hm-now { margin: 0; border-radius: 0; background: transparent; border: 0; padding: 0; box-shadow: none; }
+html.deck .dk-music .hm-art { border-radius: 0; }
+html.deck .dk-music .hm-ctl .play { border-radius: 0; background: var(--accent); }
+html.deck .dk-music .hm-fill, html.deck .dk-music #hmFill { background: var(--accent); }
+
+/* Comms: the Discord call */
+html.deck .dk-comms .hm-dc, html.deck .dk-comms .hm-empty { margin: 0; border-radius: 0; background: transparent; border: 0; padding: 0; box-shadow: none; }
+
+/* Library: two columns wide, next to Comms */
+html.deck .dk-lib { grid-column: span 2; }
+html.deck .dk-list { display: flex; flex-direction: column; }
+html.deck .dk-row { display: flex; align-items: center; gap: 12px; padding: 9px 6px; border: 0; border-bottom: 1px solid #18181d; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+html.deck .dk-row:hover, html.deck .dk-row:focus-visible { background: rgba(227, 25, 47, .08); }
+html.deck .dk-tag { width: 30px; flex: none; color: var(--accent); font-weight: 600; }
+html.deck .dk-rn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.deck .dk-rs { color: #8f8f96; white-space: nowrap; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+html.deck .dk-sw .dk-rs { color: var(--dk-lite); }
+
+/* Stats */
+html.deck .dk-srow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+html.deck .dk-sbtn { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 6px; border: 1px solid var(--dk-edge); background: #0b0b0e; color: var(--ink); cursor: pointer; font: 600 11px/1.2 var(--f-body); text-align: center; }
+html.deck .dk-sbtn:hover { border-color: var(--accent); }
+html.deck .dk-sbtn .glogo { width: 28px; height: 28px; }
+html.deck .dk-comms .sess, html.deck .dk-comms .sess-live { margin: 0; border-radius: 0; }
+
+/* Retro */
+html.deck .dk-retro { grid-column: 1 / -1; }
+html.deck .dk-rrow { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+html.deck .dk-rt { display: flex; flex-direction: column; gap: 6px; padding: 0; border: 0; background: none; color: var(--ink); cursor: pointer; font: 600 12px/1.25 var(--f-body); text-align: left; }
+html.deck .dk-rt-art { aspect-ratio: 3 / 4; background: #1a1220; border: 1px solid var(--dk-edge); display: grid; place-items: center; overflow: hidden; }
+html.deck .dk-rt:hover .dk-rt-art { border-color: var(--accent); }
+html.deck .dk-rt-art img { width: 100%; height: 100%; object-fit: cover; }
+html.deck .dk-rt-i { color: #c7a8ff; font: 700 13px/1 var(--f-body); }
+html.deck .dk-rt-n { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* Notes: a small block under Retro */
+html.deck .dk-notesp { grid-column: 1 / -1; }
+html.deck .dk-notesp .hm-notes { margin: 0; border-radius: 0; background: transparent; border: 0; padding: 0; box-shadow: none; }
+html.deck .dk-notesp .hm-notes-h, html.deck .dk-notesp #hmClipBig { display: none; }
+html.deck .dk-notesp textarea { min-height: 70px; max-height: 140px; border-radius: 0; background: #0b0b0e; border: 1px solid var(--dk-edge); }
+
+/* Files page: clip saving is gone, so no Clips tab there */
+html.deck #flMode button[data-k="clips"] { display: none; }
+
+/* Games pages: square the cards and the mode switch so they match */
+html.deck #gmMode { border-radius: 0; }
+html.deck #gmMode button { border-radius: 0; text-transform: uppercase; letter-spacing: .12em; font-size: 12px; }
+html.deck #gmMode button[aria-checked="true"] { background: var(--accent); color: #fff; }
+html.deck .gm-art { border-radius: 0; }
+
+/* no lyrics button or panel in Music */
+html.deck #lyBtn, html.deck #lyPanel { display: none !important; }

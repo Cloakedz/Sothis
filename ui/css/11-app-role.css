@@ -1,0 +1,23 @@
+/* ---------- Which app this is (ui/20-app-role.js): Sothis or the game launcher, same code ----------
+   <html> has "role-sothis" or "role-launcher" before anything is drawn. */
+
+/* Sothis: has everything again, in the Command Deck look (css/12-deck.css) */
+
+/* ===== The game launcher: Home (banner, Last game, modlist, Retro, Stats), Games and Discord ===== */
+.role-launcher #tabbtn-games { display: flex !important; }
+.role-launcher #tabbtn-ytm, .role-launcher #tabbtn-switch, .role-launcher #tabbtn-web, .role-launcher #tabbtn-claude,
+.role-launcher #sndBtn, .role-launcher #sndPop, .role-launcher #tbVol,
+.role-launcher #battBadge, .role-launcher #mcBadge, .role-launcher #wxBadge, .role-launcher #bhPop, .role-launcher #mcPop, .role-launcher #wxPop,
+.role-launcher #miniBtn, .role-launcher #compactBtn, .role-launcher #tbMenu [data-k="miniBtn"], .role-launcher #tbMenu [data-k="compactBtn"],
+.role-launcher #hmNow, .role-launcher #wdNow, .role-launcher #wdClip, .role-launcher #wdNotes, .role-launcher #wdExtra:empty,
+.role-launcher .hm-notes, .role-launcher #hmClipBig, .role-launcher .hm-acts, .role-launcher #hmClip, .role-launcher #hmClipDir,
+.role-launcher #rmdOw, .role-launcher .viz, .role-launcher .viz-glow, .role-launcher #hdMusic, .role-launcher #hdLib,
+.role-launcher #mini, .role-launcher #rail, .role-launcher .ds { display: none !important; }
+/* Home in the wide layout: the left column (banner, Last game, modlist, Retro) and Stats taking the rest */
+.role-launcher body.hd-on .hd { grid-template-columns: minmax(300px, 420px) minmax(0, 1fr); }
+.role-launcher .hd-m { max-width: 980px; }
+/* the start-up screen: the crest without the Sothis wordmark */
+.role-launcher #splash .sp-word { display: none !important; }
+
+/* settings sections and rows that belong to the other app */
+.group.role-off, .setting.role-off, .form.role-off { display: none !important; }

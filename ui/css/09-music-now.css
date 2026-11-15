@@ -1,0 +1,66 @@
+/* ---------- Music: "Now playing" view (15-music-now.js) ----------
+   The minimal mockup: black, art + title + hairline bar on the left, big thin lyrics on the right. */
+.mnp { position: absolute; left: 10px; right: 10px; top: 42px; bottom: var(--dock, 82px); z-index: 5; display: flex; align-items: stretch; gap: 24px 64px; padding: 12px 32px; box-sizing: border-box; border-radius: 14px; background: #000; overflow: hidden; }
+.mnp[hidden], #tab-ytm.svc .mnp, #tab-ytm.site .mnp { display: none; }
+#tab-ytm.mnp-on .ynp, #tab-ytm.mnp-on .atp-fab { visibility: hidden; pointer-events: none; }
+#tab-ytm .ytsw button[data-yv="np"] { order: -1; }
+
+.mnp-l { flex: 0 1 clamp(240px, 30%, 440px); min-width: 220px; align-self: center; display: flex; flex-direction: column; gap: 16px; }
+.mnp-art { width: 100%; aspect-ratio: 1; background: #111113; overflow: hidden; }
+.mnp-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.mnp-art img:not([src]) { visibility: hidden; }
+.mnp-tx { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mnp-tx b { font: 400 1.45rem/1.2 var(--f-body); letter-spacing: -.01em; color: #f5f5f7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mnp-tx span { font-size: .92rem; color: #8f8f96; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mnp-bar { position: relative; height: 14px; cursor: pointer; outline: none; }
+.mnp-bar::before { content: ""; position: absolute; left: 0; right: 0; top: 6.5px; height: 1px; background: #2a2a2e; }
+.mnp-bar i { position: absolute; left: 0; top: 6.5px; height: 1px; width: 0; background: #f5f5f7; transition: width .45s linear; }
+.mnp-bar:hover::before, .mnp-bar:focus-visible::before { background: #3a3a40; }
+.mnp-time { display: flex; justify-content: space-between; margin-top: -10px; font-size: .74rem; color: #8f8f96; font-variant-numeric: tabular-nums; }
+.mnp-ctl { display: flex; align-items: center; justify-content: center; gap: 18px; }
+.mnp-ctl button { display: grid; place-items: center; width: 44px; height: 44px; background: none; border: 0; padding: 0; color: #8f8f96; cursor: pointer; }
+.mnp-ctl button svg { width: 20px; height: 20px; }
+.mnp-ctl #mnpPlay svg { width: 28px; height: 28px; }
+.mnp-ctl button:hover:not(:disabled), .mnp-ctl #mnpPlay { color: #f5f5f7; }
+.mnp-ctl button:disabled { opacity: .4; cursor: default; }
+
+.mnp-ly { flex: 1 1 380px; min-width: 0; min-height: 0; overflow-y: auto; padding: 32px 0 60vh; scroll-behavior: smooth; scrollbar-width: none; -webkit-mask-image: linear-gradient(transparent, #000 6%, #000 78%, transparent); mask-image: linear-gradient(transparent, #000 6%, #000 78%, transparent); }
+.mnp-ly::-webkit-scrollbar { display: none; }
+.mnp-ly button, .mnp-ly p { display: block; width: 100%; margin: 0 0 14px; padding: 0; border: 0; background: none; text-align: left; font: 300 1.75rem/1.25 var(--f-body); letter-spacing: -.02em; color: #5e5e66; transition: color .3s; }
+.mnp-ly button { cursor: pointer; }
+.mnp-ly button:hover { color: #a8a8b0; }
+.mnp-ly button.past { color: #48484e; }
+.mnp-ly button.on { color: #f5f5f7; }
+.mnp-ly.plain p { color: #c8c8ce; font-size: 1.2rem; }
+.mnp-ly p.msg { padding-top: 8px; font: 400 .95rem var(--f-body); color: #8f8f96; letter-spacing: 0; }
+
+/* ---------- Music: search lives in Library (16-music-search.js) ---------- */
+#tab-ytm .mlib-form { flex: none; }
+#tab-ytm .mlib-form input::placeholder { color: #8f8f96; }
+#tab-ytm .yts-form .mlib-x { width: 30px; height: 30px; margin-right: -6px; flex: none; color: var(--muted); }
+#tab-ytm .yts-form .mlib-x:hover { color: var(--ink); }
+#tab-ytm .yts-form .mlib-x svg { width: 14px; height: 14px; color: currentColor; }
+
+/* lyrics stay inside the view: the art and controls sit beside them (above them in a narrow window), and the lyrics box scrolls */
+@media (max-width: 760px) { .mnp { flex-direction: column; gap: 16px; padding: 12px 18px; } .mnp-l { flex: none; align-self: stretch; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px 14px; } .mnp-art { width: 64px; flex: none; } .mnp-tx { flex: 1; } .mnp-bar, .mnp-time, .mnp-ctl { flex-basis: 100%; } .mnp-ly { flex: 1 1 auto; padding-bottom: 40vh; } }
+
+/* Now playing + Library side by side: on a big enough window your library (and its search) sits in a column on the
+   right, where the side panel used to be. The switch above them is gone: Music has just this one view. */
+@media (min-width: 0px) {
+  #tab-ytm.mnp-on .mnp { right: calc(clamp(280px, 34%, 420px) + 24px); }
+  #tab-ytm.mnp-on .yts { left: auto !important; right: 10px; width: clamp(280px, 34%, 420px); bottom: var(--dock, 82px) !important; z-index: 5; padding: 12px 4px 0 20px; box-sizing: border-box; background: #000; border-left: 1px solid rgba(255, 255, 255, .07); }
+  #tab-ytm.mnp-on #ytlList.ytl-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px 8px; }
+  #tab-ytm.mnp-on .ytl-head .ytl-dth { width: 64px; height: 64px; }
+  #tab-ytm.mnp-on .ytl-head .yts-tx b { font-size: 1rem; }
+}
+
+/* only one view now, so no switch (Now playing / Library / Search) */
+#tab-ytm #ytSw { display: none; }
+
+/* black scrollbars in the Music library column */
+#tab-ytm .yts-list { scrollbar-width: thin; scrollbar-color: #2a2a2f #000; }
+#tab-ytm .yts-list::-webkit-scrollbar { width: 8px; background: #000; }
+#tab-ytm .yts-list::-webkit-scrollbar-track { background: #000; }
+#tab-ytm .yts-list::-webkit-scrollbar-thumb { background: #26262b; border-radius: 8px; border: 2px solid #000; }
+#tab-ytm .yts-list::-webkit-scrollbar-thumb:hover { background: #3a3a40; }
+#tab-ytm .yts-list::-webkit-scrollbar-button { display: none; height: 0; }

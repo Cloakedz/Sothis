@@ -24,5 +24,13 @@ still shares one scope exactly as when it was a single block inside `index.html`
 | 11-keys-sessions.js | corner spacing, keyboard, start, game sessions, gaming settings |
 | 12-retro.js | Retro games, retro library, mods |
 | 13-home-banner-files.js | Home banner, icon set, Files, idle status, retro player, cheats, compact sidebar, start-up |
+| 14-minimal-circuits.js | minimal look switch and the red circuit lines behind the window (same as Blackwall's address bar) |
+| 15-music-now.js | Music's "Now playing" view: art, hairline bar, Prev / Play / Next, big synced lyrics (styles in css/09-music-now.css) |
+| 16-music-search.js | Search inside Library: a search box at the top of Library, × or Esc goes back (no separate Search button) |
+| 17-home-notes-side.js | Home's Notes card moves into the wide layout's side panel, under Last clip |
+| 18-home-dash.js | Home in the wide layout: clock, Last game, Last match and Last opened modlist on the left, the Stats page in the middle (styles in css/10-home-dash.css) |
+| 19-window-rules.js | no minimize button; Always on top only in the compact sidebar and mini player, never the main window |
+| 21-deck.js | the Command Deck look (Nov 2026): top bar with crest, "Sothis" wordmark, your own apps, tabs, Update ready and clock; Home as a grid of panels (Launch, Audio, Comms, Library, Stats, Retro); FILES button on the right edge (styles in css/12-deck.css) |
+| 20-app-role.js | Sothis or the game launcher (same code; the launcher's role.json says which): hides the other app's tabs, Home cards and Settings sections (styles in css/11-app-role.css) |
 
-Styles: `css/01-base.css` onwards, in the same order they used to appear.
+Styles: `css/01-base.css` onwards, in the same order they used to appear. `css/08-minimal.css` is the minimal look (pure black, text tabs, thin type) and the circuit background.

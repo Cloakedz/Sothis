@@ -4,6 +4,26 @@ const fs = require("fs");
 const { execFile } = require("child_process");
 const net = require("net");
 const dnsp = require("dns").promises;
+/* ---------- Which app this copy is. Sothis and the game launcher run the same code; role.json (only in the launcher's
+   folder) says which one this is. Sothis: music, Home, clips, phone… The launcher: Games (PC games, retro emulator,
+   modlists), Stats, and Discord (call panel + status). ---------- */
+const ROLE_CFG = (() => { try { return JSON.parse(fs.readFileSync(path.join(__dirname, "role.json"), "utf8")) || {}; } catch { return {}; } })();
+const ROLE = ROLE_CFG.role === "launcher" ? "launcher" : "sothis";
+const IS_LAUNCHER = ROLE === "launcher", IS_SOTHIS = !IS_LAUNCHER;
+const APP_NAME = IS_LAUNCHER ? String(ROLE_CFG.name || "Game Launcher").slice(0, 40) : "Sothis";
+ipcMain.on("app:role", e => { e.returnValue = { role: ROLE, name: APP_NAME }; });
+// Sothis is one app again (Nov 2026): games, retro, modlists, stats and Discord came back from the short-lived Game
+// Launcher, in the new Command Deck look. HAS_GAMES turns all of that on in Sothis.
+const HAS_GAMES = true;
+// The old Game Launcher copy (Downloads\Game Launcher): say it's part of Sothis now, stop it opening with Windows, quit.
+if (IS_LAUNCHER) {
+  app.whenReady().then(async () => {
+    try { app.setLoginItemSettings({ openAtLogin: false, path: process.execPath }); } catch {}
+    try { await require("electron").dialog.showMessageBox({ type: "info", title: APP_NAME, message: APP_NAME + " is part of Sothis now", detail: "Your games, retro, modlists, stats and Discord are all in Sothis. You can delete the Game Launcher folder.", buttons: ["OK"] }); } catch {}
+    app.quit();
+  });
+  return;
+}
 // Retro games: the emulator and your game files are served to the player window through this private address
 require("electron").protocol.registerSchemesAsPrivileged([{ scheme: "sothisemu", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }]);
 
@@ -11,7 +31,7 @@ const MINI = { w: 400, h: 112 };
 const DEFAULT_SIZES = { main: { w: 560, h: 840 }, wide: { w: 1080, h: 840 }, mainWide: { w: 1180, h: 840 } };   // wide enough that Music's bottom row has room for the corner buttons
 const MIN = { main: { w: 420, h: 640 }, wide: { w: 680, h: 560 } };
 
-app.setAppUserModelId("Sothis");
+app.setAppUserModelId(IS_LAUNCHER ? "Sothis." + APP_NAME.replace(/[^\w]/g, "") : "Sothis");
 
 // Keep music smooth while Sothis is minimized, in the tray, or behind a game:
 // stop Chromium from slowing down the hidden player.
@@ -27,7 +47,26 @@ ipcMain.on("ua:firefox", e => { e.returnValue = ffUA(); });
 app.userAgentFallback = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
 
 // Settings, sign-ins and everything personal live in this folder on each PC (Roaming\Sothis), never in the app itself.
-const DATA_DIR = path.join(app.getPath("appData"), "Sothis");
+// The launcher keeps its own folder (Roaming\<its name>) so the two apps never write over each other's settings.
+const SOTHIS_DIR = path.join(app.getPath("appData"), "Sothis");
+const DATA_DIR = IS_LAUNCHER ? path.join(app.getPath("appData"), APP_NAME) : SOTHIS_DIR;
+// What Sothis is playing, for the launcher's Discord status ("Listening to…" / "🎵" under your game)
+const NOW_PLAYING_FILE = path.join(SOTHIS_DIR, "now-playing.json");
+// First start of the launcher: bring over what it needs from Sothis's folder (settings, Discord sign-in, stats
+// accounts, retro saves and library, box art), so nothing has to be set up again. Only ever copies; Sothis's folder is
+// left as it is. Runs before anything reads the folder (the Discord secret needs "Local State" in place first).
+if (IS_LAUNCHER && !fs.existsSync(path.join(DATA_DIR, "window.json")) && fs.existsSync(path.join(SOTHIS_DIR, "window.json"))) {
+  const log = [];
+  try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch {}
+  for (const name of ["window.json", "Local State", "personal.json", "Local Storage", "IndexedDB", path.join("Partitions", "statscc"), "retro-db", "art",
+    "game-icons.json", "game-list.json", "hero-refs.json", "heroes", "features-github.json"]) {
+    const from = path.join(SOTHIS_DIR, name), to = path.join(DATA_DIR, name);
+    if (!fs.existsSync(from)) continue;
+    try { fs.cpSync(from, to, { recursive: true, force: true, errorOnExist: false, filter: f => !/[\\/]LOCK$/i.test(f) }); log.push("copied " + name); }
+    catch (e) { log.push("couldn't copy " + name + ": " + (e && e.message)); }
+  }
+  try { fs.writeFileSync(path.join(DATA_DIR, "copied-from-sothis.txt"), new Date().toISOString() + "\n" + log.join("\n") + "\n"); } catch {}
+}
 // Your own defaults (your Discord servers, Minecraft server, Discord app) come from Roaming\Sothis\personal.json on your PC,
 // so the app code that's shared with friends has none of them.
 let personal = {};
@@ -41,7 +80,9 @@ function featGithub() {
   for (const f of [FEAT_REMOTE(), path.join(__dirname, "features.json")]) { try { const j = JSON.parse(fs.readFileSync(f, "utf8")); if (j && j.github) return j.github; } catch {} }
   return {};
 }
-function featOn(id) { const m = isOwner ? ((typeof settings === "object" && settings && settings.featPrivate) || {}) : featGithub(); return m[id] !== false; }
+// Removed from Sothis for good (Nov 2026): the Claude tab, the phone remote, saving clips and Your week
+const FEAT_GONE = ["claude", "phone", "clips", "week"];
+function featOn(id) { if (FEAT_GONE.includes(id)) return false; const m = isOwner ? ((typeof settings === "object" && settings && settings.featPrivate) || {}) : featGithub(); return m[id] !== false; }
 app.setPath("userData", DATA_DIR);
 try { fs.rmSync(path.join(DATA_DIR, "Partitions", "nintendo"), { recursive: true, force: true }); } catch {}
 
@@ -94,7 +135,7 @@ function createWindow() {
     backgroundColor: "#00000000",
     show: false,                       // shown once the first frame is painted, so the splash starts clean
     alwaysOnTop: isPinned(),
-    title: "Sothis",
+    title: APP_NAME,
     icon: appIconPath(),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -219,7 +260,7 @@ function remote(cmd, value) {
 }
 const thumbIcon = n => nativeImage.createFromPath(path.join(__dirname, "thumb", n + ".png"));
 function setThumbar() {
-  if (!win || win.isDestroyed() || process.platform !== "win32") return;
+  if (IS_LAUNCHER || !win || win.isDestroyed() || process.platform !== "win32") return;
   const flags = player.connected ? [] : ["disabled"];
   const v = Math.round(player.volume * 100);
   try {
@@ -237,6 +278,7 @@ function setThumbar() {
   } catch {}
 }
 ipcMain.on("player:state", (_e, p) => {
+  if (IS_LAUNCHER) return;   // the launcher's song comes from Sothis (now-playing.json), not its own window
   const next = Object.assign({}, player, p);
   if (JSON.stringify(next) === JSON.stringify(player)) return;
   const thumbChanged = next.playing !== player.playing || next.connected !== player.connected || Math.round(next.volume * 100) !== Math.round(player.volume * 100);
@@ -245,6 +287,7 @@ ipcMain.on("player:state", (_e, p) => {
   if (thumbChanged) setThumbar();
   maybeSongToast();
   dcPresenceFromPlayer();
+  npWrite();
 });
 
 /* ---------- Discord call (talks to the Discord app on this PC over its local connection) ---------- */
@@ -818,7 +861,7 @@ async function cpPoll() {
   cpNow = next;
   if (changed) dcPresence();
 }
-setInterval(() => { cpPoll().catch(() => {}); }, 5000);
+if (HAS_GAMES) setInterval(() => { cpPoll().catch(() => {}); }, 5000);
 // the line under the game: where V is and what V is doing
 function cpLines(c) {
   const place = c.district && c.parentDistrict && c.parentDistrict !== c.district ? c.district + ", " + c.parentDistrict : (c.district || c.parentDistrict || "Night City");
@@ -877,7 +920,7 @@ async function skPoll() {
   skNow = h;
   if (changed) dcPresence();
 }
-setInterval(() => { skPoll().catch(() => {}); }, 8000);
+if (HAS_GAMES) setInterval(() => { skPoll().catch(() => {}); }, 8000);
 function mapPicture(game) {
   if (game === "Rainbow Six Siege" && r6MapNow && /^[a-z0-9-]+$/.test(r6MapNow.slug || "")) return `https://static.stats.cc/siege/maps/${r6MapNow.slug}_thumbnail.webp`;
   if (game === "Counter-Strike 2" && csLive && /^[a-z0-9_]+$/.test(csLive.raw || "")) return `https://raw.githubusercontent.com/ghostcap-gaming/cs2-map-images/main/cs2/${csLive.raw}.png`;
@@ -1056,7 +1099,7 @@ function crStart() {
   });
   crProc.on("exit", () => { crProc = null; crNow = null; setTimeout(crStart, 30000); });
 }
-app.whenReady().then(() => setTimeout(crStart, 8000));
+app.whenReady().then(() => { if (HAS_GAMES) setTimeout(crStart, 8000); });
 // the "Sothis for Crunchyroll" browser extension sends the full details (season, episode, time) here; this PC only
 let crExt = null, crExtSeen = 0, crSentStart = 0;
 function crExtSet(d) {
@@ -1084,7 +1127,7 @@ function crExtServer() {
     }).on("error", () => {}).listen(47823, "127.0.0.1");
   } catch {}
 }
-app.whenReady().then(crExtServer);
+app.whenReady().then(() => { if (HAS_GAMES) crExtServer(); });
 ipcMain.handle("cr:ext", () => {
   // a copy outside the app folder, so updates don't move it; your browser loads it from there
   const dest = path.join(DATA_DIR, "crunchyroll-ext");
@@ -1566,7 +1609,7 @@ function mapLoop() {
   if (playing) mapWatch();
   setTimeout(mapLoop, !playing ? 30000 : recent ? 20000 : 10000);
 }
-setTimeout(mapLoop, 20000);
+if (HAS_GAMES) setTimeout(mapLoop, 20000);
 ipcMain.handle("map:watch", (_e, on) => { if (typeof on === "boolean") { settings.mapWatch = on; saveSettings(); if (!on) { owMapNow = null; dcPresence(); } } return settings.mapWatch !== false; });
 
 /* ---------- Voice overlay: who's in your Discord call, on top of your games ---------- */
@@ -1744,7 +1787,10 @@ async function doClip() {
 }
 ipcMain.handle("medal:clip", () => doClip());
 /* Clips page: your Medal clips folder, inside Sothis */
-const SOTHIS_CLIPS = () => path.join(app.getPath("videos"), "Sothis Clips");
+// clips save into Videos\Braindance\Clips when you have the Braindance folder (your editor), otherwise Videos\Sothis Clips
+const OLD_CLIPS = () => path.join(app.getPath("videos"), "Sothis Clips");
+const BD_CLIPS = () => path.join(app.getPath("videos"), "Braindance", "Clips");
+const SOTHIS_CLIPS = () => (fs.existsSync(path.join(app.getPath("videos"), "Braindance")) ? BD_CLIPS() : OLD_CLIPS());
 const clipsDir = () => settings.clipsDir && fs.existsSync(settings.clipsDir) ? settings.clipsDir : SOTHIS_CLIPS();
 // once: Sothis's clips get their own folder in Videos (they used to sit in Medal's folder). Only clips Sothis made move,
 // "<Game>/<Game> N.mp4" (or "Clip N.mp4"); Medal's own clips stay where they are.
@@ -1770,7 +1816,32 @@ function clipsMoveOnce() {
     try { presLog("clips: moved " + moved + " clip(s) from " + from + " to " + to); } catch {}
   } catch (e) { try { presLog("clips: couldn't move the clips folder: " + e.message); } catch {} }
 }
-app.whenReady().then(() => setTimeout(() => { try { clipsMoveOnce(); } catch {} }, 1500));
+// once: with a Videos\Braindance folder, clips move from Videos\Sothis Clips into Braindance\Clips (same game folders).
+// Only when you were still using the Sothis Clips folder; a folder you picked yourself is left alone.
+function clipsMoveToBraindance() {
+  if (settings.clipsMovedBD) return;
+  const to = BD_CLIPS(), from = OLD_CLIPS();
+  if (!fs.existsSync(path.dirname(to))) return;
+  const cur = settings.clipsDir ? path.resolve(settings.clipsDir).toLowerCase() : "";
+  if (cur && cur !== path.resolve(from).toLowerCase() && cur !== path.resolve(to).toLowerCase()) { settings.clipsMovedBD = true; saveSettings(); return; }
+  let moved = 0;
+  const mv = (src, dst) => { fs.mkdirSync(path.dirname(dst), { recursive: true }); let d = dst, n = 2; while (fs.existsSync(d)) d = dst.replace(/(\.\w+)$/, ` (${n++})$1`); try { fs.renameSync(src, d); } catch { fs.copyFileSync(src, d); fs.unlinkSync(src); } moved++; };
+  const walk = (dir, rel) => {
+    let ents = []; try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of ents) {
+      const f = path.join(dir, e.name), r = path.join(rel, e.name);
+      if (e.isDirectory()) { walk(f, r); try { fs.rmdirSync(f); } catch {} }
+      else if (e.isFile()) { try { mv(f, path.join(to, r)); } catch {} }
+    }
+  };
+  try {
+    fs.mkdirSync(to, { recursive: true });
+    if (fs.existsSync(from)) { walk(from, ""); try { fs.rmdirSync(from); } catch {} }
+    settings.clipsDir = to; settings.clipsMovedBD = true; saveSettings();
+    try { presLog("clips: moved " + moved + " file(s) from " + from + " to " + to); } catch {}
+  } catch (e) { try { presLog("clips: couldn't move to Braindance: " + e.message); } catch {} }
+}
+app.whenReady().then(() => IS_SOTHIS && setTimeout(() => { try { clipsMoveOnce(); } catch {} try { clipsMoveToBraindance(); } catch {} }, 1500));
 // While Windows is locked (or asleep) the screen can't be recorded: Windows keeps refusing the capture and the recorder kept
 // restarting over and over behind the lock screen. Stop it when the PC locks and start it again once you're back in.
 let clipPausedForLock = false;
@@ -1789,7 +1860,7 @@ let clipperObj = null, audioReqs = {}, audioReqN = 0;
 // which screen the game is on (Electron's display order), checked every few seconds while you play; clips record that screen
 let clipGameMon = -1, clipMonBusy = false;
 setInterval(async () => {
-  if (!sess) { clipGameMon = -1; return; }
+  if (!sess || !IS_SOTHIS) { clipGameMon = -1; return; }
   if (clipMonBusy) return; clipMonBusy = true;
   try {
     const g = await gameWindowRect();
@@ -1964,7 +2035,7 @@ ipcMain.on("file:drag", (e, f) => {
 });
 ipcMain.on("clip:audioRes", (_e, r) => { const f = r && audioReqs[r.id]; if (f) { delete audioReqs[r.id]; f(r); } });
 ipcMain.handle("clips:state", () => clipper().state());
-ipcMain.handle("clips:setup", async () => { const ok = await clipper().ffEnsure(); if (ok && sess) clipper().start(); return clipper().state(); });
+ipcMain.handle("clips:setup", async () => { const ok = await clipper().ffEnsure(); if (ok && sess && featOn("clips")) clipper().start(); return clipper().state(); });
 ipcMain.handle("clips:save", () => clipper().save());
 ipcMain.handle("clips:set", (_e, o) => {
   const cur = Object.assign({}, settings.clips || {}), was = JSON.stringify(cur);
@@ -2447,6 +2518,70 @@ ipcMain.handle("launch:presets", () => {
   const have = new Set(launchers().map(l => l.path.toLowerCase()));
   return LAUNCH_PRESETS().filter(p => !have.has(p.path.toLowerCase())).map(p => ({ name: p.name }));
 });
+/* ---------- Your own apps (Blackwall, Braindance, Afterimage): launch buttons in the top bar ----------
+   Each is found by its .exe name in the usual places (Programs, Downloads, Desktop, Documents, a few folders deep);
+   if one isn't there, its button asks you to pick the .exe once and remembers it. */
+// logo: the app's own logo, shipped with Sothis (so the button looks right even before the app is found);
+// without one, the icon comes from the app's .exe
+const MY_APPS = [
+  { key: "blackwall", name: "Blackwall", exe: /^blackwall\.exe$/i, logo: "logos/app-blackwall.png" },
+  { key: "braindance", name: "Braindance", exe: /^braindance\.exe$/i, short: "BD", logo: "logos/app-braindance.png" },
+  { key: "afterimage", name: "Afterimage", exe: /^afterimage\.exe$/i, logo: "logos/app-afterimage.png" }
+];
+function myAppFind(a) {
+  const saved = ((settings.myApps || {})[a.key] || "");
+  if (saved && fs.existsSync(saved)) return saved;
+  const home = app.getPath("home"), roots = [path.join(process.env.LOCALAPPDATA || path.join(home, "AppData", "Local"), "Programs"), path.join(process.env.PROGRAMFILES || "C:\\Program Files"), path.join(home, "Downloads"), path.join(home, "Desktop"), path.join(home, "Documents")];
+  const seen = { n: 0 };
+  const walk = (dir, depth) => {
+    if (depth > 3 || seen.n > 4000) return "";
+    let ents = []; try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch { return ""; }
+    for (const e of ents) { seen.n++; if (e.isFile() && a.exe.test(e.name)) return path.join(dir, e.name); }
+    for (const e of ents) if (e.isDirectory() && !/^(node_modules|\.|\$|locales$|windows$)/i.test(e.name)) { const r = walk(path.join(dir, e.name), depth + 1); if (r) return r; }
+    return "";
+  };
+  for (const r of roots) { const f = walk(r, 0); if (f) { settings.myApps = Object.assign({}, settings.myApps, { [a.key]: f }); saveSettings(); return f; } }
+  return "";
+}
+function myAppLogo(exe) {
+  const base = path.join(path.dirname(exe), "resources", "app"), names = /^(logo|icon|app-icon|brand)[\w-]*\.(png|jpg|jpeg|webp|ico)$/i;
+  const dirs = [base, path.join(base, "assets"), path.join(base, "build"), path.join(base, "img"), path.join(base, "images"), path.join(base, "icons"), path.dirname(exe)];
+  for (const d of dirs) {
+    let ents = []; try { ents = fs.readdirSync(d); } catch { continue; }
+    const hit = ents.filter(n => names.test(n)).sort((x, y) => (/logo/i.test(y) - /logo/i.test(x)))[0];
+    if (!hit) continue;
+    try { const im = nativeImage.createFromPath(path.join(d, hit)); if (!im.isEmpty()) return im.resize({ width: 64, quality: "best" }).toDataURL(); } catch {}
+  }
+  return "";
+}
+ipcMain.handle("myapps:list", async () => {
+  const out = [];
+  for (const a of MY_APPS) {
+    const exe = myAppFind(a);
+    let icon = a.logo && fs.existsSync(path.join(__dirname, a.logo)) ? a.logo : "";
+    // no logo shipped with Sothis: the app's own logo from its folder (Electron apps keep it in resources\app),
+    // else the icon in its .exe
+    if (!icon && exe) icon = myAppLogo(exe);
+    if (!icon && exe) { try { icon = (await app.getFileIcon(exe, { size: "large" })).toDataURL(); } catch {} }
+    out.push({ key: a.key, name: a.name, short: a.short || a.name.slice(0, 2), found: !!exe, icon });
+  }
+  return out;
+});
+ipcMain.handle("myapps:open", async (_e, key) => {
+  const a = MY_APPS.find(x => x.key === key); if (!a) return { ok: false };
+  let exe = myAppFind(a);
+  if (!exe) {
+    // not installed (or not where Sothis looks): offer the download from Sothis's GitHub release, or let them point to it
+    const q = await dialog.showMessageBox(win, { type: "question", buttons: ["Download " + a.name, "I have it, find it", "Cancel"], defaultId: 0, cancelId: 2, title: a.name, message: a.name + " isn't installed here yet.", detail: "Download its installer from the Sothis release page, or show Sothis where " + a.name + ".exe is." }).catch(() => ({ response: 2 }));
+    if (q.response === 0) { shell.openExternal("https://github.com/Cloakedz/Sothis/releases/latest"); return { ok: false, cancelled: true }; }
+    if (q.response !== 1) return { ok: false, cancelled: true };
+    const r = await dialog.showOpenDialog(win, { title: "Where is " + a.name + "?", properties: ["openFile"], filters: [{ name: a.name, extensions: ["exe"] }] }).catch(() => null);
+    if (!r || r.canceled || !r.filePaths[0]) return { ok: false, cancelled: true };
+    exe = r.filePaths[0]; settings.myApps = Object.assign({}, settings.myApps, { [a.key]: exe }); saveSettings();
+  }
+  try { require("child_process").spawn(exe, [], { detached: true, stdio: "ignore", cwd: path.dirname(exe) }).unref(); return { ok: true, name: a.name }; }
+  catch { return { ok: false }; }
+});
 ipcMain.handle("launch:open", async (_e, i) => {
   const l = launchers()[i];
   if (!l) return false;
@@ -2681,6 +2816,22 @@ function refreshTray() {
   const nowPlaying = on && player.title ? (player.title + (player.artist ? " — " + player.artist : "")) : "";
   const levels = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
   const nearest = levels.reduce((a, b) => Math.abs(b - vol) < Math.abs(a - vol) ? b : a, 0);
+  // the launcher: no music of its own (Sothis plays it), just Discord, the window and Quit
+  if (IS_LAUNCHER) {
+    tray.setContextMenu(Menu.buildFromTemplate([
+      ...(dc.status === "ok" ? [
+        { label: "Discord mute", type: "checkbox", checked: !!(dc.vs && dc.vs.mute), click: () => dcToggle("mute") },
+        { label: "Discord deafen", type: "checkbox", checked: !!(dc.vs && dc.vs.deaf), click: () => dcToggle("deaf") },
+        { type: "separator" }
+      ] : []),
+      { label: visible ? "Hide " + APP_NAME : "Show " + APP_NAME, click: () => visible ? win.hide() : showWindow() },
+      { label: "Always on top", type: "checkbox", checked: isPinned(), click: i => setPinned(i.checked) },
+      { label: "Open at startup", type: "checkbox", checked: isStartup(), click: i => setStartup(i.checked) },
+      { type: "separator" },
+      { label: "Quit", click: () => { quitting = true; app.quit(); } }
+    ]));
+    return;
+  }
   tray.setContextMenu(Menu.buildFromTemplate([
     ...(nowPlaying ? [{ label: esc(nowPlaying.length > 48 ? nowPlaying.slice(0, 47) + "…" : nowPlaying), enabled: false }, { type: "separator" }] : []),
     { label: player.playing ? "Pause" : "Play", enabled: on, click: () => remote("playpause") },
@@ -2712,7 +2863,7 @@ function refreshTray() {
 
 function createTray() {
   tray = new Tray(trayBaseImage());
-  tray.setToolTip("Sothis");
+  tray.setToolTip(APP_NAME);
   tray.on("click", () => (win.isVisible() && win.isFocused()) ? win.hide() : showWindow());
   refreshTray();
 }
@@ -2812,7 +2963,7 @@ function sendBattery() {
   if (win && !win.isDestroyed()) win.webContents.send("battery:state", battery);
   if (tray) {
     const b = battery.state === "ok" ? `Mouse ${battery.percent}%${battery.charging ? " (charging)" : ""}` : "";
-    tray.setToolTip("Sothis");
+    tray.setToolTip(APP_NAME);
   }
 }
 
@@ -3355,7 +3506,7 @@ function dcKeysRegister() {
   }
   return ok;
 }
-app.whenReady().then(() => setTimeout(dcKeysRegister, 3000));
+app.whenReady().then(() => { if (HAS_GAMES) setTimeout(dcKeysRegister, 3000); });
 ipcMain.handle("dcKeys:get", () => Object.assign(dcKeysCfg(), { registered: Object.assign({}, dcKeysOn) }));
 ipcMain.handle("dcKeys:set", (_e, patch) => {
   const c = dcKeysCfg();
@@ -3877,15 +4028,15 @@ app.whenReady().then(wvReady).then(ok => { wvOk = ok; }).then(() => {
   if (!settings.bigger || settings.bigger < 4) { if (settings.sizes) { delete settings.sizes.main; delete settings.sizes.wide; } settings.bigger = 4; saveSettings(); }   // one-time: back to the full default sizes (the shared copy saved smaller ones)
   createWindow();
   createTray();
-  setTimeout(r6RegisterKey, 1500);
-  csGsiServer(); setTimeout(csGsiInstall, 8000);
+  // Stats (F8 scoreboard, CS2 live map) and Discord live in the launcher; mouse battery in Sothis
+  if (HAS_GAMES) { setTimeout(r6RegisterKey, 1500); csGsiServer(); setTimeout(csGsiInstall, 8000); }
   setInterval(flushSites, 30000);
-  setTimeout(refreshBattery, 1500);
-  setTimeout(dcConnect, 2500);
+  if (IS_SOTHIS) setTimeout(refreshBattery, 1500);
+  if (HAS_GAMES) setTimeout(dcConnect, 2500);
   setTimeout(startUpdateWatch, 5000);
   // one-time clean-up: the old "Sothis Share" copy (app and its data) goes to the Recycle Bin
   setTimeout(async () => {
-    if (settings.shareCleaned || process.platform !== "win32") return;
+    if (IS_LAUNCHER || settings.shareCleaned || process.platform !== "win32") return;
     const L = process.env.LOCALAPPDATA || "", R = app.getPath("appData");
     let done = true;
     for (const d of [path.join(L, "Programs", "Sothis Share"), path.join(R, "Sothis Share")]) {
@@ -3894,7 +4045,7 @@ app.whenReady().then(wvReady).then(ok => { wvOk = ok; }).then(() => {
     }
     if (done) { settings.shareCleaned = true; saveSettings(); }
   }, 9000);
-  setInterval(refreshBattery, BATTERY_INTERVAL);
+  if (IS_SOTHIS) setInterval(refreshBattery, BATTERY_INTERVAL);
   try { extrasStart(); } catch {}
 });
 app.on("window-all-closed", () => {});
@@ -3935,13 +4086,12 @@ async function trkPoll() {
     trkMiss = 0; trkLast = now;
     if (sess && sess.game !== name) sessEnd();
     if (!sess) { sess = { game: name, exe, start: now, maps: [], rank0: rankNow(name) }; if (win && !win.isDestroyed()) win.webContents.send("session:start", { game: name, start: now }); dcGamePoll(); }
-    if ((settings.clips || {}).on !== false) { const C = clipper(), st = C.state(); if (!st.recording && st.phase !== "setup") C.start(); }
+    if (IS_SOTHIS && featOn("clips") && (settings.clips || {}).on !== false) { const C = clipper(), st = C.state(); if (!st.recording && st.phase !== "setup") C.start(); }
     sessMaps();
     // keep the session on disk too, so a Sothis restart mid-game doesn't lose its recap
     if (!settings.sessLive || now - (settings.sessLive.last || 0) > 60000 || settings.sessLive.start !== sess.start) { settings.sessLive = { game: sess.game, exe: sess.exe, start: sess.start, maps: sess.maps.slice(-12), rank0: sess.rank0, last: now }; saveSettings(); }
   } else if (sess && ++trkMiss >= (/^steam:/.test(sess.exe || "") ? 4 : 2)) sessEnd();
-  try { qpEnsure(); } catch {}
-  try { duckEval(); } catch {}
+  if (IS_SOTHIS) { try { qpEnsure(); } catch {} try { duckEval(); } catch {} }
 }
 function sessMaps() {
   if (!sess) return;
@@ -4733,9 +4883,9 @@ function featState() {
 function featApply() {
   try { if (win && !win.isDestroyed()) win.webContents.send("features:changed", featState()); } catch {}
   // things that run in the background follow right away
-  try { if (!featOn("clips") && clipperObj) clipperObj.stop(); else if (featOn("clips") && sess && (settings.clips || {}).on !== false) { const st = clipper().state(); if (!st.recording && st.phase !== "setup") clipper().start(); } } catch {}
-  try { if (!featOn("phone")) phStop(); else if (phCfg().on) phStart(); } catch {}
-  try { refreshBattery(); } catch {}
+  try { if (!featOn("clips") && clipperObj) clipperObj.stop(); else if (IS_SOTHIS && featOn("clips") && sess && (settings.clips || {}).on !== false) { const st = clipper().state(); if (!st.recording && st.phase !== "setup") clipper().start(); } } catch {}
+  try { if (!featOn("phone") || IS_LAUNCHER) phStop(); else if (phCfg().on) phStart(); } catch {}
+  try { if (IS_SOTHIS) refreshBattery(); } catch {}
   try { dcPresKey = "x"; dcPresence(); } catch {}
 }
 ipcMain.on("features:get", e => { try { e.returnValue = featState(); } catch { e.returnValue = { owner: false, on: {}, list: {} }; } });
@@ -4801,9 +4951,9 @@ async function featFetch() {
     if (JSON.stringify(j.github) !== before) featApply();
   } catch {}
 }
-app.whenReady().then(() => { setTimeout(featFetch, 20000); setInterval(featFetch, 3 * 3600000); });
+app.whenReady().then(() => { if (IS_LAUNCHER) return; setTimeout(featFetch, 20000); setInterval(featFetch, 3 * 3600000); });
 ipcMain.on("personal:get", e => { e.returnValue = { dcServers: Array.isArray(personal.dcServers) ? personal.dcServers.map(String).slice(0, 10) : [], mcAddr: typeof personal.mcAddr === "string" ? personal.mcAddr : "", owReminder: personal.owReminder === true }; });
-ipcMain.handle("phone:set", (_e, on) => { phCfg().on = !!on; saveSettings(); if (on) phStart(); else phStop(); return phInfo(); });
+ipcMain.handle("phone:set", (_e, on) => { phCfg().on = !!on; saveSettings(); if (on && featOn("phone")) phStart(); else phStop(); return phInfo(); });
 ipcMain.handle("phone:newCode", () => { phCfg().code = ""; saveSettings(); phCfg(); return phInfo(); });
 ipcMain.handle("phone:forget", (_e, id) => {
   const c = phCfg(), gone = c.phones.find(p => p.id === id);
@@ -4991,7 +5141,7 @@ app.on("will-quit", libPlayStop);
 /* ---------- Updates: Sothis checks its GitHub releases, downloads the new app files and swaps them in.
    Only the app's own files are replaced; your settings, sign-ins and saves (Roaming\Sothis) are never touched. ---------- */
 const PKG = (() => { try { return JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8")); } catch { return {}; } })();
-const APP_VER = String(PKG.version || "0.0.0"), UPD_REPO = /^[\w.-]+\/[\w.-]+$/.test(PKG.updateRepo || "") ? PKG.updateRepo : "";
+const APP_VER = String(PKG.version || "0.0.0"), UPD_REPO = !IS_LAUNCHER && /^[\w.-]+\/[\w.-]+$/.test(PKG.updateRepo || "") ? PKG.updateRepo : "";
 const verCmp = (a, b) => { const x = String(a).replace(/^v/, "").split(/[.-]/).map(n => parseInt(n, 10) || 0), y = String(b).replace(/^v/, "").split(/[.-]/).map(n => parseInt(n, 10) || 0); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); return 0; };
 let upd = { state: "idle", ver: APP_VER, latest: "", err: "", at: 0, notes: "" }, updBusy = false;
 const updSend = () => { try { if (win && !win.isDestroyed()) win.webContents.send("upd:state", upd); } catch {} };
@@ -5136,6 +5286,7 @@ ipcMain.handle("day:yesterday", () => {
 });
 // Sunday evening: one heads-up that the week's recap is ready
 function wkNudge() {
+  if (!featOn("week")) return;   // Your week is gone: no Sunday-evening recap pop-up
   const d = new Date();
   if (d.getDay() !== 0 || d.getHours() < 19) return;
   const key = wkDayKey(d.getTime());
@@ -5573,17 +5724,52 @@ app.on("will-quit", () => { try { wkSave(); } catch {} });
 app.on("will-quit", () => { try { rgb.proc && rgb.proc.stdin.write("release\n"); } catch {} });
 
 function extrasStart() {
-  rgbStart();
-  setInterval(() => { try { wkTick(); } catch {} }, 10000);
-  setInterval(() => { try { wkSave(); wkNudge(); } catch {} }, 60000);
-  emuProtocol();
-  updStart();
-  phStart();
-  try { fs.rmSync(path.join(__dirname, "pc-health.ps1"), { force: true }); } catch {}   // leftover from the removed PC health chip
-  rsStart();
+  if (HAS_GAMES) { emuProtocol(); rsStart(); }   // retro games: the player and save backup
+  if (IS_LAUNCHER) {
+    npWatch();   // (old launcher only: what Sothis is playing, for its Discord status)
+  } else {
+    rgbStart();
+    setInterval(() => { try { wkTick(); } catch {} }, 10000);
+    setInterval(() => { try { wkSave(); wkNudge(); } catch {} }, 60000);
+    updStart();
+    if (featOn("phone")) phStart();
+    try { fs.rmSync(path.join(__dirname, "pc-health.ps1"), { force: true }); } catch {}   // leftover from the removed PC health chip
+    setTimeout(duckRestore, 8000);
+  }
   setTimeout(trkPoll, 5000);
   setInterval(trkPoll, 15000);
-  setTimeout(duckRestore, 8000);
+}
+/* ---------- Now playing, shared between the two apps: Sothis writes the song to Roaming\Sothis\now-playing.json, the
+   launcher reads it for the Discord status (Sothis no longer talks to Discord itself) ---------- */
+let npLastJson = "", npWriteT = null;
+function npWrite() {
+  if (!IS_SOTHIS) return;
+  clearTimeout(npWriteT);
+  npWriteT = setTimeout(() => {
+    const d = { connected: !!player.connected, playing: !!player.playing, title: player.title || "", artist: player.artist || "", art: player.art || "", svc: player.svc || "", at: Date.now() };
+    const j = JSON.stringify(Object.assign({}, d, { at: 0 }));
+    if (j === npLastJson) return;
+    npLastJson = j;
+    try { fs.mkdirSync(SOTHIS_DIR, { recursive: true }); fs.writeFileSync(NOW_PLAYING_FILE + ".tmp", JSON.stringify(d)); fs.renameSync(NOW_PLAYING_FILE + ".tmp", NOW_PLAYING_FILE); } catch {}
+  }, 400);
+}
+// Sothis closing: nothing is playing any more
+app.on("will-quit", () => { if (IS_SOTHIS) { try { fs.writeFileSync(NOW_PLAYING_FILE, JSON.stringify({ connected: false, playing: false, at: Date.now() })); } catch {} } });
+function npRead() {
+  let d = null; try { d = JSON.parse(fs.readFileSync(NOW_PLAYING_FILE, "utf8")); } catch {}
+  // Sothis not running (or not heard from in a long while while "playing"): no song
+  if (!d || !d.playing || !npSothisUp) d = { connected: false, playing: false, title: "", artist: "", art: "", svc: "" };
+  const next = Object.assign({}, player, { connected: !!d.connected, playing: !!d.playing, title: d.title || "", artist: d.artist || "", art: d.art || "", svc: d.svc || player.svc });
+  if (JSON.stringify(next) === JSON.stringify(player)) return;
+  player = next;
+  dcPresenceFromPlayer();
+}
+let npSothisUp = false;
+function npWatch() {
+  const check = () => runningSet().then(set => { const up = set.has("sothis.exe"); if (up !== npSothisUp) { npSothisUp = up; npRead(); } }).catch(() => {});
+  check(); setInterval(check, 15000);
+  try { fs.watchFile(NOW_PLAYING_FILE, { interval: 1500 }, () => npRead()); } catch {}
+  setTimeout(npRead, 3000);
 }
 app.on("will-quit", () => { try { qpProc && qpProc.kill(); } catch {} });
 

@@ -8,6 +8,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <script>
 // The styles live in ui/css, joined in order by main.js and added right here as one <style>, as before.
+// which app this is (Sothis or the game launcher): a class on <html> before anything is drawn, so each app only shows its own parts
+(() => { try { const r = window.desktop.role || {}; document.documentElement.classList.add("role-" + (r.role || "sothis")); if (r.role === "launcher") document.title = r.name || "Game Launcher"; } catch {} })();
 (() => { let css = ""; try { css = window.desktop.uiSource("css"); } catch (e) { console.error("Sothis: could not read ui/css", e); } const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st); })();
 </script>
 </head>
@@ -125,7 +127,7 @@
             <button class="ib" id="hmNext" aria-label="Next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
           </div>
         </div>
-        <section class="hm-notes" aria-label="Quick notes"><div class="hm-notes-h">Notes<span id="hmNotesSaved"></span></div><textarea id="hmNotes" placeholder="Codes, squad names, reminders… syncs with your phone" spellcheck="false"></textarea></section>
+        <section class="hm-notes" aria-label="Quick notes"><div class="hm-notes-h">Notes<span id="hmNotesSaved"></span></div><textarea id="hmNotes" placeholder="Codes, squad names, reminders…" spellcheck="false"></textarea></section>
       </div>
     </section>
 
@@ -297,7 +299,6 @@
         <div class="seg ytsw" id="ytSw" role="radiogroup" aria-label="Music or YouTube">
           <button type="button" role="radio" data-yv="music" aria-checked="true">Library</button>
           <button type="button" role="radio" data-yv="yt" aria-checked="false">Search</button>
-          <button type="button" role="radio" data-yv="spot" aria-checked="false">Songspot</button>
         </div>
         <span class="ytbar-sp"></span>
         <button class="ib ytnav ly-btn" id="lyBtn" type="button" title="Lyrics" aria-label="Lyrics" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M4 11h9M4 16h6"/><path d="M17 18V8l4-1v9"/><circle cx="15.5" cy="18" r="1.8"/><circle cx="19.5" cy="16" r="1.8"/></svg></button>

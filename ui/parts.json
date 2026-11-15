@@ -12,7 +12,15 @@
   "10-clips.js",
   "11-keys-sessions.js",
   "12-retro.js",
-  "13-home-banner-files.js"
+  "13-home-banner-files.js",
+  "14-minimal-circuits.js",
+  "15-music-now.js",
+  "16-music-search.js",
+  "17-home-notes-side.js",
+  "18-home-dash.js",
+  "19-window-rules.js",
+  "20-app-role.js",
+  "21-deck.js"
  ],
  "css": [
   "01-base.css",
@@ -21,6 +29,11 @@
   "04-polish-pass.css",
   "05-wide-layout.css",
   "06-music-tab.css",
-  "07-blackwall-palette.css"
+  "07-blackwall-palette.css",
+  "08-minimal.css",
+  "09-music-now.css",
+  "10-home-dash.css",
+  "11-app-role.css",
+  "12-deck.css"
  ]
 }

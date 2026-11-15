@@ -1,6 +1,19 @@
 # Sothis
 
-A gaming companion for Windows: YouTube Music player, game stats (Overwatch, Counter-Strike 2, Rainbow Six Siege), Discord call controls, clips, a retro game library with a built-in emulator, and a phone remote.
+A gaming companion for Windows: a game library and launcher, YouTube Music player, game stats (Overwatch, Counter-Strike 2, Rainbow Six Siege), Discord call controls and a retro game library with a built-in emulator.
+
+## Downloads
+
+Every app has its own installer on the [latest release](https://github.com/Cloakedz/Sothis/releases/latest):
+
+| App | What it is | Download |
+| --- | --- | --- |
+| **Sothis** | Gaming companion: games, music, stats, Discord | [Sothis-Setup.exe](https://github.com/Cloakedz/Sothis/releases/latest/download/Sothis-Setup.exe) |
+| **Blackwall** | Web browser | [Blackwall-Setup.exe](https://github.com/Cloakedz/Sothis/releases/latest/download/Blackwall-Setup.exe) |
+| **Braindance** | Video editor | [Braindance-Setup.exe](https://github.com/Cloakedz/Sothis/releases/latest/download/Braindance-Setup.exe) |
+| **Afterimage** | Image editor (opens .psd) | [Afterimage-Setup.exe](https://github.com/Cloakedz/Sothis/releases/latest/download/Afterimage-Setup.exe) |
+
+Each installs for your Windows user only (no admin needed). Sothis's top bar opens the other three once they're installed.
 
 ## Install
 

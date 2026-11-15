@@ -1,5 +1,18 @@
 [
  {
+  "v": "2.0.0",
+  "d": "2026-11-14",
+  "notes": [
+   "New look: Sothis is now a command deck. Home, Library, Stats, Music and Files sit in one top bar you can drag to reorder",
+   "Home shows a big Start button for your last game, what's playing, your Discord call, recent games, retro games and notes",
+   "Library holds all your games, retro games, modlists and releases",
+   "Files opens your downloaded videos and music",
+   "The top bar launches Blackwall, Braindance and Afterimage, with a download link if you don't have them yet",
+   "Double-click the top bar to go fullscreen",
+   "Removed the Claude tab, phone remote, saving clips, Your week and lyrics"
+  ]
+ },
+ {
   "v": "1.20.0",
   "d": "2026-10-28",
   "notes": [

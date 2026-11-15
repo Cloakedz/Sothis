@@ -29,7 +29,7 @@
     yt.setAttribute("useragent", D.firefoxUA || "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0");
     yt.setAttribute("allowpopups", "");
     yt.setAttribute("webpreferences", "backgroundThrottling=no");
-    yt.setAttribute("src", "https://music.youtube.com/");
+    if (!(D.role && D.role.role === "launcher")) yt.setAttribute("src", "https://music.youtube.com/");   // the game launcher has no music (Sothis plays it)
     $("ytWrap").append(yt);
     yt.addEventListener("did-start-loading", () => $("ytLoad").classList.add("on"));
     yt.addEventListener("did-stop-loading", () => $("ytLoad").classList.remove("on"));
@@ -37,7 +37,7 @@
   }
 
   /* Regular YouTube, in the same tab (shares the YouTube Music sign-in) */
-  let ytv = null, ytView = ["yt", "spot"].includes(store.get("yt.view")) ? store.get("yt.view") : "music";
+  let ytv = null, ytView = store.get("yt.view") === "yt" ? "yt" : "music";   // Songspot was removed: a saved "spot" view opens Library
   // Songspot: the song guessing game, in its own webview (its own storage, so your streak is kept)
   let spotv = null;
   function ensureSpot() {
@@ -252,7 +252,7 @@
     msv.setAttribute("partition", m.part);
     msv.setAttribute("allowpopups", "");
     msv.setAttribute("webpreferences", "backgroundThrottling=no");
-    msv.setAttribute("src", m.url);
+    if (!(D.role && D.role.role === "launcher")) msv.setAttribute("src", m.url);
     msvFor = musicSvc;
     $("msWrap").append(msv);
     msv.addEventListener("did-start-loading", () => $("msLoad").classList.add("on"));
@@ -380,7 +380,7 @@
     const b = document.body, W = window.innerWidth;
     const on = wdPref && W >= 900 && !b.classList.contains("is-mini") && !b.classList.contains("is-compact");
     b.classList.toggle("wide", on); b.classList.remove("wide-labels");   // icons only in the rail
-    const side = on && ["home", "ytm", "games", "stats"].includes(tab);
+    const side = on && ["home", "games", "stats"].includes(tab);   // not Music: its Now playing view already shows the song and lyrics
     b.classList.toggle("wd-has-side", side); $("wdSide").hidden = !side;
     // what's playing on top, your Discord call under it
     wdPut("hmNow", side ? $("wdNow") : null);

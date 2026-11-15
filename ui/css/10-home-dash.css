@@ -1,0 +1,133 @@
+/* ---------- Home dashboard (18-home-dash.js): wide layout on Home only ----------
+   Left column: clock / game banner, last game tile (launches it), Last opened modlist. Middle: the Stats page. */
+.hd { display: none; }
+body.hd-on #tab-home > .col.hm { display: none; }
+/* the Home panel centres its children; the dashboard takes the full width so the clock sits on the left */
+body.hd-on .hd { align-self: stretch; width: 100%; display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 600px) minmax(260px, 420px) minmax(260px, 1fr); justify-content: start; gap: 18px; align-items: start; padding: 4px 6px 18px; min-height: 100%; box-sizing: border-box; }
+.hd-l { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.hd-slot .hx { margin: 0; }
+
+.hd-card { border-radius: 18px; border: 1px solid rgba(255, 255, 255, .08); background: rgba(255, 255, 255, .025); padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.hd-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.hd-k { font: 600 11px/1 var(--f-body); letter-spacing: .12em; text-transform: uppercase; color: #8f8f96; }
+.hd-r { font-size: 12px; color: #8f8f96; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hd-t { font: 600 24px/1.15 var(--f-body); letter-spacing: -.01em; color: #f5f5f7; }
+.hd-sub { font-size: 12px; color: #a8a8b0; }
+.hd-empty { margin: 0; font-size: 13px; color: #8f8f96; }
+.hd-stats { display: flex; gap: 22px; flex-wrap: wrap; }
+.hd-st { display: flex; flex-direction: column; gap: 2px; }
+.hd-st b { font: 500 18px/1.1 var(--f-body); color: #f5f5f7; font-variant-numeric: tabular-nums; }
+.hd-st span { font-size: 11px; color: #8f8f96; }
+.hd-acts { display: flex; gap: 8px; }
+.hd-btn { padding: 9px 14px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .14); background: transparent; color: #f5f5f7; font: 500 13px var(--f-body); cursor: pointer; }
+.hd-btn:hover { background: rgba(255, 255, 255, .06); }
+.hd-go { border: 0; background: var(--accent); color: #fff; font-weight: 600; flex: none; }
+.hd-go:hover { background: var(--accent); filter: brightness(1.1); }
+.hd-go:disabled { opacity: .6; }
+
+.hd-mrow { display: flex; align-items: center; gap: 12px; }
+.hd-map { width: 64px; height: 42px; border-radius: 8px; object-fit: cover; background: #1d1d22; flex: none; }
+.hd-mtx { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.hd-res { font: 600 18px/1.1 var(--f-body); color: #f5f5f7; }
+.hd-res .w { color: #ff5a6a; } .hd-res .l { color: #8f8f96; }
+
+.hd-modrow { display: flex; gap: 8px; }
+.hd-sel { flex: 1; min-width: 0; height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .14); background: #0b0b0e; color: #f5f5f7; font: 500 13px var(--f-body); color-scheme: dark; cursor: pointer; }
+.hd-sel:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+
+/* the Stats page, in the middle */
+.hd-m { min-width: 0; border-radius: 20px; border: 1px solid rgba(255, 255, 255, .08); background: rgba(10, 10, 12, .85); padding: 16px 18px; box-sizing: border-box; }
+.hd-m .col.statscol { max-width: none !important; margin: 0 !important; width: 100%; }
+.hd-m .col.statscol > :not(.seg) { margin-inline: 0 !important; }
+
+/* last game: one big tile you click to launch */
+#hdGame { padding: 0; overflow: hidden; }
+#hdGame:hover { border-color: rgba(255, 255, 255, .16); background: rgba(255, 255, 255, .04); }
+.hd-tile { display: flex; flex-direction: column; width: 100%; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
+.hd-art { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #141418; display: grid; place-items: center; overflow: hidden; }
+.hd-art img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .25s ease; }
+.hd-tile:hover .hd-art img { transform: scale(1.03); }
+.hd-art .glogo { width: 56px; height: 56px; }
+.hd-tx { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px 4px; }
+.hd-play { align-self: flex-start; margin: 10px 18px 16px; padding: 9px 18px; border-radius: 10px; background: var(--accent); color: #fff; font: 600 13px var(--f-body); }
+.hd-tile:hover .hd-play { filter: brightness(1.1); }
+.hd-tile:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+
+/* the Stats and Games tabs are gone (Stats lives on Home; Games only shows the retro player) */
+#tabbtn-stats, #tabbtn-games, #tabbtn-ytm { display: none !important; }
+.hd-narrow { width: 100%; max-width: 560px; margin-top: 14px; }
+.hd-narrow:empty { display: none; }
+
+/* Rainbow Six stats: no Top operators or Recent matches lists */
+#r6OpHead, #r6Ops, #r6MatchHead, #r6Matches { display: none !important; }
+
+/* no Friends page in Stats */
+#gameSeg button[data-game="fr"], #frTab { display: none !important; }
+
+/* Music on Home: album art, then the lyrics under it, in the space right of Stats */
+.hd-mu { position: sticky; top: 0; height: calc(100vh - 96px); min-width: 0; }
+.hd-mu .mnp { position: relative; inset: auto; z-index: auto; height: 100%; flex-direction: column; align-items: stretch; gap: 14px; padding: 0; background: transparent; border-radius: 0; }
+.hd-mu .mnp[hidden] { display: none; }
+.hd-mu .mnp-l { flex: none; align-self: stretch; min-width: 0; max-width: 360px; width: 100%; margin: 0 auto; gap: 12px; }
+.hd-mu .mnp-tx b { font-size: 1.15rem; }
+.hd-mu .mnp-ly { flex: 1 1 auto; min-height: 0; padding: 8px 0 45vh; }
+.hd-mu .mnp-ly button, .hd-mu .mnp-ly p { font-size: 1.3rem; }
+
+/* the side panel's own music card (above the Discord channels) is gone: music now sits next to Stats */
+body.hd-on #wdNow { display: none !important; }
+
+/* line the album art up with the Stats panel: same top edge, flush to the left of its column */
+.hd-mu { align-self: start; }
+.hd-mu .mnp { justify-content: flex-start; align-content: flex-start; margin: 0; }
+.hd-mu .mnp-l { margin: 0; max-width: 380px; }
+.hd-mu .mnp-art { border-radius: 20px; border: 1px solid rgba(255, 255, 255, .08); box-sizing: border-box; }
+
+/* the Music library (and its search results) on Home, right of the music */
+.hd-lib { position: sticky; top: 0; height: calc(100vh - 96px); min-width: 0; display: flex; flex-direction: column; }
+.hd-lib .yts { position: relative !important; inset: auto !important; left: auto !important; right: auto !important; top: auto !important; bottom: auto !important; width: auto !important; flex: 1; min-height: 0; padding: 0 !important; background: transparent !important; border: 0 !important; z-index: auto !important; display: flex; flex-direction: column; gap: 10px; }
+.hd-lib .yts[hidden] { display: none; }
+.hd-lib .yts-kind { align-self: flex-start; padding: 0; gap: 6px; background: none; border: 0; }
+.hd-lib .yts-kind button { flex: none; padding: 5px 14px; border-radius: 999px; font-size: .8rem; border: 1px solid var(--line); }
+.hd-lib .yts-kind button[aria-checked="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.hd-lib .yts-list { scrollbar-width: thin; scrollbar-color: #2a2a2f #000; }
+.hd-lib .yts-list::-webkit-scrollbar { width: 8px; background: #000; }
+.hd-lib .yts-list::-webkit-scrollbar-thumb { background: #26262b; border-radius: 8px; border: 2px solid #000; }
+.hd-lib .yts-form .mlib-x { width: 30px; height: 30px; margin-right: -6px; flex: none; color: var(--muted); }
+.hd-lib #ytlList.ytl-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px 8px; }
+
+/* search: a Back button above the results, and no big highlights */
+.mlib-back { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px 6px 4px; border: 0; border-radius: 8px; background: none; color: #c8c8ce; font: 500 13px var(--f-body); cursor: pointer; }
+.mlib-back:hover { color: #f5f5f7; background: rgba(255, 255, 255, .05); }
+.mlib-back svg { width: 16px; height: 16px; }
+.hd-lib .yts-form, .hd-lib .yts-form:focus-within { border-color: rgba(255, 255, 255, .1); box-shadow: none; background: rgba(255, 255, 255, .03); }
+.hd-lib .yts-form input:focus, .hd-lib .yts-form input:focus-visible { outline: none; box-shadow: none; }
+.hd-lib .yts-kind button[aria-checked="true"] { background: rgba(255, 255, 255, .1); color: #f5f5f7; border-color: transparent; }
+
+/* main window: minimize to the taskbar as usual, but no pin (pin lives in the mini player; the compact sidebar keeps your pin) */
+#pinBtn, #tbMenu [data-k="pinBtn"], .setting:has(#setPin) { display: none !important; }
+
+/* Blackwall's CRT power off (minimize) and power on (coming back), from 19-window-rules.js */
+.crt-fx { position: absolute; inset: 0; z-index: 10000; pointer-events: none; opacity: 0; background: linear-gradient(#ffd0d5, #ff3b4f 40%, #ffd0d5); box-shadow: 0 0 40px 10px rgba(227, 25, 47, .3); }
+.shell.crt-off { animation: sthCrtOff .5s cubic-bezier(.7, 0, .3, 1) forwards; }
+.shell.crt-on { animation: sthCrtOn .5s cubic-bezier(.2, .8, .3, 1) both; }
+.shell.crt-off .crt-fx { animation: sthCrtGlowOff .5s forwards; }
+.shell.crt-on .crt-fx { animation: sthCrtGlowOn .5s forwards; }
+@keyframes sthCrtOff { 0% { transform: none; } 35% { transform: scale(1, .006); } 70% { transform: scale(.02, .006); } 100% { transform: scale(0, 0); opacity: 0; } }
+@keyframes sthCrtOn { 0% { transform: scale(0, .006); opacity: 0; } 30% { transform: scale(1, .006); opacity: 1; } 100% { transform: none; } }
+@keyframes sthCrtGlowOff { 0% { opacity: 0; } 30%, 100% { opacity: 1; } }
+@keyframes sthCrtGlowOn { 0%, 30% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .shell.crt-off, .shell.crt-on, .crt-fx { animation: none !important; } }
+
+/* no error message under the library search bar while it retries at start-up */
+#ytlMsg.hd-quiet { display: none !important; }
+
+/* Big "Clip it" button under Notes */
+.hm-clipbig { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.wd-slot .hm-clipbig { margin-top: 0; }
+.hm-clip.big { width: 100%; justify-content: center; gap: 12px; padding: 16px 18px; border-radius: 16px; font-size: 1.05rem; letter-spacing: .02em;
+  background: color-mix(in srgb, #ff3b4f 14%, var(--surface)); border-color: rgba(255, 59, 79, .4); }
+.hm-clip.big:hover { border-color: rgba(255, 59, 79, .8); background: color-mix(in srgb, #ff3b4f 22%, var(--surface)); }
+.hm-clip.big i { width: 14px; height: 14px; }
+.hm-clip.big .clip-ring { border-radius: 16px; }
+.hm-clip.hm-clipdir.big { padding: 16px 18px; }
+.hm-clip.hm-clipdir.big svg { width: 18px; height: 18px; }
