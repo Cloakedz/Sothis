@@ -1,7 +1,19 @@
 {
  "_note": "Newest version of each app. Braindance and Afterimage read this to show their Update ready banner; bump a version here after attaching its new installer to the latest release.",
- "sothis": { "version": "2.0.0", "url": "https://github.com/Cloakedz/Sothis/releases/latest/download/Sothis-Setup.exe" },
- "blackwall": { "version": "1.6.2", "url": "https://github.com/Cloakedz/Sothis/releases/latest/download/Blackwall-Setup.exe" },
- "braindance": { "version": "1.0.0", "url": "https://github.com/Cloakedz/Sothis/releases/latest/download/Braindance-Setup.exe" },
- "afterimage": { "version": "1.0.0", "url": "https://github.com/Cloakedz/Sothis/releases/latest/download/Afterimage-Setup.exe" }
+ "sothis": {
+  "version": "2.0.1",
+  "url": "https://github.com/Cloakedz/Sothis/releases/latest/download/Sothis-Setup.exe"
+ },
+ "blackwall": {
+  "version": "1.6.2",
+  "url": "https://github.com/Cloakedz/Sothis/releases/latest/download/Blackwall-Setup.exe"
+ },
+ "braindance": {
+  "version": "1.0.0",
+  "url": "https://github.com/Cloakedz/Sothis/releases/latest/download/Braindance-Setup.exe"
+ },
+ "afterimage": {
+  "version": "1.0.0",
+  "url": "https://github.com/Cloakedz/Sothis/releases/latest/download/Afterimage-Setup.exe"
+ }
 }

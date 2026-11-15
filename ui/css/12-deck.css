@@ -147,3 +147,48 @@ html.deck .gm-art { border-radius: 0; }
 
 /* no lyrics button or panel in Music */
 html.deck #lyBtn, html.deck #lyPanel { display: none !important; }
+
+/* ===== Animations ===== */
+/* tabs: one red highlight that slides to the open tab */
+html.deck .dk-nav { position: relative; }
+html.deck .dk-ind { position: absolute; left: 0; top: 0; height: 32px; width: 0; background: var(--accent); clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); transition: transform .35s cubic-bezier(.7, 0, .2, 1), width .35s cubic-bezier(.7, 0, .2, 1); pointer-events: none; }
+html.deck .dk-ind[hidden] { display: none; }
+html.deck .dk-tab { position: relative; z-index: 1; }
+html.deck .dk-tab[aria-current="page"] { background: transparent; }
+/* Home: panels rise in one after another, library rows slide in */
+@keyframes dkRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes dkRowIn { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
+html.deck #dk.dk-enter > * { animation: dkRise .55s cubic-bezier(.2, .8, .2, 1) both; }
+html.deck #dk.dk-enter > :nth-child(2) { animation-delay: .06s; } html.deck #dk.dk-enter > :nth-child(3) { animation-delay: .12s; }
+html.deck #dk.dk-enter > :nth-child(4) { animation-delay: .18s; } html.deck #dk.dk-enter > :nth-child(5) { animation-delay: .24s; }
+html.deck #dk.dk-enter > :nth-child(6) { animation-delay: .30s; } html.deck #dk.dk-enter > :nth-child(7) { animation-delay: .36s; }
+html.deck #dk.dk-enter > :nth-child(8) { animation-delay: .42s; }
+html.deck #dk.dk-enter .dk-list > .dk-row { animation: dkRowIn .45s ease-out both; }
+html.deck #dk.dk-enter .dk-list > .dk-row:nth-child(2) { animation-delay: .38s; } html.deck #dk.dk-enter .dk-list > .dk-row:nth-child(3) { animation-delay: .44s; }
+html.deck #dk.dk-enter .dk-list > .dk-row:nth-child(4) { animation-delay: .50s; } html.deck #dk.dk-enter .dk-list > .dk-row:nth-child(5) { animation-delay: .56s; }
+html.deck #dk.dk-enter .dk-list > .dk-row:nth-child(n+6) { animation-delay: .62s; }
+html.deck #dk.dk-enter .dk-list > .dk-row:first-child { animation-delay: .32s; }
+/* START: a slow glow and a shine passing across */
+@keyframes dkPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(227, 25, 47, 0); } 50% { box-shadow: 0 0 22px 2px rgba(227, 25, 47, .55); } }
+@keyframes dkShine { 0%, 60% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+html.deck .dk-start { position: relative; overflow: hidden; animation: dkPulse 2.4s ease-in-out infinite; }
+html.deck .dk-start::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .32) 50%, transparent 70%); transform: translateX(-120%); animation: dkShine 3.2s ease-in-out infinite; pointer-events: none; }
+/* Audio: equalizer bars while music plays */
+html.deck .dk-eq { display: none; gap: 3px; align-items: flex-end; height: 14px; margin-left: auto; }
+html.deck .dk-eq.on { display: inline-flex; }
+html.deck .dk-eq i { display: block; width: 3px; height: 14px; background: var(--accent); transform-origin: bottom; animation: dkEq 1s ease-in-out infinite; }
+html.deck .dk-eq i:nth-child(2) { animation-delay: .2s; } html.deck .dk-eq i:nth-child(3) { animation-delay: .4s; } html.deck .dk-eq i:nth-child(4) { animation-delay: .1s; }
+@keyframes dkEq { 0%, 100% { transform: scaleY(.3); } 50% { transform: scaleY(1); } }
+/* Discord: a ripple around whoever's talking */
+@keyframes dkTalk { 0% { box-shadow: 0 0 0 2px #3ccf8e, 0 0 0 2px rgba(60, 207, 142, .6); } 100% { box-shadow: 0 0 0 2px #3ccf8e, 0 0 0 10px rgba(60, 207, 142, 0); } }
+html.deck .dcp.talk .dcp-av img { animation: dkTalk 1.2s ease-out infinite; }
+/* Retro: box art lifts on hover */
+html.deck .dk-rt-art { transition: transform .18s ease, box-shadow .18s ease, border-color .18s; }
+html.deck .dk-rt:hover .dk-rt-art, html.deck .dk-rt:focus-visible .dk-rt-art { transform: translateY(-5px) scale(1.03); box-shadow: 0 10px 22px rgba(227, 25, 47, .3); }
+/* Update ready: breathes so you notice it */
+@keyframes dkBreathe { 0%, 100% { box-shadow: 0 0 6px rgba(227, 25, 47, .3); } 50% { box-shadow: 0 0 16px rgba(227, 25, 47, .8); } }
+html.deck .dk-upd { animation: dkBreathe 2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  html.deck .dk-ind { transition: none; }
+  html.deck #dk.dk-enter > *, html.deck #dk.dk-enter .dk-list > .dk-row, html.deck .dk-start, html.deck .dk-start::after, html.deck .dk-eq i, html.deck .dcp.talk .dcp-av img, html.deck .dk-upd { animation: none; }
+}

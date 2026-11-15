@@ -1,5 +1,12 @@
 [
  {
+  "v": "2.0.1",
+  "d": "2026-11-14",
+  "notes": [
+   "Animations: the tab highlight slides, Home's panels rise in, START glows, equalizer bars while music plays, a ripple around whoever's talking on Discord, and retro box art lifts on hover"
+  ]
+ },
+ {
   "v": "2.0.0",
   "d": "2026-11-14",
   "notes": [

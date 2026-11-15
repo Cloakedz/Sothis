@@ -74,11 +74,19 @@
       } else showTab(k);
       navMark();
     }
+    // the red highlight slides to the open tab
+    const navInd = el("span", "dk-ind"); navInd.setAttribute("aria-hidden", "true"); nav.prepend(navInd);
+    let navPrev = "";
     function navMark() {
       let cur = tab;
       if (tab === "games") cur = "pc";
       if (tab === "clips") cur = "files";
       for (const k in navBtns) navBtns[k].setAttribute("aria-current", k === cur ? "page" : "false");
+      const on = navBtns[cur];
+      if (on && on.offsetWidth) { navInd.style.width = on.offsetWidth + "px"; navInd.style.transform = "translateX(" + on.offsetLeft + "px)"; navInd.hidden = false; }
+      else navInd.hidden = true;
+      // Home's panels rise in one after another each time you come back to Home
+      if (cur !== navPrev) { if (cur === "home" && navPrev) { try { const d = $("dk"); d.classList.remove("dk-enter"); void d.offsetWidth; d.classList.add("dk-enter"); clearTimeout(navMark.t); navMark.t = setTimeout(() => d.classList.remove("dk-enter"), 1400); } catch {} } navPrev = cur; }
     }
     setInterval(navMark, 300);
     const tick = () => { const d = new Date(); clock.textContent = "Online // " + d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); };
@@ -120,6 +128,8 @@
     slotMove("hx", lArt);
     // Audio: Now playing
     const pMusic = panel("dk-music", "Audio", "");
+    const eq = el("span", "dk-eq"); eq.setAttribute("aria-hidden", "true"); eq.innerHTML = "<i></i><i></i><i></i><i></i>"; pMusic.querySelector(".dk-h").append(eq);
+    setInterval(() => { try { eq.classList.toggle("on", !!(ytState && ytState.has && ytState.playing)); } catch {} }, 700);
     slotMove("hmNow", pMusic);
     const idle = el("p", "dk-note", "Nothing playing. Pick a song in Music.");
     pMusic.append(idle);
@@ -262,4 +272,5 @@
     showTab = function (t) { if (t === "switch") { try { D.swPopout(); } catch {} t = "home"; } if (t === "web" || t === "opera") t = "home"; const r = showTabDeck(t); navMark(); return r; };
     if (tab === "switch") showTab("home");
     navMark();
+    try { const d = $("dk"); d.classList.add("dk-enter"); setTimeout(() => d.classList.remove("dk-enter"), 1400); } catch {}
   })();
